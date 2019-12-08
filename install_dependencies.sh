@@ -28,7 +28,7 @@ if [ ! -d hiredis ]; then
           libssl-dev
      git clone git@github.com:redis/hiredis.git
      pushd hiredis
-     make USE_SSL=1
+     make USE_SSL=1 && sudo make install
      popd
 fi
 

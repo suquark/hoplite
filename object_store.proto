@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package objectstore;
+
+message PullRequest {
+  bytes object_id = 1;
+}
+
+message PullReply {
+}
+
+service ObjectStore {
+  rpc Pull(PullRequest) returns (PullReply);
+}
