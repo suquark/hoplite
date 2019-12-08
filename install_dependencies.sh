@@ -24,6 +24,8 @@ fi
 
 ## build hiredis (redis client)
 if [ ! -d hiredis ]; then
+     sudo apt-get install \
+          libssl-dev
      git clone git@github.com:redis/hiredis.git
      pushd hiredis
      make USE_SSL=1
