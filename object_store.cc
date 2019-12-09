@@ -61,6 +61,7 @@ void get(ObjectID object_id, const void **data, size_t *size) {
   PullRequest request;
   PullReply reply;
   request.set_object_id(object_id.binary());
+  request.set_puller_ip(my_address);
   stub->Pull(&context, request, &reply);
 
   // get object from Plasma
@@ -80,7 +81,7 @@ public:
     struct sockaddr_in push_addr;
     push_addr.sin_port = 6666;
     int conn_fd = socket(AF_INET, SOCK_STREAM, 0);
-    inet_pton(AF_INET, "127.0.0.1", &push_addr.sin_addr);
+    inet_pton(AF_INET, request->puller_ip().c_str(), &push_addr.sin_addr);
     connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
     // fetech object from Plasma
     std::vector<ObjectBuffer> object_buffers;
