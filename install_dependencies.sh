@@ -1,8 +1,40 @@
 #!/bin/bash
 
+## build protobuf
+if [ ! -d protoc]; then
+    git clone https://github.com/protocolbuffers/protobuf.git
+
+    sudo apt-get install \
+         autoconf \
+	 automake \
+	 libtool \
+	 curl \
+	 make \
+	 g++ \
+	 unzip
+
+    pushd protobuf
+    git submodule update --init --recursive
+    ./autogen.sh
+    ./configure
+    make -j 32 && sudo make install
+    sudo ldconfig
+    popd
+fi
+
+## build grpc
+if [ ! -d grpc]; then
+     git clone https://github.com/grpc/grpc.git
+     pushd grpc
+     git submodule update --init
+
+     make -j 32 && sudo make install
+     popd
+fi
+
 ## build Arrow
 if [ ! -d arrow ]; then
-     git clone git@github.com:apache/arrow.git
+     git clone https://github.com/apache/arrow.git
 
      sudo apt-get install \
           build-essential \
@@ -26,7 +58,7 @@ fi
 if [ ! -d hiredis ]; then
      sudo apt-get install \
           libssl-dev
-     git clone git@github.com:redis/hiredis.git
+     git clone https://github.com/redis/hiredis.git
      pushd hiredis
      make USE_SSL=1 && sudo make install
      popd
