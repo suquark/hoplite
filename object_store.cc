@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <grpc/grpc.h>
+#include <grpcpp/grpcpp.h>
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
@@ -27,21 +28,47 @@ std::string redis_address;
 std::string my_address;
 
 PlasmaClient plasma_client;
+redisContext *redis_client;
 
-ObjectID put(redisContext *redis, PlasmaClient *client, void *data,
-             size_t size) {
+ObjectID put(void *data, size_t size) {
   // generate a random object id
   ObjectID object_id = random_object_id();
   // put object into Plasma
+  std::shared_ptr<Buffer> ptr;
+  plasma_client.Create(object_id, size, NULL, 0, &ptr);
+  memcpy(ptr->mutable_data(), data, size);
+  plasma_client.Seal(object_id);
   // put object location information into redis
+  redisReply *redis_reply = (redisReply *)redisCommand(
+      redis_client, "SET %s %s", object_id.binary(), my_address.c_str());
+  freeReplyObject(redis_reply);
   return object_id;
 }
 
-void get(redisContext *redis, PlasmaClient *client, ObjectID object_id,
-         void **data, size_t *size) {
+void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
+  redisReply *redis_reply =
+      (redisReply *)redisCommand(redis_client, "GET %s", object_id.binary());
+  std::string address = std::string(redis_reply->str);
+  freeReplyObject(redis_reply);
+
   // send pull request to one of the location
-  // put object into Plasma
+  std::string remote_grpc_address = address + ":" + std::to_string(50051);
+  auto channel = grpc::CreateChannel(remote_grpc_address,
+                                     grpc::InsecureChannelCredentials());
+  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+  grpc::ClientContext context;
+  PullRequest request;
+  PullReply reply;
+  request.set_object_id(object_id.binary());
+  stub->Pull(&context, request, &reply);
+
+  // get object from Plasma
+  std::vector<ObjectBuffer> object_buffers;
+  plasma_client.Get({object_id}, -1, &object_buffers);
+
+  *data = object_buffers[0].data->data();
+  *size = object_buffers[0].data->size();
 }
 
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
@@ -122,8 +149,7 @@ int main(int argc, char **argv) {
   // create a thread to process pull requests
   std::thread grpc_thread(RunGRPCServer, my_address, 50051);
   // create a redis client
-  redisContext *redis;
-  redis = redisConnect(redis_address.c_str(), 6379);
+  redis_client = redisConnect(redis_address.c_str(), 6379);
   // create a plasma client
   plasma_client.Connect("/tmp/plasma", "");
 
