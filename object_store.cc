@@ -43,6 +43,11 @@ ObjectID put(const void *data, size_t size) {
       redis_client, "SET %s %s", object_id.hex(), my_address.c_str());
   freeReplyObject(redis_reply);
 
+  redis_reply = (redisReply*) redisCommand(
+		  redis_client, "GET %s", object_id.hex());
+  std::cout << "object " << object_id.hex() << " location = " << redis_reply->str << std::endl;
+  freeReplyObject(redis_reply);
+
   return object_id;
 }
 
@@ -125,6 +130,8 @@ void RunTCPServer(std::string ip, int port) {
   bind(server_fd, (struct sockaddr *)&address, sizeof(address));
   listen(server_fd, 10);
 
+  std::cout << "tcp server is ready at " << ip << ":" << port << std::endl;
+
   while (true) {
     char obj_id[kUniqueIDSize];
     long object_size;
@@ -147,6 +154,7 @@ void RunGRPCServer(std::string ip, int port) {
   ObjectStoreServiceImpl service;
   builder.RegisterService(&service);
   std::unique_ptr<grpc::Server> grpc_server = builder.BuildAndStart();
+  std::cout << "grpc server " << grpc_address << " started" << std::endl;
   grpc_server->Wait();
 }
 
@@ -154,8 +162,6 @@ void test_server() {
   ObjectID object_id = put("abc", 3);
   std::cout << "Object is created!" << std::endl;
   std::cout << object_id.hex() << std::endl;
-  while (true) {
-  }
 }
 
 void test_client(ObjectID object_id) {
@@ -166,8 +172,6 @@ void test_client(ObjectID object_id) {
   a.assign(buffer, size);
   std::cout << "Object is retrieved:" << std::endl;
   std::cout << a << std::endl;
-  while (true) {
-  }
 }
 
 unsigned char hex_to_dec(char a) {
@@ -215,6 +219,9 @@ int main(int argc, char **argv) {
   } else {
     test_client(from_hex(argv[4]));
   }
+
+  tcp_thread.join();
+  grpc_thread.join();
 
   return 0;
 }
