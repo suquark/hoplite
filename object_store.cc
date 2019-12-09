@@ -40,15 +40,16 @@ ObjectID put(const void *data, size_t size) {
   plasma_client.Seal(object_id);
   // put object location information into redis
   redisReply *redis_reply = (redisReply *)redisCommand(
-      redis_client, "SET %s %s", object_id.binary(), my_address.c_str());
+      redis_client, "SET %s %s", object_id.hex(), my_address.c_str());
   freeReplyObject(redis_reply);
+
   return object_id;
 }
 
 void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
   redisReply *redis_reply =
-      (redisReply *)redisCommand(redis_client, "GET %s", object_id.binary());
+      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex());
   std::string address = std::string(redis_reply->str);
   freeReplyObject(redis_reply);
 
