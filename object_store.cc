@@ -91,26 +91,47 @@ public:
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
 
-    std::cout << "Received a pull request from" << request->puller_ip()
-              << " for object " << request->object_id() << std::endl;
-
     ObjectID object_id = ObjectID::from_binary(request->object_id());
+    std::cout << "Received a pull request from " << request->puller_ip()
+              << " for object " << object_id.hex() << std::endl;
+
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
     push_addr.sin_port = 6666;
     int conn_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (conn_fd < 0) {
+      std::cout << "socket creation error" << std::endl;
+      exit(-1);
+    }
     inet_pton(AF_INET, request->puller_ip().c_str(), &push_addr.sin_addr);
-    connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
+    int success =
+        connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
+    if (success < 0) {
+      std::cout << "socket connect error" << std::endl;
+      exit(-1);
+    }
     // fetech object from Plasma
     std::vector<ObjectBuffer> object_buffers;
     plasma_client.Get({object_id}, -1, &object_buffers);
     // send object_id
-    send(conn_fd, object_id.data(), kUniqueIDSize, 0);
+    success = send(conn_fd, object_id.data(), kUniqueIDSize, 0);
+    if (success < 0) {
+      std::cout << "socket send error: object_id" << std::endl;
+      exit(-1);
+    }
     // send object size
     long object_size = object_buffers[0].data->size();
-    send(conn_fd, &object_size, sizeof(long), 0);
+    success = send(conn_fd, &object_size, sizeof(long), 0);
+    if (success < 0) {
+      std::cout << "socket send error: object size" << std::endl;
+      exit(-1);
+    }
     // send object
-    send(conn_fd, object_buffers[0].data->data(), object_size, 0);
+    success = send(conn_fd, object_buffers[0].data->data(), object_size, 0);
+    if (success < 0) {
+      std::cout << "socket send error: object content" << std::endl;
+      exit(-1);
+    }
     plasma_client.Release(object_id);
     close(conn_fd);
     return grpc::Status::OK;
