@@ -1,34 +1,29 @@
 #!/bin/bash
 
-## build protobuf
-if [ ! -d protoc ]; then
-    git clone https://github.com/protocolbuffers/protobuf.git
-
-    sudo apt-get install \
-         autoconf \
-	 automake \
-	 libtool \
-	 curl \
-	 make \
-	 g++ \
-	 unzip
-
-    pushd protobuf
-    git submodule update --init --recursive
-    ./autogen.sh
-    ./configure
-    make -j 32 && sudo make install
-    sudo ldconfig
-    popd
-fi
-
 ## build grpc
 if [ ! -d grpc ]; then
-     git clone https://github.com/grpc/grpc.git
-     pushd grpc
-     git submodule update --init
+     git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc.git
 
-     make -j 32 && sudo make install
+     sudo apt-get install \
+          build-essential \
+	  autoconf \
+	  libtool \
+	  pkg-config \
+	  libgflags-dev \
+	  libgtest-dev \
+	  clang-5.0 \
+	  libc++-dev
+
+     pushd grpc
+     git submodule update --init --recursive
+
+     make -j && sudo make install
+     popd
+
+     pushd grpc/third_party/protobuf
+     ./autogen.sh
+     ./configure
+     make -j && sudo make install
      popd
 fi
 
@@ -47,10 +42,10 @@ if [ ! -d arrow ]; then
      pushd arrow/cpp/build
 
      cmake ..
-     make -j 32 && sudo make install
+     make -j && sudo make install
 
      cmake -D ARROW_PLASMA=on -D ARROW_BUILD_TESTS=on ..
-     make -j 32 && sudo make install
+     make -j && sudo make install
      popd
 fi
 
@@ -61,6 +56,7 @@ if [ ! -d hiredis ]; then
      git clone https://github.com/redis/hiredis.git
      pushd hiredis
      make USE_SSL=1 && sudo make install
+     sudo ldconfig
      popd
 fi
 
