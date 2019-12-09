@@ -162,12 +162,18 @@ void test_client(ObjectID object_id) {
   }
 }
 
-int hex_to_dec(char a) { return a - '0'; }
+unsigned char hex_to_dec(char a) {
+  if (a < '9') {
+    return a - '0';
+  } else {
+    return a - 'a' + 10;
+  }
+}
 
 ObjectID from_hex(char *hex) {
   unsigned char id[kUniqueIDSize];
   for (int i = 0; i < kUniqueIDSize; i++) {
-    id[i] = hex_to_dec(hex[2 * i]) << 4 + hex_to_dec(hex[2 * i + 1]);
+    id[i] = hex_to_dec(hex[2 * i]) * 16 + hex_to_dec(hex[2 * i + 1]);
   }
   std::string binary = std::string((char *)id, kUniqueIDSize);
   return ObjectID::from_binary(binary);
