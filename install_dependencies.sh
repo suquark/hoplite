@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## build protobuf
-if [ ! -d protoc]; then
+if [ ! -d protoc ]; then
     git clone https://github.com/protocolbuffers/protobuf.git
 
     sudo apt-get install \
@@ -23,7 +23,7 @@ if [ ! -d protoc]; then
 fi
 
 ## build grpc
-if [ ! -d grpc]; then
+if [ ! -d grpc ]; then
      git clone https://github.com/grpc/grpc.git
      pushd grpc
      git submodule update --init
