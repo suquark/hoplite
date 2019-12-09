@@ -43,9 +43,10 @@ ObjectID put(const void *data, size_t size) {
       redis_client, "SET %s %s", object_id.hex(), my_address.c_str());
   freeReplyObject(redis_reply);
 
-  redis_reply = (redisReply*) redisCommand(
-		  redis_client, "GET %s", object_id.hex());
-  std::cout << "object " << object_id.hex() << " location = " << redis_reply->str << std::endl;
+  redis_reply =
+      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex());
+  std::cout << "object " << object_id.hex()
+            << " location = " << redis_reply->str << std::endl;
   freeReplyObject(redis_reply);
 
   return object_id;
@@ -89,6 +90,10 @@ class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
+
+    std::cout << "Received a pull request from" << request->puller_ip()
+              << " for object " << request->object_id() << std::endl;
+
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
