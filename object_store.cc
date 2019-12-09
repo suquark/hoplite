@@ -50,9 +50,14 @@ void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
   redisReply *redis_reply =
       (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex());
-  std::cout << "object " << object_id.hex()
-            << " location = " << redis_reply->str << std::endl;
+  if (redis_reply->str == nullptr) {
+    std::cout << "cannot find object " << object_id.hex() << " in Redis"
+              << std::endl;
+    exit(-1);
+  }
   std::string address = std::string(redis_reply->str);
+  std::cout << "object " << object_id.hex() << " location = " << address
+            << std::endl;
   freeReplyObject(redis_reply);
 
   // send pull request to one of the location
@@ -199,6 +204,9 @@ int main(int argc, char **argv) {
   std::thread grpc_thread(RunGRPCServer, my_address, 50051);
   // create a redis client
   redis_client = redisConnect(redis_address.c_str(), 6379);
+  std::cout << "Connected to Redis server running at " << redis_address
+            << std::endl;
+
   // create a plasma client
   plasma_client.Connect("/tmp/plasma", "");
 
