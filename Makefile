@@ -1,6 +1,6 @@
-LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma hiredis`\
+LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma arrow hiredis`\
 	  -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed\
-	  -lgrpc -ldl
+	  -lgrpc -ldl -lpthread
 
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis`
