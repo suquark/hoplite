@@ -50,6 +50,8 @@ void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
   redisReply *redis_reply =
       (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex());
+  std::cout << "object " << object_id.hex()
+            << " location = " << redis_reply->str << std::endl;
   std::string address = std::string(redis_reply->str);
   freeReplyObject(redis_reply);
 
@@ -164,7 +166,7 @@ void test_client(ObjectID object_id) {
 }
 
 unsigned char hex_to_dec(char a) {
-  if (a < '9') {
+  if (a <= '9') {
     return a - '0';
   } else {
     return a - 'a' + 10;
@@ -177,7 +179,15 @@ ObjectID from_hex(char *hex) {
     id[i] = hex_to_dec(hex[2 * i]) * 16 + hex_to_dec(hex[2 * i + 1]);
   }
   std::string binary = std::string((char *)id, kUniqueIDSize);
-  return ObjectID::from_binary(binary);
+
+  ObjectID object_id = ObjectID::from_binary(binary);
+  if (object_id.hex().compare(hex) != 0) {
+    std::cout << object_id.hex() << std::endl;
+    std::cout << "error in decoding object id" << std::endl;
+    exit(-1);
+  }
+
+  return object_id;
 }
 
 int main(int argc, char **argv) {

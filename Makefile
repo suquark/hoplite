@@ -4,7 +4,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma arrow hired
 
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis`
-CXXFLAGS += -std=c++11
+CXXFLAGS += -std=c++11 -g
 
 PROTOC = protoc
 PROTOS_PATH = .
