@@ -162,12 +162,28 @@ void RunTCPServer(std::string ip, int port) {
     char obj_id[kUniqueIDSize];
     long object_size;
     conn_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
-    recv(conn_fd, obj_id, kUniqueIDSize, 0);
+    if (conn_fd < 0) {
+      std::cout << "socket accept error" << std::endl;
+      exit(-1);
+    }
+    int numbytes = recv(conn_fd, obj_id, kUniqueIDSize, 0);
+    if (numbytes != kUniqueIDSize) {
+      std::cout << "socket recv error: object id" << std::endl;
+      exit(-1);
+    }
     ObjectID object_id = ObjectID::from_binary(obj_id);
-    recv(conn_fd, &object_size, sizeof(long), 0);
+    numbytes = recv(conn_fd, &object_size, sizeof(long), 0);
+    if (numbytes != sizeof(long)) {
+      std::cout << "socket recv error: object size" << std::endl;
+      exit(-1);
+    }
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
-    recv(conn_fd, ptr->mutable_data(), object_size, 0);
+    numbytes = recv(conn_fd, ptr->mutable_data(), object_size, 0);
+    if (numbytes != object_size) {
+      std::cout << "socker recv error: object content" << std::endl;
+      exit(-1);
+    }
     plasma_client.Seal(object_id);
     close(conn_fd);
   }
