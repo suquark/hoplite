@@ -61,7 +61,10 @@ public:
     // send object_id
     send(conn_fd, object_id.data(), kUniqueIDSize, 0);
     // send object size
+    long object_size = object_buffers[0].data->size();
+    send(conn_fd, &object_size, sizeof(long), 0);
     // send object
+    send(conn_fd, object_buffers[0].data->data(), object_size, 0);
     plasma_client.Release(object_id);
     close(conn_fd);
     return grpc::Status::OK;
