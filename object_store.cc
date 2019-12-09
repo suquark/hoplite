@@ -30,7 +30,7 @@ std::string my_address;
 PlasmaClient plasma_client;
 redisContext *redis_client;
 
-ObjectID put(void *data, size_t size) {
+ObjectID put(const void *data, size_t size) {
   // generate a random object id
   ObjectID object_id = random_object_id();
   // put object into Plasma
@@ -141,6 +141,37 @@ void RunGRPCServer(std::string ip, int port) {
   grpc_server->Wait();
 }
 
+void test_server() {
+  ObjectID object_id = put("abc", 3);
+  std::cout << "Object is created!" << std::endl;
+  std::cout << object_id.hex() << std::endl;
+  while (true) {
+  }
+}
+
+void test_client(ObjectID object_id) {
+  const char *buffer;
+  size_t size;
+  get(object_id, (const void **)&buffer, &size);
+  std::string a;
+  a.assign(buffer, size);
+  std::cout << "Object is retrieved:" << std::endl;
+  std::cout << a << std::endl;
+  while (true) {
+  }
+}
+
+int hex_to_dec(char a) { return a - '0'; }
+
+ObjectID from_hex(char *hex) {
+  unsigned char id[kUniqueIDSize];
+  for (int i = 0; i < kUniqueIDSize; i++) {
+    id[i] = hex_to_dec(hex[2 * i]) << 4 + hex_to_dec(hex[2 * i + 1]);
+  }
+  std::string binary = std::string((char *)id, kUniqueIDSize);
+  return ObjectID::from_binary(binary);
+}
+
 int main(int argc, char **argv) {
   redis_address = std::string(argv[1]);
   my_address = std::string(argv[2]);
@@ -152,6 +183,12 @@ int main(int argc, char **argv) {
   redis_client = redisConnect(redis_address.c_str(), 6379);
   // create a plasma client
   plasma_client.Connect("/tmp/plasma", "");
+
+  if (argv[3][0] == 's') {
+    test_server();
+  } else {
+    test_client(from_hex(argv[4]));
+  }
 
   return 0;
 }
