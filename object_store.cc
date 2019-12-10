@@ -98,13 +98,15 @@ public:
 
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
-    push_addr.sin_port = 6666;
     int conn_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (conn_fd < 0) {
       std::cout << "socket creation error" << std::endl;
       exit(-1);
     }
-    inet_pton(AF_INET, request->puller_ip().c_str(), &push_addr.sin_addr);
+    std::string puller_ip = request->puller_ip();
+    push_addr.sin_family = AF_INET;
+    push_addr.sin_addr.s_addr = inet_addr(puller_ip.c_str());
+    push_addr.sin_port = htons(6666);
     int success =
         connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
     if (success < 0) {
@@ -148,8 +150,6 @@ void RunTCPServer(std::string ip, int port) {
   int opt = 1;
 
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
-  setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-             sizeof(opt));
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port);
@@ -243,7 +243,7 @@ ObjectID from_hex(char *hex) {
 }
 
 int main(int argc, char **argv) {
-  signal(SIGPIPE, SIG_IGN);
+  // signal(SIGPIPE, SIG_IGN);
 
   redis_address = std::string(argv[1]);
   my_address = std::string(argv[2]);
