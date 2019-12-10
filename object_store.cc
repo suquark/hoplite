@@ -10,6 +10,7 @@
 #include <plasma/client.h>
 #include <plasma/common.h>
 #include <plasma/test_util.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string>
 #include <sys/socket.h>
@@ -43,8 +44,8 @@ ObjectID put(const void *data, size_t size) {
       redis_client, "SET %s %s", object_id.hex().c_str(), my_address.c_str());
   freeReplyObject(redis_reply);
 
-  redis_reply =
-      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex().c_str());
+  redis_reply = (redisReply *)redisCommand(redis_client, "GET %s",
+                                           object_id.hex().c_str());
   std::cout << "object " << object_id.hex()
             << " location = " << redis_reply->str << std::endl;
   freeReplyObject(redis_reply);
@@ -54,8 +55,8 @@ ObjectID put(const void *data, size_t size) {
 
 void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
-  redisReply *redis_reply =
-      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex().c_str());
+  redisReply *redis_reply = (redisReply *)redisCommand(redis_client, "GET %s",
+                                                       object_id.hex().c_str());
   if (redis_reply->str == nullptr) {
     std::cout << "cannot find object " << object_id.hex() << " in Redis"
               << std::endl;
@@ -242,6 +243,8 @@ ObjectID from_hex(char *hex) {
 }
 
 int main(int argc, char **argv) {
+  signal(SIGPIPE, SIG_IGN);
+
   redis_address = std::string(argv[1]);
   my_address = std::string(argv[2]);
   // create a thread to receive remote object
@@ -252,13 +255,14 @@ int main(int argc, char **argv) {
   redis_client = redisConnect(redis_address.c_str(), 6379);
   std::cout << "Connected to Redis server running at " << redis_address
             << std::endl;
-  redisReply* reply = (redisReply*)redisCommand(redis_client, "FLUSHALL");
-  freeReplyObject(reply);
 
   // create a plasma client
   plasma_client.Connect("/tmp/plasma", "");
 
   if (argv[3][0] == 's') {
+    redisReply *reply = (redisReply *)redisCommand(redis_client, "FLUSHALL");
+    freeReplyObject(reply);
+
     test_server();
   } else {
     test_client(from_hex(argv[4]));
