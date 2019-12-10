@@ -40,11 +40,11 @@ ObjectID put(const void *data, size_t size) {
   plasma_client.Seal(object_id);
   // put object location information into redis
   redisReply *redis_reply = (redisReply *)redisCommand(
-      redis_client, "SET %s %s", object_id.hex(), my_address.c_str());
+      redis_client, "SET %s %s", object_id.hex().c_str(), my_address.c_str());
   freeReplyObject(redis_reply);
 
   redis_reply =
-      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex());
+      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex().c_str());
   std::cout << "object " << object_id.hex()
             << " location = " << redis_reply->str << std::endl;
   freeReplyObject(redis_reply);
@@ -55,7 +55,7 @@ ObjectID put(const void *data, size_t size) {
 void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
   redisReply *redis_reply =
-      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex());
+      (redisReply *)redisCommand(redis_client, "GET %s", object_id.hex().c_str());
   if (redis_reply->str == nullptr) {
     std::cout << "cannot find object " << object_id.hex() << " in Redis"
               << std::endl;
@@ -252,6 +252,8 @@ int main(int argc, char **argv) {
   redis_client = redisConnect(redis_address.c_str(), 6379);
   std::cout << "Connected to Redis server running at " << redis_address
             << std::endl;
+  redisReply* reply = (redisReply*)redisCommand(redis_client, "FLUSHALL");
+  freeReplyObject(reply);
 
   // create a plasma client
   plasma_client.Connect("/tmp/plasma", "");
