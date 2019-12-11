@@ -138,7 +138,7 @@ public:
 
     char ack[5];
     int numbytes = recv(conn_fd, ack, 5, 0);
-    if (numbytes != 2) {
+    if (numbytes != 3) {
       std::cout << "socket recv error: object ack" << std::endl;
       exit(-1);
     }
@@ -196,7 +196,7 @@ void RunTCPServer(std::string ip, int port) {
       std::cout << "socker recv error: object content" << std::endl;
       exit(-1);
     }
-    int success = send(conn_fd, "OK", 2, 0);
+    int success = send(conn_fd, "OK", 3, 0);
     if (success < 0) {
       std::cout << "socket send error: object ack" << std::endl;
       exit(-1);
