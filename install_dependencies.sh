@@ -70,3 +70,12 @@ if [ ! -d $REDIS_VER ]; then
      popd
 fi
 
+if [ ! -d efs-utils ]; then
+     sudo apt-get -y install binutils
+     git clone https://github.com/aws/efs-utils.git
+     pushd efs-utils
+     ./build-deb.sh
+     sudo apt-get -y install ./build/amazon-efs-utils*deb
+     popd
+     mkdir efs
+fi
