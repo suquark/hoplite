@@ -135,7 +135,18 @@ public:
       std::cout << "socket send error: object content" << std::endl;
       exit(-1);
     }
-    plasma_client.Release(object_id);
+
+    char ack[5];
+    int numbytes = recv(conn_fd, ack, 5, 0);
+    if (numbytes != 2) {
+      std::cout << "socket recv error: object ack" << std::endl;
+      exit(-1);
+    }
+    if (strcmp(ack, "OK") != 0) {
+      std::cout << "ack is wrong" << std::endl;
+      exit(-1);
+    }
+
     close(conn_fd);
     return grpc::Status::OK;
   }
@@ -183,6 +194,11 @@ void RunTCPServer(std::string ip, int port) {
     numbytes = recv(conn_fd, ptr->mutable_data(), object_size, 0);
     if (numbytes != object_size) {
       std::cout << "socker recv error: object content" << std::endl;
+      exit(-1);
+    }
+    int success = send(conn_fd, "OK", 2, 0);
+    if (success < 0) {
+      std::cout << "socket send error: object ack" << std::endl;
       exit(-1);
     }
     plasma_client.Seal(object_id);
