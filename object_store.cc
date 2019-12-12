@@ -33,6 +33,14 @@ std::string my_address;
 PlasmaClient plasma_client;
 redisContext *redis_client;
 
+std::chrono::high_resolution_clock::time_point start_time;
+
+double get_time() {
+  auto now = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> time_span = now - start_time;
+  return time_span.count();
+}
+
 ObjectID put(const void *data, size_t size) {
   // generate a random object id
   ObjectID object_id = random_object_id();
@@ -95,8 +103,9 @@ public:
                     PullReply *reply) {
 
     ObjectID object_id = ObjectID::from_binary(request->object_id());
-    std::cout << "Received a pull request from " << request->puller_ip()
-              << " for object " << object_id.hex() << std::endl;
+    std::cout << get_time() << ": Received a pull request from "
+              << request->puller_ip() << " for object " << object_id.hex()
+              << std::endl;
 
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
@@ -150,6 +159,10 @@ public:
     }
 
     close(conn_fd);
+    std::cout << get_time() << ": Finished a pull request from "
+              << request->puller_ip() << " for object " << object_id.hex()
+              << std::endl;
+
     return grpc::Status::OK;
   }
 };
@@ -273,7 +286,7 @@ ObjectID from_hex(char *hex) {
 
 int main(int argc, char **argv) {
   // signal(SIGPIPE, SIG_IGN);
-
+  start_time = std::chrono::high_resolution_clock::now();
   redis_address = std::string(argv[1]);
   my_address = std::string(argv[2]);
   // create a thread to receive remote object
