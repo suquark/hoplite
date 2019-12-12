@@ -193,10 +193,15 @@ void RunTCPServer(std::string ip, int port) {
     }
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
-    numbytes = recv(conn_fd, ptr->mutable_data(), object_size, 0);
-    if (numbytes != object_size) {
-      std::cout << "socker recv error: object content" << std::endl;
-      exit(-1);
+    int cursor = 0;
+    while (cursor < object_size) {
+      numbytes =
+          recv(conn_fd, ptr->mutable_data() + cursor, object_size - cursor, 0);
+      if (numbytes < 0) {
+        std::cout << "socker recv error: object content" << std::endl;
+        exit(-1);
+      }
+      cursor += numbytes;
     }
     int success = send(conn_fd, "OK", 3, 0);
     if (success < 0) {

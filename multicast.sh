@@ -27,7 +27,7 @@ done
 sleep 10
 
 ## multicast
-./object_store $master $master s & 
+./object_store $master $master s $1 &
 
 sleep 10
 
