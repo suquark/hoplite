@@ -29,6 +29,8 @@ sleep 10
 ## multicast
 ./object_store $master $master s & 
 
+sleep 10
+
 for slave in $slaves
 do
 	ssh $slave "./object_store/object_store $master $slave c $obj_handle" &

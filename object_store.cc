@@ -1,4 +1,6 @@
 #include <arpa/inet.h>
+#include <chrono>
+#include <ctime>
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/server.h>
@@ -217,8 +219,13 @@ void RunGRPCServer(std::string ip, int port) {
   grpc_server->Wait();
 }
 
-void test_server() {
-  ObjectID object_id = put("abc", 3);
+void test_server(int object_size) {
+  char *buffer = new char[1024 * 1024 * 1024];
+  for (int i = 0; i < object_size; i++) {
+    buffer[i] = 'r';
+  }
+
+  ObjectID object_id = put(buffer, object_size);
   std::cout << "Object is created!" << std::endl;
   std::cout << object_id.hex() << std::endl;
 }
@@ -226,11 +233,12 @@ void test_server() {
 void test_client(ObjectID object_id) {
   const char *buffer;
   size_t size;
+  auto start = std::chrono::system_clock::now();
   get(object_id, (const void **)&buffer, &size);
-  std::string a;
-  a.assign(buffer, size);
-  std::cout << "Object is retrieved:" << std::endl;
-  std::cout << a << std::endl;
+  auto end = std::chrono::system_clock::now();
+  std::chrono::duration<double> duration = end - start;
+  std::cout << "Object is retrieved using " << duration.count() << " seconds"
+            << std::endl;
 }
 
 unsigned char hex_to_dec(char a) {
@@ -279,7 +287,7 @@ int main(int argc, char **argv) {
     redisReply *reply = (redisReply *)redisCommand(redis_client, "FLUSHALL");
     freeReplyObject(reply);
 
-    test_server();
+    test_server(atoi(argv[4]));
   } else {
     test_client(from_hex(argv[4]));
   }
