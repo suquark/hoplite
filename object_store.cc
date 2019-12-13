@@ -8,6 +8,8 @@
 #include <grpcpp/server_context.h>
 #include <hiredis.h>
 #include <iostream>
+#include <map>
+#include <mutex>
 #include <netinet/in.h>
 #include <plasma/client.h>
 #include <plasma/common.h>
@@ -34,6 +36,9 @@ PlasmaClient plasma_client;
 redisContext *redis_client;
 
 std::chrono::high_resolution_clock::time_point start_time;
+
+std::map<std::string, int> current_transfer;
+std::mutex transfer_mutex;
 
 double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
@@ -65,29 +70,36 @@ ObjectID put(const void *data, size_t size) {
 
 void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
-  redisReply *redis_reply = (redisReply *)redisCommand(redis_client, "GET %s",
-                                                       object_id.hex().c_str());
-  if (redis_reply->str == nullptr) {
-    std::cout << "cannot find object " << object_id.hex() << " in Redis"
+  while (true) {
+    redisReply *redis_reply = (redisReply *)redisCommand(
+        redis_client, "GET %s", object_id.hex().c_str());
+    if (redis_reply->str == nullptr) {
+      std::cout << "cannot find object " << object_id.hex() << " in Redis"
+                << std::endl;
+      exit(-1);
+    }
+    std::string address = std::string(redis_reply->str);
+    std::cout << "object " << object_id.hex() << " location = " << address
               << std::endl;
-    exit(-1);
-  }
-  std::string address = std::string(redis_reply->str);
-  std::cout << "object " << object_id.hex() << " location = " << address
-            << std::endl;
-  freeReplyObject(redis_reply);
+    freeReplyObject(redis_reply);
 
-  // send pull request to one of the location
-  std::string remote_grpc_address = address + ":" + std::to_string(50051);
-  auto channel = grpc::CreateChannel(remote_grpc_address,
-                                     grpc::InsecureChannelCredentials());
-  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
-  grpc::ClientContext context;
-  PullRequest request;
-  PullReply reply;
-  request.set_object_id(object_id.binary());
-  request.set_puller_ip(my_address);
-  stub->Pull(&context, request, &reply);
+    // send pull request to one of the location
+    std::string remote_grpc_address = address + ":" + std::to_string(50051);
+    auto channel = grpc::CreateChannel(remote_grpc_address,
+                                       grpc::InsecureChannelCredentials());
+    std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+    grpc::ClientContext context;
+    PullRequest request;
+    PullReply reply;
+    request.set_object_id(object_id.binary());
+    request.set_puller_ip(my_address);
+    stub->Pull(&context, request, &reply);
+    if (reply.ok()) {
+      break;
+    }
+    // if the sender is busy, wait for 1 millisecond and try again
+    usleep(1000);
+  }
 
   // get object from Plasma
   std::vector<ObjectBuffer> object_buffers;
@@ -106,6 +118,20 @@ public:
     std::cout << get_time() << ": Received a pull request from "
               << request->puller_ip() << " for object " << object_id.hex()
               << std::endl;
+
+    {
+      std::lock_guard<std::mutex> guard(transfer_mutex);
+      if (current_transfer.find(object_id.hex()) == current_transfer.end()) {
+        current_transfer[object_id.hex()] = 0;
+      }
+
+      if (current_transfer[object_id.hex()] < 1) {
+        current_transfer[object_id.hex()]++;
+      } else {
+        reply->set_ok(false);
+        return grpc::Status::OK;
+      }
+    }
 
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
@@ -163,6 +189,12 @@ public:
               << request->puller_ip() << " for object " << object_id.hex()
               << std::endl;
 
+    {
+      std::lock_guard<std::mutex> guard(transfer_mutex);
+      current_transfer[object_id.hex()]--;
+    }
+
+    reply->set_ok(true);
     return grpc::Status::OK;
   }
 };
