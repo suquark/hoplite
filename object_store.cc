@@ -54,7 +54,7 @@ void write_object_location(const std::string &hex) {
 
 std::string get_object_location(const std::string &hex) {
   redisReply *redis_reply =
-      (redisReply *)redisCommand(redis_client, "LRANGE %s 0 1", hex.c_str());
+      (redisReply *)redisCommand(redis_client, "LRANGE %s 0 -1", hex.c_str());
 
   int num_of_copies = redis_reply->elements;
 
