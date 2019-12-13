@@ -46,6 +46,32 @@ double get_time() {
   return time_span.count();
 }
 
+void write_object_location(const std::string &hex) {
+  redisReply *redis_reply = (redisReply *)redisCommand(
+      redis_client, "LPUSH %s %s", hex.c_str(), my_address.c_str());
+  freeReplyObject(redis_reply);
+}
+
+std::string get_object_location(const std::string &hex) {
+  redisReply *redis_reply =
+      (redisReply *)redisCommand(redis_client, "LRANGE %s 0 1", hex.c_str());
+
+  int num_of_copies = redis_reply->elements;
+
+  if (num_of_copies == 0) {
+    std::cout << "cannot find object " << hex << " in Redis" << std::endl;
+    exit(-1);
+  }
+
+  std::string address =
+      std::string(redis_reply->element[rand() % num_of_copies]->str);
+  // std::cout << "object " << object_id.hex() << " location = " << address
+  //          << std::endl;
+  freeReplyObject(redis_reply);
+
+  return address;
+}
+
 ObjectID put(const void *data, size_t size) {
   // generate a random object id
   ObjectID object_id = random_object_id();
@@ -54,34 +80,15 @@ ObjectID put(const void *data, size_t size) {
   plasma_client.Create(object_id, size, NULL, 0, &ptr);
   memcpy(ptr->mutable_data(), data, size);
   plasma_client.Seal(object_id);
-  // put object location information into redis
-  redisReply *redis_reply = (redisReply *)redisCommand(
-      redis_client, "SET %s %s", object_id.hex().c_str(), my_address.c_str());
-  freeReplyObject(redis_reply);
 
-  redis_reply = (redisReply *)redisCommand(redis_client, "GET %s",
-                                           object_id.hex().c_str());
-  std::cout << "object " << object_id.hex()
-            << " location = " << redis_reply->str << std::endl;
-  freeReplyObject(redis_reply);
-
+  write_object_location(object_id.hex());
   return object_id;
 }
 
 void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
   while (true) {
-    redisReply *redis_reply = (redisReply *)redisCommand(
-        redis_client, "GET %s", object_id.hex().c_str());
-    if (redis_reply->str == nullptr) {
-      std::cout << "cannot find object " << object_id.hex() << " in Redis"
-                << std::endl;
-      exit(-1);
-    }
-    std::string address = std::string(redis_reply->str);
-    // std::cout << "object " << object_id.hex() << " location = " << address
-    //          << std::endl;
-    freeReplyObject(redis_reply);
+    std::string address = get_object_location(object_id.hex());
 
     // send pull request to one of the location
     std::string remote_grpc_address = address + ":" + std::to_string(50051);
@@ -107,6 +114,8 @@ void get(ObjectID object_id, const void **data, size_t *size) {
 
   *data = object_buffers[0].data->data();
   *size = object_buffers[0].data->size();
+
+  write_object_location(object_id.hex());
 }
 
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
