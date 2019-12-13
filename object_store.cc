@@ -65,8 +65,7 @@ std::string get_object_location(const std::string &hex) {
 
   std::string address =
       std::string(redis_reply->element[rand() % num_of_copies]->str);
-  // std::cout << "object " << object_id.hex() << " location = " << address
-  //          << std::endl;
+
   freeReplyObject(redis_reply);
 
   return address;
