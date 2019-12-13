@@ -8,6 +8,7 @@ message PullRequest {
 }
 
 message PullReply {
+  bool ok = 1;
 }
 
 service ObjectStore {
