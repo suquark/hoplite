@@ -79,8 +79,8 @@ void get(ObjectID object_id, const void **data, size_t *size) {
       exit(-1);
     }
     std::string address = std::string(redis_reply->str);
-    std::cout << "object " << object_id.hex() << " location = " << address
-              << std::endl;
+    // std::cout << "object " << object_id.hex() << " location = " << address
+    //          << std::endl;
     freeReplyObject(redis_reply);
 
     // send pull request to one of the location
@@ -115,9 +115,6 @@ public:
                     PullReply *reply) {
 
     ObjectID object_id = ObjectID::from_binary(request->object_id());
-    std::cout << get_time() << ": Received a pull request from "
-              << request->puller_ip() << " for object " << object_id.hex()
-              << std::endl;
 
     {
       std::lock_guard<std::mutex> guard(transfer_mutex);
@@ -132,6 +129,10 @@ public:
         return grpc::Status::OK;
       }
     }
+
+    std::cout << get_time() << ": Received a pull request from "
+              << request->puller_ip() << " for object " << object_id.hex()
+              << std::endl;
 
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
