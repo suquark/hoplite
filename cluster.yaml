@@ -52,7 +52,7 @@ auth:
 # http://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
 head_node:
     InstanceType: m5.large
-    ImageId: ami-0a475e219bf6c2cfc 
+    ImageId: ami-087cb197ca2d20851
     KeyName: shared_key
 
 # Provider-specific config for worker nodes, e.g. instance type. By default
@@ -61,7 +61,7 @@ head_node:
 # http://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
 worker_nodes:
     InstanceType: m5.large
-    ImageId: ami-0a475e219bf6c2cfc
+    ImageId: ami-087cb197ca2d20851
     KeyName: shared_key
 
     # Run workers on spot by default. Comment this out to use on-demand.
