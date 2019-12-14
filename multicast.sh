@@ -43,3 +43,5 @@ do
 	ssh $slave "/home/ubuntu/efs/object_store/object_store $master $slave c $obj_handle" &
 done
 
+sleep 360000
+
