@@ -90,7 +90,7 @@ void get(ObjectID object_id, const void **data, size_t *size) {
     std::string address = get_object_location(object_id.hex());
 
     // send pull request to one of the location
-    std::string remote_grpc_address = address + ":" + std::to_string(50051);
+    std::string remote_grpc_address = address + ":" + std::to_string(50055);
     auto channel = grpc::CreateChannel(remote_grpc_address,
                                        grpc::InsecureChannelCredentials());
     std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
@@ -333,14 +333,14 @@ int main(int argc, char **argv) {
   // create a thread to receive remote object
   std::thread tcp_thread(RunTCPServer, my_address, 6666);
   // create a thread to process pull requests
-  std::thread grpc_thread(RunGRPCServer, my_address, 50051);
+  std::thread grpc_thread(RunGRPCServer, my_address, 50055);
   // create a redis client
-  redis_client = redisConnect(redis_address.c_str(), 6379);
+  redis_client = redisConnect(redis_address.c_str(), 6380);
   std::cout << "Connected to Redis server running at " << redis_address
             << std::endl;
 
   // create a plasma client
-  plasma_client.Connect("/tmp/plasma", "");
+  plasma_client.Connect("/tmp/multicast_plasma", "");
 
   if (argv[3][0] == 's') {
     redisReply *reply = (redisReply *)redisCommand(redis_client, "FLUSHALL");

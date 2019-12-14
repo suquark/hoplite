@@ -1,6 +1,13 @@
 #!/bin/bash
-master=172.31.29.249
-slaves="172.31.29.128 172.31.26.179 172.31.25.36"
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+redis-server redis.conf&
+sleep 5
+
+master=$(ray get-head-ip ~/ray_bootstrap_config.yaml)
+slaves=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
+
+echo master: $master
+echo slaves: $slaves
 
 obj_handle=8c97b7d89adb8bd86c9fa562704ce40ef645627a
 
@@ -17,11 +24,11 @@ done
 sleep 10
 
 ## setup
-plasma-store-server -m 4000000000 -s /tmp/plasma &
+plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &
 
 for slave in $slaves
 do
-	ssh $slave "plasma-store-server -m 4000000000 -s /tmp/plasma" &
+	ssh $slave "plasma-store-server -m 4000000000 -s /tmp/multicast_plasma" &
 done
 
 sleep 10
@@ -33,7 +40,6 @@ sleep 10
 
 for slave in $slaves
 do
-	ssh $slave "./object_store/object_store $master $slave c $obj_handle" &
+	ssh $slave "/home/ubuntu/efs/object_store/object_store $master $slave c $obj_handle" &
 done
-
 
