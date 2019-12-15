@@ -20,10 +20,14 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
+#include <errno.h>
 
+#include "logging.h"
 #include "object_store.grpc.pb.h"
 
 using namespace plasma;
+#define LOG(level) RAY_LOG(level) << my_address << ": "
+
 
 using objectstore::ObjectStore;
 using objectstore::PullReply;
@@ -40,11 +44,41 @@ std::chrono::high_resolution_clock::time_point start_time;
 std::map<std::string, int> current_transfer;
 std::mutex transfer_mutex;
 
+
 double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_span = now - start_time;
   return time_span.count();
 }
+
+
+int send_all(int conn_fd, const void *buf, const size_t size) {
+  size_t cursor = 0;
+  while (cursor < size) {
+    int bytes_sent = send(conn_fd, buf + cursor, size - cursor, 0);
+    if (bytes_sent < 0) {
+      LOG(ERROR) << "Socket send error (code=" << errno << ")";
+      return bytes_sent;
+    }
+    cursor += bytes_sent;
+  }
+  return 0;
+}
+
+
+int recv_all(int conn_fd, void *buf, const size_t size) {
+  size_t cursor = 0;
+  while (cursor < size) {
+    int bytes_recv = recv(conn_fd, buf + cursor, size - cursor, 0);
+    if (bytes_recv < 0) {
+      LOG(ERROR) << "Socket recv error (code=" << errno << ")";
+      return bytes_recv;
+    }
+    cursor += bytes_recv;
+  }
+  return 0;
+}
+
 
 void write_object_location(const std::string &hex) {
   redisReply *redis_reply = (redisReply *)redisCommand(
@@ -163,34 +197,32 @@ public:
     std::vector<ObjectBuffer> object_buffers;
     plasma_client.Get({object_id}, -1, &object_buffers);
     // send object_id
-    success = send(conn_fd, object_id.data(), kUniqueIDSize, 0);
+    success = send_all(conn_fd, (void*)object_id.data(), kUniqueIDSize);
     if (success < 0) {
-      std::cout << "socket send error: object_id" << std::endl;
-      exit(-1);
+      LOG(FATAL) << "socket send error: object_id";
     }
+
     // send object size
     long object_size = object_buffers[0].data->size();
-    success = send(conn_fd, &object_size, sizeof(long), 0);
+    success = send_all(conn_fd, (void*)&object_size, sizeof(object_size));
     if (success < 0) {
-      std::cout << "socket send error: object size" << std::endl;
-      exit(-1);
+      LOG(FATAL) << "socket send error: object size";
     }
+
     // send object
-    success = send(conn_fd, object_buffers[0].data->data(), object_size, 0);
+    success = send_all(conn_fd, (void*)object_buffers[0].data->data(), object_size);
     if (success < 0) {
-      std::cout << "socket send error: object content" << std::endl;
-      exit(-1);
+      LOG(FATAL) << "socket send error: object content";
     }
 
     char ack[5];
-    int numbytes = recv(conn_fd, ack, 5, 0);
-    if (numbytes != 3) {
-      std::cout << "socket recv error: object ack" << std::endl;
-      exit(-1);
+    int status = recv_all(conn_fd, ack, 3);
+    if (status) {
+      LOG(FATAL) << "socket recv error: ack, error code = " << errno;
     }
+
     if (strcmp(ack, "OK") != 0) {
-      std::cout << "ack is wrong" << std::endl;
-      exit(-1);
+      LOG(FATAL) << "ack is wrong";
     }
 
     close(conn_fd);
@@ -234,36 +266,31 @@ void RunTCPServer(std::string ip, int port) {
       std::cout << "socket accept error" << std::endl;
       exit(-1);
     }
-    int numbytes = recv(conn_fd, obj_id, kUniqueIDSize, 0);
-    if (numbytes != kUniqueIDSize) {
-      std::cout << "socket recv error: object id" << std::endl;
-      exit(-1);
+
+    auto status = recv_all(conn_fd, obj_id, kUniqueIDSize);
+    if (status) {
+      LOG(FATAL) << "socket recv error: object id";
     }
     ObjectID object_id = ObjectID::from_binary(obj_id);
-    numbytes = recv(conn_fd, &object_size, sizeof(long), 0);
-    if (numbytes != sizeof(long)) {
-      std::cout << "socket recv error: object size" << std::endl;
-      exit(-1);
+    status = recv_all(conn_fd, &object_size, sizeof(object_size));
+    if (status) {
+      LOG(FATAL) << "socket recv error: object size";
     }
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
-    int cursor = 0;
-    while (cursor < object_size) {
-      numbytes =
-          recv(conn_fd, ptr->mutable_data() + cursor, object_size - cursor, 0);
-      if (numbytes < 0) {
-        std::cout << "socker recv error: object content" << std::endl;
-        exit(-1);
-      }
-      cursor += numbytes;
+
+    status = recv_all(conn_fd, ptr->mutable_data(), object_size);
+    if (status) {
+      LOG(FATAL) << "socker recv error: object content";
     }
-    int success = send(conn_fd, "OK", 3, 0);
-    if (success < 0) {
-      std::cout << "socket send error: object ack" << std::endl;
-      exit(-1);
+
+    status = send_all(conn_fd, "OK", 3);
+    if (status) {
+      LOG(FATAL) << "socket send error: object ack";
     }
     plasma_client.Seal(object_id);
     close(conn_fd);
+    LOG(INFO) << "sending object completes";
   }
 }
 
@@ -274,7 +301,7 @@ void RunGRPCServer(std::string ip, int port) {
   ObjectStoreServiceImpl service;
   builder.RegisterService(&service);
   std::unique_ptr<grpc::Server> grpc_server = builder.BuildAndStart();
-  std::cout << "grpc server " << grpc_address << " started" << std::endl;
+  LOG(INFO) << "grpc server " << grpc_address << " started";
   grpc_server->Wait();
 }
 
