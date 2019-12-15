@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <chrono>
 #include <ctime>
+#include <errno.h>
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/server.h>
@@ -20,14 +21,12 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
-#include <errno.h>
 
 #include "logging.h"
 #include "object_store.grpc.pb.h"
 
 using namespace plasma;
 #define LOG(level) RAY_LOG(level) << my_address << ": "
-
 
 using objectstore::ObjectStore;
 using objectstore::PullReply;
@@ -44,13 +43,11 @@ std::chrono::high_resolution_clock::time_point start_time;
 std::map<std::string, int> current_transfer;
 std::mutex transfer_mutex;
 
-
 double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_span = now - start_time;
   return time_span.count();
 }
-
 
 int send_all(int conn_fd, const void *buf, const size_t size) {
   size_t cursor = 0;
@@ -65,7 +62,6 @@ int send_all(int conn_fd, const void *buf, const size_t size) {
   return 0;
 }
 
-
 int recv_all(int conn_fd, void *buf, const size_t size) {
   size_t cursor = 0;
   while (cursor < size) {
@@ -78,7 +74,6 @@ int recv_all(int conn_fd, void *buf, const size_t size) {
   }
   return 0;
 }
-
 
 void write_object_location(const std::string &hex) {
   redisReply *redis_reply = (redisReply *)redisCommand(
@@ -172,51 +167,53 @@ public:
       }
     }
 
-    std::cout << get_time() << ": Received a pull request from "
-              << request->puller_ip() << " for object " << object_id.hex()
-              << std::endl;
+    LOG(INFO) << get_time() << ": Received a pull request from "
+              << request->puller_ip() << " for object " << object_id.hex();
 
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
     int conn_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (conn_fd < 0) {
-      std::cout << "socket creation error" << std::endl;
-      exit(-1);
+      LOG(FATAL) << "socket creation error";
     }
     std::string puller_ip = request->puller_ip();
     push_addr.sin_family = AF_INET;
     push_addr.sin_addr.s_addr = inet_addr(puller_ip.c_str());
     push_addr.sin_port = htons(6666);
-    int success =
+
+    LOG(INFO) << "create a connection to " << puller_ip;
+
+    int status =
         connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
-    if (success < 0) {
-      std::cout << "socket connect error" << std::endl;
-      exit(-1);
+    if (status) {
+      LOG(FATAL) << "socket connect error";
     }
     // fetech object from Plasma
     std::vector<ObjectBuffer> object_buffers;
     plasma_client.Get({object_id}, -1, &object_buffers);
     // send object_id
-    success = send_all(conn_fd, (void*)object_id.data(), kUniqueIDSize);
-    if (success < 0) {
+    status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
+    if (status) {
       LOG(FATAL) << "socket send error: object_id";
     }
 
     // send object size
-    long object_size = object_buffers[0].data->size();
-    success = send_all(conn_fd, (void*)&object_size, sizeof(object_size));
-    if (success < 0) {
+    auto object_size = object_buffers[0].data->size();
+    LOG(INFO) << "plasma object size = " << object_size;
+    status = send_all(conn_fd, (void *)&object_size, sizeof(object_size));
+    if (status) {
       LOG(FATAL) << "socket send error: object size";
     }
 
     // send object
-    success = send_all(conn_fd, (void*)object_buffers[0].data->data(), object_size);
-    if (success < 0) {
+    status =
+        send_all(conn_fd, (void *)object_buffers[0].data->data(), object_size);
+    if (status) {
       LOG(FATAL) << "socket send error: object content";
     }
 
     char ack[5];
-    int status = recv_all(conn_fd, ack, 3);
+    status = recv_all(conn_fd, ack, 3);
     if (status) {
       LOG(FATAL) << "socket recv error: ack, error code = " << errno;
     }
@@ -226,9 +223,8 @@ public:
     }
 
     close(conn_fd);
-    std::cout << get_time() << ": Finished a pull request from "
-              << request->puller_ip() << " for object " << object_id.hex()
-              << std::endl;
+    LOG(INFO) << get_time() << ": Finished a pull request from "
+              << request->puller_ip() << " for object " << object_id.hex();
 
     {
       std::lock_guard<std::mutex> guard(transfer_mutex);
@@ -253,29 +249,45 @@ void RunTCPServer(std::string ip, int port) {
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port);
 
-  bind(server_fd, (struct sockaddr *)&address, sizeof(address));
-  listen(server_fd, 10);
+  auto status = bind(server_fd, (struct sockaddr *)&address, sizeof(address));
+  if (status) {
+    LOG(FATAL) << "Cannot bind to port " << port << ".";
+  }
+
+  status = listen(server_fd, 10);
+  if (status) {
+    LOG(FATAL) << "Socket listen error.";
+  }
 
   std::cout << "tcp server is ready at " << ip << ":" << port << std::endl;
 
   while (true) {
     char obj_id[kUniqueIDSize];
     long object_size;
+    LOG(INFO) << "waiting for a connection";
     conn_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
     if (conn_fd < 0) {
-      std::cout << "socket accept error" << std::endl;
-      exit(-1);
+      LOG(FATAL) << "socket accept error";
     }
+
+    LOG(INFO) << "recieve a TCP connection";
 
     auto status = recv_all(conn_fd, obj_id, kUniqueIDSize);
     if (status) {
       LOG(FATAL) << "socket recv error: object id";
     }
+
     ObjectID object_id = ObjectID::from_binary(obj_id);
+
+    LOG(INFO) << "start receiving object " << object_id.hex();
+
     status = recv_all(conn_fd, &object_size, sizeof(object_size));
     if (status) {
       LOG(FATAL) << "socket recv error: object size";
     }
+
+    LOG(INFO) << "Received object size = " << object_size;
+
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
 
@@ -290,7 +302,7 @@ void RunTCPServer(std::string ip, int port) {
     }
     plasma_client.Seal(object_id);
     close(conn_fd);
-    LOG(INFO) << "sending object completes";
+    LOG(INFO) << "[TCPServer] receiving object completes";
   }
 }
 
