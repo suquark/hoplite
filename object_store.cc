@@ -27,6 +27,7 @@
 
 using namespace plasma;
 #define LOG(level) RAY_LOG(level) << my_address << ": "
+#define DCHECK(condition) RAY_DCHECK(condition) << my_address << ": "
 
 using objectstore::ObjectStore;
 using objectstore::PullReply;
@@ -86,11 +87,7 @@ std::string get_object_location(const std::string &hex) {
       (redisReply *)redisCommand(redis_client, "LRANGE %s 0 -1", hex.c_str());
 
   int num_of_copies = redis_reply->elements;
-
-  if (num_of_copies == 0) {
-    std::cout << "cannot find object " << hex << " in Redis" << std::endl;
-    exit(-1);
-  }
+  DCHECK(num_of_copies > 0) "cannot find object " << hex << " in Redis";
 
   std::string address =
       std::string(redis_reply->element[rand() % num_of_copies]->str);
@@ -173,9 +170,7 @@ public:
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
     int conn_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (conn_fd < 0) {
-      LOG(FATAL) << "socket creation error";
-    }
+    DCHECK(conn_fd >= 0) << "socket creation error";
     std::string puller_ip = request->puller_ip();
     push_addr.sin_family = AF_INET;
     push_addr.sin_addr.s_addr = inet_addr(puller_ip.c_str());
@@ -185,42 +180,31 @@ public:
 
     int status =
         connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
-    if (status) {
-      LOG(FATAL) << "socket connect error";
-    }
+    DCHECK(!status) << "socket connect error";
     // fetech object from Plasma
     std::vector<ObjectBuffer> object_buffers;
     plasma_client.Get({object_id}, -1, &object_buffers);
     // send object_id
     status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
-    if (status) {
-      LOG(FATAL) << "socket send error: object_id";
-    }
+    DCHECK(!status) << "socket send error: object_id";
 
     // send object size
     auto object_size = object_buffers[0].data->size();
     LOG(INFO) << "plasma object size = " << object_size;
     status = send_all(conn_fd, (void *)&object_size, sizeof(object_size));
-    if (status) {
-      LOG(FATAL) << "socket send error: object size";
-    }
+    DCHECK(!status) << "socket send error: object size";
 
     // send object
     status =
         send_all(conn_fd, (void *)object_buffers[0].data->data(), object_size);
-    if (status) {
-      LOG(FATAL) << "socket send error: object content";
-    }
+    DCHECK(!status) << "socket send error: object content";
 
     char ack[5];
     status = recv_all(conn_fd, ack, 3);
-    if (status) {
-      LOG(FATAL) << "socket recv error: ack, error code = " << errno;
-    }
+    DCHECK(!status) << "socket recv error: ack, error code = " << errno;
 
-    if (strcmp(ack, "OK") != 0) {
+    if (strcmp(ack, "OK") != 0)
       LOG(FATAL) << "ack is wrong";
-    }
 
     close(conn_fd);
     LOG(INFO) << get_time() << ": Finished a pull request from "
@@ -250,41 +234,30 @@ void RunTCPServer(std::string ip, int port) {
   address.sin_port = htons(port);
 
   auto status = bind(server_fd, (struct sockaddr *)&address, sizeof(address));
-  if (status) {
-    LOG(FATAL) << "Cannot bind to port " << port << ".";
-  }
+  DCHECK(!status) << "Cannot bind to port " << port << ".";
 
   status = listen(server_fd, 10);
-  if (status) {
-    LOG(FATAL) << "Socket listen error.";
-  }
+  DCHECK(!status) << "Socket listen error.";
 
-  std::cout << "tcp server is ready at " << ip << ":" << port << std::endl;
+  LOG(INFO) << "tcp server is ready at " << ip << ":" << port;
 
   while (true) {
     char obj_id[kUniqueIDSize];
     long object_size;
     LOG(INFO) << "waiting for a connection";
     conn_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
-    if (conn_fd < 0) {
-      LOG(FATAL) << "socket accept error";
-    }
+    DCHECK(conn_fd >= 0) << "socket accept error";
 
     LOG(INFO) << "recieve a TCP connection";
 
     auto status = recv_all(conn_fd, obj_id, kUniqueIDSize);
-    if (status) {
-      LOG(FATAL) << "socket recv error: object id";
-    }
+    DCHECK(!status) << "socket recv error: object id";
 
     ObjectID object_id = ObjectID::from_binary(obj_id);
-
     LOG(INFO) << "start receiving object " << object_id.hex();
 
     status = recv_all(conn_fd, &object_size, sizeof(object_size));
-    if (status) {
-      LOG(FATAL) << "socket recv error: object size";
-    }
+    DCHECK(!status) << "socket recv error: object size";
 
     LOG(INFO) << "Received object size = " << object_size;
 
@@ -292,14 +265,11 @@ void RunTCPServer(std::string ip, int port) {
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
 
     status = recv_all(conn_fd, ptr->mutable_data(), object_size);
-    if (status) {
-      LOG(FATAL) << "socker recv error: object content";
-    }
+    DCHECK(!status) << "socker recv error: object content";
 
     status = send_all(conn_fd, "OK", 3);
-    if (status) {
-      LOG(FATAL) << "socket send error: object ack";
-    }
+    DCHECK(!status) << "socket send error: object ack";
+
     plasma_client.Seal(object_id);
     close(conn_fd);
     LOG(INFO) << "[TCPServer] receiving object completes";
@@ -324,8 +294,7 @@ void test_server(int object_size) {
   }
 
   ObjectID object_id = put(buffer, object_size);
-  std::cout << "Object is created!" << std::endl;
-  std::cout << object_id.hex() << std::endl;
+  LOG(INFO) << "Object is created! object_id = " << object_id.hex();
 }
 
 void test_client(ObjectID object_id) {
@@ -335,8 +304,7 @@ void test_client(ObjectID object_id) {
   get(object_id, (const void **)&buffer, &size);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
-  std::cout << "Object is retrieved using " << duration.count() << " seconds"
-            << std::endl;
+  LOG(INFO) << "Object is retrieved using " << duration.count() << " seconds";
 }
 
 unsigned char hex_to_dec(char a) {
@@ -355,12 +323,9 @@ ObjectID from_hex(char *hex) {
   std::string binary = std::string((char *)id, kUniqueIDSize);
 
   ObjectID object_id = ObjectID::from_binary(binary);
-  if (object_id.hex().compare(hex) != 0) {
-    std::cout << object_id.hex() << std::endl;
-    std::cout << "error in decoding object id" << std::endl;
-    exit(-1);
-  }
-
+  DCHECK(object_id.hex().compare(hex) == 0)
+      << "error in decoding object id: object_id = " << object_id.hex()
+      << "hex = " << hex;
   return object_id;
 }
 
@@ -375,8 +340,7 @@ int main(int argc, char **argv) {
   std::thread grpc_thread(RunGRPCServer, my_address, 50055);
   // create a redis client
   redis_client = redisConnect(redis_address.c_str(), 6380);
-  std::cout << "Connected to Redis server running at " << redis_address
-            << std::endl;
+  LOG(INFO) << "Connected to Redis server running at " << redis_address;
 
   // create a plasma client
   plasma_client.Connect("/tmp/multicast_plasma", "");
