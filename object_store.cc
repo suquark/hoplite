@@ -141,6 +141,7 @@ void get(ObjectID object_id, const void **data, size_t *size) {
 
   // get object from Plasma
   std::vector<ObjectBuffer> object_buffers;
+  LOG(ERROR) << "getting object from plasma";
   plasma_client.Get({object_id}, -1, &object_buffers);
 
   *data = object_buffers[0].data->data();
@@ -286,13 +287,13 @@ void RunTCPServer(std::string ip, int port) {
 
     LOG(DEBUG) << "Received object size = " << object_size;
 
-    progress = 0;
-    pending_size = object_size;
-    write_object_location(object_id.hex());
-
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
+
+    progress = 0;
+    pending_size = object_size;
     pending_write = ptr->mutable_data();
+    write_object_location(object_id.hex());
 
     LOG(ERROR) << "start receiving object content";
 
@@ -303,10 +304,11 @@ void RunTCPServer(std::string ip, int port) {
       progress += bytes_recv;
     }
 
+    plasma_client.Seal(object_id);
+
     status = send_all(conn_fd, "OK", 3);
     DCHECK(!status) << "socket send error: object ack";
 
-    plasma_client.Seal(object_id);
     close(conn_fd);
     LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
               << " completes";
