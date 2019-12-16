@@ -17,4 +17,4 @@ echo ${all_nodes[@]}, ${#all_nodes[@]}
 
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
-mpirun --map-by ppr:1:node -hosts $all_hosts /home/ubuntu/efs/mpitutorial/tutorials/mpi-broadcast-and-collective-communication/code/compare_bcast $[$1/4] 10 
+mpirun --map-by ppr:1:node -hosts $all_hosts /home/ubuntu/efs/mpitutorial/tutorials/mpi-broadcast-and-collective-communication/code/compare_bcast $[$1/4] 1
