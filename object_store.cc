@@ -246,15 +246,18 @@ void RunTCPServer(std::string ip, int port) {
     long object_size;
     LOG(INFO) << "waiting for a connection";
     conn_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
+    char *incoming_ip = inet_ntoa(address.sin_addr);
+
     DCHECK(conn_fd >= 0) << "socket accept error";
 
-    LOG(INFO) << "recieve a TCP connection";
+    LOG(INFO) << "recieve a TCP connection from " << incoming_ip;
 
     auto status = recv_all(conn_fd, obj_id, kUniqueIDSize);
     DCHECK(!status) << "socket recv error: object id";
 
     ObjectID object_id = ObjectID::from_binary(obj_id);
-    LOG(INFO) << "start receiving object " << object_id.hex();
+    LOG(INFO) << "start receiving object " << object_id.hex() << " from "
+              << incoming_ip;
 
     status = recv_all(conn_fd, &object_size, sizeof(object_size));
     DCHECK(!status) << "socket recv error: object size";
@@ -272,7 +275,8 @@ void RunTCPServer(std::string ip, int port) {
 
     plasma_client.Seal(object_id);
     close(conn_fd);
-    LOG(INFO) << "[TCPServer] receiving object completes";
+    LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
+              << " completes";
   }
 }
 
