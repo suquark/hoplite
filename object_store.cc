@@ -164,8 +164,8 @@ public:
       }
     }
 
-    LOG(INFO) << get_time() << ": Received a pull request from "
-              << request->puller_ip() << " for object " << object_id.hex();
+    LOG(DEBUG) << get_time() << ": Received a pull request from "
+               << request->puller_ip() << " for object " << object_id.hex();
 
     // create a TCP connection, send the object through the TCP connection
     struct sockaddr_in push_addr;
@@ -176,7 +176,7 @@ public:
     push_addr.sin_addr.s_addr = inet_addr(puller_ip.c_str());
     push_addr.sin_port = htons(6666);
 
-    LOG(INFO) << "create a connection to " << puller_ip;
+    LOG(DEBUG) << "create a connection to " << puller_ip;
 
     int status =
         connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
@@ -190,7 +190,7 @@ public:
 
     // send object size
     auto object_size = object_buffers[0].data->size();
-    LOG(INFO) << "plasma object size = " << object_size;
+    LOG(DEBUG) << "plasma object size = " << object_size;
     status = send_all(conn_fd, (void *)&object_size, sizeof(object_size));
     DCHECK(!status) << "socket send error: object size";
 
@@ -207,8 +207,8 @@ public:
       LOG(FATAL) << "ack is wrong";
 
     close(conn_fd);
-    LOG(INFO) << get_time() << ": Finished a pull request from "
-              << request->puller_ip() << " for object " << object_id.hex();
+    LOG(DEBUG) << get_time() << ": Finished a pull request from "
+               << request->puller_ip() << " for object " << object_id.hex();
 
     {
       std::lock_guard<std::mutex> guard(transfer_mutex);
@@ -239,30 +239,30 @@ void RunTCPServer(std::string ip, int port) {
   status = listen(server_fd, 10);
   DCHECK(!status) << "Socket listen error.";
 
-  LOG(INFO) << "tcp server is ready at " << ip << ":" << port;
+  LOG(INFO) << "[TCPServer] tcp server is ready at " << ip << ":" << port;
 
   while (true) {
     char obj_id[kUniqueIDSize];
     long object_size;
-    LOG(INFO) << "waiting for a connection";
+    LOG(DEBUG) << "waiting for a connection";
     conn_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
     char *incoming_ip = inet_ntoa(address.sin_addr);
 
     DCHECK(conn_fd >= 0) << "socket accept error";
 
-    LOG(INFO) << "recieve a TCP connection from " << incoming_ip;
+    LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
 
     auto status = recv_all(conn_fd, obj_id, kUniqueIDSize);
     DCHECK(!status) << "socket recv error: object id";
 
     ObjectID object_id = ObjectID::from_binary(obj_id);
-    LOG(INFO) << "start receiving object " << object_id.hex() << " from "
-              << incoming_ip;
+    LOG(DEBUG) << "start receiving object " << object_id.hex() << " from "
+               << incoming_ip;
 
     status = recv_all(conn_fd, &object_size, sizeof(object_size));
     DCHECK(!status) << "socket recv error: object size";
 
-    LOG(INFO) << "Received object size = " << object_size;
+    LOG(DEBUG) << "Received object size = " << object_size;
 
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
@@ -287,7 +287,7 @@ void RunGRPCServer(std::string ip, int port) {
   ObjectStoreServiceImpl service;
   builder.RegisterService(&service);
   std::unique_ptr<grpc::Server> grpc_server = builder.BuildAndStart();
-  LOG(INFO) << "grpc server " << grpc_address << " started";
+  LOG(INFO) << "[GprcServer] grpc server " << grpc_address << " started";
   grpc_server->Wait();
 }
 
@@ -344,7 +344,8 @@ int main(int argc, char **argv) {
   std::thread grpc_thread(RunGRPCServer, my_address, 50055);
   // create a redis client
   redis_client = redisConnect(redis_address.c_str(), 6380);
-  LOG(INFO) << "Connected to Redis server running at " << redis_address;
+  LOG(INFO) << "[RedisClient] Connected to Redis server running at "
+            << redis_address;
 
   // create a plasma client
   plasma_client.Connect("/tmp/multicast_plasma", "");
