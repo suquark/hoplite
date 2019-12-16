@@ -141,7 +141,6 @@ void get(ObjectID object_id, const void **data, size_t *size) {
 
   // get object from Plasma
   std::vector<ObjectBuffer> object_buffers;
-  LOG(ERROR) << "getting object from plasma";
   plasma_client.Get({object_id}, -1, &object_buffers);
 
   *data = object_buffers[0].data->data();
@@ -191,7 +190,7 @@ public:
     long object_size = 0;
     if (pending_write == NULL) {
       // fetech object from Plasma
-      LOG(ERROR) << "[GrpcServer] fetching a complete object from plasma";
+      LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
       std::vector<ObjectBuffer> object_buffers;
       plasma_client.Get({object_id}, -1, &object_buffers);
       object_buffer = (void *)object_buffers[0].data->data();
@@ -199,7 +198,7 @@ public:
       progress = object_size;
     } else {
       // fetch partial object in memory
-      LOG(ERROR) << "[GrpcServer] fetching a partial object";
+      LOG(DEBUG) << "[GrpcServer] fetching a partial object";
       object_buffer = pending_write;
       object_size = pending_size;
     }
@@ -294,8 +293,6 @@ void RunTCPServer(std::string ip, int port) {
     pending_size = object_size;
     pending_write = ptr->mutable_data();
     write_object_location(object_id.hex());
-
-    LOG(ERROR) << "start receiving object content";
 
     while (progress < object_size) {
       int bytes_recv = recv(conn_fd, ptr->mutable_data() + progress,
