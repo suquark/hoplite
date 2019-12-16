@@ -44,6 +44,12 @@ std::chrono::high_resolution_clock::time_point start_time;
 std::map<std::string, int> current_transfer;
 std::mutex transfer_mutex;
 
+// FIXME: here we assume we are downloading only 1 object
+// need to fix this later
+void *pending_write = NULL;
+long pending_size = 0;
+std::atomic_long progress;
+
 double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_span = now - start_time;
@@ -139,8 +145,6 @@ void get(ObjectID object_id, const void **data, size_t *size) {
 
   *data = object_buffers[0].data->data();
   *size = object_buffers[0].data->size();
-
-  write_object_location(object_id.hex());
 }
 
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
@@ -181,23 +185,40 @@ public:
     int status =
         connect(conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
     DCHECK(!status) << "socket connect error";
-    // fetech object from Plasma
-    std::vector<ObjectBuffer> object_buffers;
-    plasma_client.Get({object_id}, -1, &object_buffers);
+
+    void *object_buffer = NULL;
+    long object_size = 0;
+    if (pending_write == NULL) {
+      // fetech object from Plasma
+      LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
+      std::vector<ObjectBuffer> object_buffers;
+      plasma_client.Get({object_id}, -1, &object_buffers);
+      object_buffer = (void *)object_buffers[0].data->data();
+      object_size = object_buffers[0].data->size();
+      progress = object_size;
+    } else {
+      // fetch partial object in memory
+      LOG(DEBUG) << "[GrpcServer] fetching a partial object";
+      object_buffer = pending_write;
+      object_size = pending_size;
+    }
     // send object_id
     status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
     DCHECK(!status) << "socket send error: object_id";
 
     // send object size
-    auto object_size = object_buffers[0].data->size();
-    LOG(DEBUG) << "plasma object size = " << object_size;
     status = send_all(conn_fd, (void *)&object_size, sizeof(object_size));
     DCHECK(!status) << "socket send error: object size";
-
     // send object
-    status =
-        send_all(conn_fd, (void *)object_buffers[0].data->data(), object_size);
-    DCHECK(!status) << "socket send error: object content";
+    long cursor = 0;
+    while (cursor < object_size) {
+      if (cursor < progress) {
+        int bytes_sent =
+            send(conn_fd, object_buffer + cursor, progress - cursor, 0);
+        DCHECK(bytes_sent > 0) << "socket send error: object content";
+        cursor += bytes_sent;
+      }
+    }
 
     char ack[5];
     status = recv_all(conn_fd, ack, 3);
@@ -256,6 +277,7 @@ void RunTCPServer(std::string ip, int port) {
     DCHECK(!status) << "socket recv error: object id";
 
     ObjectID object_id = ObjectID::from_binary(obj_id);
+
     LOG(DEBUG) << "start receiving object " << object_id.hex() << " from "
                << incoming_ip;
 
@@ -267,13 +289,23 @@ void RunTCPServer(std::string ip, int port) {
     std::shared_ptr<Buffer> ptr;
     plasma_client.Create(object_id, object_size, NULL, 0, &ptr);
 
-    status = recv_all(conn_fd, ptr->mutable_data(), object_size);
-    DCHECK(!status) << "socker recv error: object content";
+    progress = 0;
+    pending_size = object_size;
+    pending_write = ptr->mutable_data();
+    write_object_location(object_id.hex());
+
+    while (progress < object_size) {
+      int bytes_recv = recv(conn_fd, ptr->mutable_data() + progress,
+                            object_size - progress, 0);
+      DCHECK(bytes_recv > 0) << "socket recv error: object content";
+      progress += bytes_recv;
+    }
+
+    plasma_client.Seal(object_id);
 
     status = send_all(conn_fd, "OK", 3);
     DCHECK(!status) << "socket send error: object ack";
 
-    plasma_client.Seal(object_id);
     close(conn_fd);
     LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
               << " completes";
