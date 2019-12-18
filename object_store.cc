@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "logging.h"
 #include "object_store.grpc.pb.h"
@@ -93,7 +94,7 @@ std::string get_object_location(const std::string &hex) {
       (redisReply *)redisCommand(redis_client, "LRANGE %s 0 -1", hex.c_str());
 
   int num_of_copies = redis_reply->elements;
-  DCHECK(num_of_copies > 0) "cannot find object " << hex << " in Redis";
+  DCHECK(num_of_copies > 0) << "cannot find object " << hex << " in Redis";
 
   std::string address =
       std::string(redis_reply->element[rand() % num_of_copies]->str);
@@ -326,11 +327,15 @@ void RunGRPCServer(std::string ip, int port) {
 void test_server(int object_size) {
   char *buffer = new char[1024 * 1024 * 1024];
   for (int i = 0; i < object_size; i++) {
-    buffer[i] = 'r';
+    buffer[i] = i % 256;
   }
 
   ObjectID object_id = put(buffer, object_size);
   LOG(INFO) << "Object is created! object_id = " << object_id.hex();
+  unsigned long crc = crc32(0L, Z_NULL, 0);
+  crc = crc32(crc, (const unsigned char *)buffer, object_size);
+
+  LOG(INFO) << "Object CRC = " << crc;
 }
 
 void test_client(ObjectID object_id) {
@@ -341,6 +346,10 @@ void test_client(ObjectID object_id) {
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
   LOG(INFO) << "Object is retrieved using " << duration.count() << " seconds";
+
+  unsigned long crc = crc32(0L, Z_NULL, 0);
+  crc = crc32(crc, (const unsigned char *)buffer, size);
+  LOG(INFO) << "Object retrieved CRC = " << crc;
 }
 
 unsigned char hex_to_dec(char a) {
