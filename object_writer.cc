@@ -1,8 +1,25 @@
+#include <unistd.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <plasma/common.h>
+#include <plasma/client.h>
+#include <atomic>
 
+#include "global_control_store.h"
+#include "logging.h"
+#include "socket_utils.h"
+#include "object_writer.h"
 
-void RunTCPServer(GlobalControlStoreClient& gcs_client, const std::string& ip, int port) {
+using namespace plasma;
+
+// FIXME: here we assume we are downloading only 1 object
+// need to fix this later
+void *pending_write = NULL;
+long pending_size = 0;
+std::atomic_long progress;
+
+void RunTCPServer(GlobalControlStoreClient& gcs_client, PlasmaClient& plasma_client, const std::string& ip, int port) {
   // data format:
   // [object_id (160bit), size (64bit), object]
   int server_fd, conn_fd;
@@ -53,7 +70,7 @@ void RunTCPServer(GlobalControlStoreClient& gcs_client, const std::string& ip, i
     progress = 0;
     pending_size = object_size;
     pending_write = ptr->mutable_data();
-    gcs_client.write_object_location(object_id.hex());
+    gcs_client.write_object_location(object_id.hex(), ip);
 
     while (progress < object_size) {
       int bytes_recv = recv(conn_fd, ptr->mutable_data() + progress,

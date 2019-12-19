@@ -1,3 +1,6 @@
+#ifndef PLASMA_UTILS_H
+#define PLASMA_UTILS_H
+
 #include <plasma/common.h>
 
 unsigned char hex_to_dec(char a) {
@@ -8,16 +11,14 @@ unsigned char hex_to_dec(char a) {
   }
 }
 
-ObjectID from_hex(char *hex) {
-  unsigned char id[kUniqueIDSize];
-  for (int i = 0; i < kUniqueIDSize; i++) {
+plasma::ObjectID from_hex(char *hex) {
+  unsigned char id[plasma::kUniqueIDSize];
+  for (int i = 0; i < plasma::kUniqueIDSize; i++) {
     id[i] = hex_to_dec(hex[2 * i]) * 16 + hex_to_dec(hex[2 * i + 1]);
   }
-  std::string binary = std::string((char *)id, kUniqueIDSize);
+  std::string binary = std::string((char *)id, plasma::kUniqueIDSize);
 
-  ObjectID object_id = ObjectID::from_binary(binary);
-  DCHECK(object_id.hex().compare(hex) == 0)
-      << "error in decoding object id: object_id = " << object_id.hex()
-      << "hex = " << hex;
-  return object_id;
+  return plasma::ObjectID::from_binary(binary);
 }
+
+#endif

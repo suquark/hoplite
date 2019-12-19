@@ -8,7 +8,7 @@ namespace ray {
 
 enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3 };
 
-#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, level) << RayLog::app_name_
+#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, level) << ray::RayLog::get_app_name()
 
 #define RAY_LOG_ENABLED(level) ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
 

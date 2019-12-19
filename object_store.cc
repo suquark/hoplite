@@ -23,8 +23,10 @@
 #include <zlib.h>
 
 #include "logging.h"
+#include "socket_utils.h"
 #include "plasma_utils.h"
 #include "object_writer.h"
+#include "global_control_store.h"
 #include "object_store.grpc.pb.h"
 
 using namespace plasma;
@@ -44,12 +46,6 @@ std::chrono::high_resolution_clock::time_point start_time;
 std::map<std::string, int> current_transfer;
 std::mutex transfer_mutex;
 
-// FIXME: here we assume we are downloading only 1 object
-// need to fix this later
-void *pending_write = NULL;
-long pending_size = 0;
-std::atomic_long progress;
-
 double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_span = now - start_time;
@@ -64,7 +60,7 @@ ObjectID put(const void *data, size_t size) {
   plasma_client.Create(object_id, size, NULL, 0, &ptr);
   memcpy(ptr->mutable_data(), data, size);
   plasma_client.Seal(object_id);
-  gcs_client.write_object_location(object_id.hex());
+  gcs_client.write_object_location(object_id.hex(), my_address);
   return object_id;
 }
 
@@ -229,7 +225,7 @@ int main(int argc, char **argv) {
   my_address = std::string(argv[2]);
   ::ray::RayLog::StartRayLog(my_address + ": ");
   // create a thread to receive remote object
-  std::thread tcp_thread(RunTCPServer, my_address, 6666);
+  std::thread tcp_thread(RunTCPServer, std::ref(gcs_client), std::ref(plasma_client),  my_address, 6666);
   // create a thread to process pull requests
   std::thread grpc_thread(RunGRPCServer, my_address, 50055);
 
@@ -237,9 +233,7 @@ int main(int argc, char **argv) {
   plasma_client.Connect("/tmp/multicast_plasma", "");
 
   if (argv[3][0] == 's') {
-    redisReply *reply = (redisReply *)redisCommand(redis_client, "FLUSHALL");
-    freeReplyObject(reply);
-
+    gcs_client.flushall();
     test_server(atoi(argv[4]));
   } else {
     test_client(from_hex(argv[4]));
