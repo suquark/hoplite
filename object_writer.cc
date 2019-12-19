@@ -15,27 +15,23 @@
 
 using namespace plasma;
 
-TCPServer::TCPServer(GlobalControlStoreClient &gcs_client,
+TCPServer::TCPServer(ObjectStoreState &state,
+                     GlobalControlStoreClient &gcs_client,
                      PlasmaClient &plasma_client,
                      const std::string &server_ipaddr, int port)
-    : gcs_client_(gcs_client), plasma_client_(plasma_client) {
+    : state_(state), gcs_client_(gcs_client), plasma_client_(plasma_client) {
   tcp_bind_and_listen(port, &address_, &server_fd_);
   LOG(INFO) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
             << port;
 }
 
-std::thread TCPServer::run() {
-  std::thread tcp_thread(&TCPServer::worker_loop_, this);
-  return tcp_thread;
-}
-
-void TCPServer::worker_loop_() {
+void TCPServer::worker_loop() {
   while (true) {
-    recv_object_();
+    recv_object();
   }
 }
 
-void TCPServer::recv_object_() {
+void TCPServer::recv_object() {
   // Protocol: [object_id(kUniqueIDSize), object_size(8B), buffer(*)]
 
   LOG(DEBUG) << "waiting for a connection";

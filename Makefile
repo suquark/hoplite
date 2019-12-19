@@ -11,7 +11,9 @@ PROTOS_PATH = .
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
-object_store: object_store.pb.o object_store.grpc.pb.o util/logging.o util/socket_utils.o object_writer.o global_control_store.o object_store.o
+object_store: object_store.pb.o object_store.grpc.pb.o util/logging.o util/socket_utils.o \
+              global_control_store.o object_store_state.o object_writer.o object_control.o \
+			  object_store.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
