@@ -39,7 +39,7 @@ std::string redis_address;
 std::string my_address;
 
 PlasmaClient plasma_client;
-auto gcs_client = GlobalControlStoreClient(redis_address, 6380);
+std::unique_ptr<GlobalControlStoreClient> gcs_client;
 
 std::chrono::high_resolution_clock::time_point start_time;
 
@@ -60,14 +60,14 @@ ObjectID put(const void *data, size_t size) {
   plasma_client.Create(object_id, size, NULL, 0, &ptr);
   memcpy(ptr->mutable_data(), data, size);
   plasma_client.Seal(object_id);
-  gcs_client.write_object_location(object_id.hex(), my_address);
+  gcs_client->write_object_location(object_id.hex(), my_address);
   return object_id;
 }
 
 void get(ObjectID object_id, const void **data, size_t *size) {
   // get object location from redis
   while (true) {
-    std::string address = gcs_client.get_object_location(object_id.hex());
+    std::string address = gcs_client->get_object_location(object_id.hex());
 
     // send pull request to one of the location
     std::string remote_grpc_address = address + ":" + std::to_string(50055);
@@ -223,9 +223,10 @@ int main(int argc, char **argv) {
   start_time = std::chrono::high_resolution_clock::now();
   redis_address = std::string(argv[1]);
   my_address = std::string(argv[2]);
+  gcs_client.reset(new GlobalControlStoreClient(redis_address, 6380));
   ::ray::RayLog::StartRayLog(my_address + ": ");
   // create a thread to receive remote object
-  std::thread tcp_thread(RunTCPServer, std::ref(gcs_client), std::ref(plasma_client),  my_address, 6666);
+  std::thread tcp_thread(RunTCPServer, std::ref(*gcs_client), std::ref(plasma_client), my_address, 6666);
   // create a thread to process pull requests
   std::thread grpc_thread(RunGRPCServer, my_address, 50055);
 
@@ -233,7 +234,7 @@ int main(int argc, char **argv) {
   plasma_client.Connect("/tmp/multicast_plasma", "");
 
   if (argv[3][0] == 's') {
-    gcs_client.flushall();
+    gcs_client->flushall();
     test_server(atoi(argv[4]));
   } else {
     test_client(from_hex(argv[4]));
