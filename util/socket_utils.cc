@@ -16,6 +16,8 @@
 #include <zlib.h>
 #include "logging.h"
 
+constexpr int BACKLOG = 10;
+
 
 int send_all(int conn_fd, const void *buf, const size_t size) {
   size_t cursor = 0;
@@ -59,3 +61,16 @@ int tcp_connect(const std::string& ip_address, int port, int *conn_fd) {
 }
 
 
+void tcp_bind_and_listen(int port, struct sockaddr_in *address, int *server_fd) {
+  *server_fd = socket(AF_INET, SOCK_STREAM, 0);
+  DCHECK(*server_fd >= 0) << "socket creation error";
+  address->sin_family = AF_INET;
+  address->sin_addr.s_addr = INADDR_ANY;
+  address->sin_port = htons(port);
+
+  auto status = bind(*server_fd, (struct sockaddr *)&address, sizeof(address));
+  DCHECK(!status) << "Cannot bind to port " << port << ".";
+
+  status = listen(*server_fd, BACKLOG);
+  DCHECK(!status) << "Socket listen error.";
+}

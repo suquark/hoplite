@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstdint>
 #include <ctime>
 #include <errno.h>
 #include <grpc/grpc.h>
@@ -22,12 +23,12 @@
 #include <unistd.h>
 #include <zlib.h>
 
-#include "logging.h"
-#include "socket_utils.h"
-#include "plasma_utils.h"
-#include "object_writer.h"
 #include "global_control_store.h"
+#include "logging.h"
 #include "object_store.grpc.pb.h"
+#include "object_writer.h"
+#include "plasma_utils.h"
+#include "socket_utils.h"
 
 using namespace plasma;
 
@@ -40,11 +41,11 @@ std::string my_address;
 
 PlasmaClient plasma_client;
 std::unique_ptr<GlobalControlStoreClient> gcs_client;
+std::unique_ptr<TCPServer> tcp_server;
 
 std::chrono::high_resolution_clock::time_point start_time;
 
 std::map<std::string, int> current_transfer;
-std::mutex transfer_mutex;
 
 double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
@@ -103,7 +104,7 @@ public:
     ObjectID object_id = ObjectID::from_binary(request->object_id());
 
     {
-      std::lock_guard<std::mutex> guard(transfer_mutex);
+      std::lock_guard<std::mutex> guard(transfer_mutex_);
       if (current_transfer.find(object_id.hex()) == current_transfer.end()) {
         current_transfer[object_id.hex()] = 0;
       }
@@ -125,21 +126,23 @@ public:
     DCHECK(!status) << "socket connect error";
 
     void *object_buffer = NULL;
-    long object_size = 0;
-    if (pending_write == NULL) {
-      // fetech object from Plasma
+    size_t object_size = 0;
+    // TODO: support multiple object.
+    if (tcp_server->get_pending_write() == NULL) {
+      // fetch object from Plasma
       LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
       std::vector<ObjectBuffer> object_buffers;
       plasma_client.Get({object_id}, -1, &object_buffers);
       object_buffer = (void *)object_buffers[0].data->data();
       object_size = object_buffers[0].data->size();
-      progress = object_size;
+      tcp_server->set_progress(object_size);
     } else {
       // fetch partial object in memory
       LOG(DEBUG) << "[GrpcServer] fetching a partial object";
-      object_buffer = pending_write;
-      object_size = pending_size;
+      object_buffer = tcp_server->get_pending_write();
+      object_size = tcp_server->get_pending_size();
     }
+
     // send object_id
     status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
     DCHECK(!status) << "socket send error: object_id";
@@ -147,17 +150,20 @@ public:
     // send object size
     status = send_all(conn_fd, (void *)&object_size, sizeof(object_size));
     DCHECK(!status) << "socket send error: object size";
+
     // send object
-    long cursor = 0;
+    int64_t cursor = 0;
     while (cursor < object_size) {
-      if (cursor < progress) {
+      int64_t current_progress = tcp_server->get_progress();
+      if (cursor < current_progress) {
         int bytes_sent =
-            send(conn_fd, object_buffer + cursor, progress - cursor, 0);
+            send(conn_fd, object_buffer + cursor, current_progress - cursor, 0);
         DCHECK(bytes_sent > 0) << "socket send error: object content";
         cursor += bytes_sent;
       }
     }
 
+    // receive ack
     char ack[5];
     status = recv_all(conn_fd, ack, 3);
     DCHECK(!status) << "socket recv error: ack, error code = " << errno;
@@ -170,13 +176,16 @@ public:
                << request->puller_ip() << " for object " << object_id.hex();
 
     {
-      std::lock_guard<std::mutex> guard(transfer_mutex);
+      std::lock_guard<std::mutex> guard(transfer_mutex_);
       current_transfer[object_id.hex()]--;
     }
 
     reply->set_ok(true);
     return grpc::Status::OK;
   }
+
+private:
+  std::mutex transfer_mutex_;
 };
 
 void RunGRPCServer(std::string ip, int port) {
@@ -225,13 +234,16 @@ int main(int argc, char **argv) {
   my_address = std::string(argv[2]);
   gcs_client.reset(new GlobalControlStoreClient(redis_address, 6380));
   ::ray::RayLog::StartRayLog(my_address + ": ");
-  // create a thread to receive remote object
-  std::thread tcp_thread(RunTCPServer, std::ref(*gcs_client), std::ref(plasma_client), my_address, 6666);
-  // create a thread to process pull requests
-  std::thread grpc_thread(RunGRPCServer, my_address, 50055);
 
   // create a plasma client
   plasma_client.Connect("/tmp/multicast_plasma", "");
+
+  tcp_server.reset(new TCPServer(*gcs_client, plasma_client, my_address, 6666));
+  // create a thread to receive remote object
+  auto tcp_thread = tcp_server.run();
+
+  // create a thread to process pull requests
+  std::thread grpc_thread(RunGRPCServer, my_address, 50055);
 
   if (argv[3][0] == 's') {
     gcs_client->flushall();
