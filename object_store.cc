@@ -3,11 +3,7 @@
 #include <cstdint>
 #include <ctime>
 #include <errno.h>
-#include <grpc/grpc.h>
-#include <grpcpp/grpcpp.h>
-#include <grpcpp/server.h>
-#include <grpcpp/server_builder.h>
-#include <grpcpp/server_context.h>
+
 #include <iostream>
 #include <map>
 #include <mutex>
@@ -39,7 +35,6 @@ using objectstore::PullRequest;
 std::string redis_address;
 std::string my_address;
 
-PlasmaClient plasma_client;
 std::unique_ptr<GlobalControlStoreClient> gcs_client;
 std::unique_ptr<TCPServer> tcp_server;
 
@@ -51,49 +46,6 @@ double get_time() {
   auto now = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_span = now - start_time;
   return time_span.count();
-}
-
-ObjectID put(const void *data, size_t size) {
-  // generate a random object id
-  ObjectID object_id = random_object_id();
-  // put object into Plasma
-  std::shared_ptr<Buffer> ptr;
-  plasma_client.Create(object_id, size, NULL, 0, &ptr);
-  memcpy(ptr->mutable_data(), data, size);
-  plasma_client.Seal(object_id);
-  gcs_client->write_object_location(object_id.hex(), my_address);
-  return object_id;
-}
-
-void get(ObjectID object_id, const void **data, size_t *size) {
-  // get object location from redis
-  while (true) {
-    std::string address = gcs_client->get_object_location(object_id.hex());
-
-    // send pull request to one of the location
-    std::string remote_grpc_address = address + ":" + std::to_string(50055);
-    auto channel = grpc::CreateChannel(remote_grpc_address,
-                                       grpc::InsecureChannelCredentials());
-    std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
-    grpc::ClientContext context;
-    PullRequest request;
-    PullReply reply;
-    request.set_object_id(object_id.binary());
-    request.set_puller_ip(my_address);
-    stub->Pull(&context, request, &reply);
-    if (reply.ok()) {
-      break;
-    }
-    // if the sender is busy, wait for 1 millisecond and try again
-    usleep(1000);
-  }
-
-  // get object from Plasma
-  std::vector<ObjectBuffer> object_buffers;
-  plasma_client.Get({object_id}, -1, &object_buffers);
-
-  *data = object_buffers[0].data->data();
-  *size = object_buffers[0].data->size();
 }
 
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
@@ -199,13 +151,89 @@ void RunGRPCServer(std::string ip, int port) {
   grpc_server->Wait();
 }
 
-void test_server(int object_size) {
+class DistributedObjectStore {
+public:
+  DistributedObjectStore(const std::string &redis_address, int redis_port,
+                         const std::string &plasma_socket,
+                         const std::string &my_address, int object_writer_port,
+                         int grpc_port)
+      : gcs_client_(GlobalControlStoreClient(redis_address, redis_port)),
+        object_writer_(TCPServer(gcs_client_, plasma_client_, my_address,
+                                 object_writer_port)) {
+    // connect to the plasma store
+    plasma_client_.Connect(plasma_socket, "");
+    // create a thread to receive remote object
+    object_writer_thread_ = tcp_server.run();
+    // create a thread to process pull requests
+    grpc_thread_ = std::thread(RunGRPCServer, my_address, grpc_port);
+  }
+
+  ObjectID put(const void *data, size_t size) {
+    // generate a random object id
+    ObjectID object_id = random_object_id();
+    // put object into Plasma
+    std::shared_ptr<Buffer> ptr;
+    plasma_client_.Create(object_id, size, NULL, 0, &ptr);
+    memcpy(ptr->mutable_data(), data, size);
+    plasma_client_.Seal(object_id);
+    gcs_client_->write_object_location(object_id.hex(), my_address);
+    return object_id;
+  }
+
+  void get(ObjectID object_id, const void **data, size_t *size) {
+    // get object location from redis
+    while (true) {
+      std::string address = gcs_client_->get_object_location(object_id.hex());
+
+      // send pull request to one of the location
+      std::string remote_grpc_address = address + ":" + std::to_string(50055);
+      auto channel = grpc::CreateChannel(remote_grpc_address,
+                                         grpc::InsecureChannelCredentials());
+      std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+      grpc::ClientContext context;
+      PullRequest request;
+      PullReply reply;
+      request.set_object_id(object_id.binary());
+      request.set_puller_ip(my_address);
+      stub->Pull(&context, request, &reply);
+      if (reply.ok()) {
+        break;
+      }
+      // if the sender is busy, wait for 1 millisecond and try again
+      usleep(1000);
+    }
+
+    // get object from Plasma
+    std::vector<ObjectBuffer> object_buffers;
+    plasma_client_.Get({object_id}, -1, &object_buffers);
+
+    *data = object_buffers[0].data->data();
+    *size = object_buffers[0].data->size();
+  }
+
+  void join_tasks() {
+    object_writer_thread_.join();
+    grpc_thread_.join();
+  }
+
+  void flushall() { gcs_client_.flushall(); }
+
+private:
+  GlobalControlStoreClient gcs_client_;
+  PlasmaClient plasma_client_;
+  TCPServer object_writer_;
+  std::thread object_writer_thread_;
+  std::thread grpc_thread_;
+}
+
+
+void test_server(DistributedObjectStore& store, int object_size) {
   char *buffer = new char[1024 * 1024 * 1024];
   for (int i = 0; i < object_size; i++) {
     buffer[i] = i % 256;
   }
 
-  ObjectID object_id = put(buffer, object_size);
+  ObjectID object_id = store.put(buffer, object_size);
   LOG(INFO) << "Object is created! object_id = " << object_id.hex();
   unsigned long crc = crc32(0L, Z_NULL, 0);
   crc = crc32(crc, (const unsigned char *)buffer, object_size);
@@ -213,11 +241,11 @@ void test_server(int object_size) {
   LOG(INFO) << "Object CRC = " << crc;
 }
 
-void test_client(ObjectID object_id) {
+void test_client(DistributedObjectStore &store, ObjectID object_id) {
   const char *buffer;
   size_t size;
   auto start = std::chrono::system_clock::now();
-  get(object_id, (const void **)&buffer, &size);
+  store.get(object_id, (const void **)&buffer, &size);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
   LOG(INFO) << "Object is retrieved using " << duration.count() << " seconds";
@@ -232,28 +260,19 @@ int main(int argc, char **argv) {
   start_time = std::chrono::high_resolution_clock::now();
   redis_address = std::string(argv[1]);
   my_address = std::string(argv[2]);
-  gcs_client.reset(new GlobalControlStoreClient(redis_address, 6380));
+
   ::ray::RayLog::StartRayLog(my_address + ": ");
 
-  // create a plasma client
-  plasma_client.Connect("/tmp/multicast_plasma", "");
-
-  tcp_server.reset(new TCPServer(*gcs_client, plasma_client, my_address, 6666));
-  // create a thread to receive remote object
-  auto tcp_thread = tcp_server.run();
-
-  // create a thread to process pull requests
-  std::thread grpc_thread(RunGRPCServer, my_address, 50055);
+  DistributedObjectStore store(redis_address, 6380, "/tmp/multicast_plasma",
+                               my_address, 6666, 50055);
 
   if (argv[3][0] == 's') {
-    gcs_client->flushall();
-    test_server(atoi(argv[4]));
+    store.flushall();
+    test_server(store, atoi(argv[4]));
   } else {
-    test_client(from_hex(argv[4]));
+    test_client(store, from_hex(argv[4]));
   }
 
-  tcp_thread.join();
-  grpc_thread.join();
-
+  store.join_tasks();
   return 0;
 }

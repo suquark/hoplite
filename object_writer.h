@@ -26,6 +26,7 @@ private:
 
   GlobalControlStoreClient &gcs_client_;
   plasma::PlasmaClient &plasma_client_;
+
   int server_fd_;
   struct sockaddr_in address_;
   // FIXME: here we assume we are downloading only 1 object
