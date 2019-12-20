@@ -67,8 +67,8 @@ void tcp_bind_and_listen(int port, struct sockaddr_in *address, int *server_fd) 
   address->sin_addr.s_addr = INADDR_ANY;
   address->sin_port = htons(port);
 
-  auto status = bind(*server_fd, (struct sockaddr *)&address, sizeof(address));
-  DCHECK(!status) << "Cannot bind to port " << port << ".";
+  auto status = bind(*server_fd, (struct sockaddr *)address, sizeof(*address));
+  DCHECK(!status) << "Cannot bind to port " << port << " (errno = " << errno << ").";
 
   status = listen(*server_fd, BACKLOG);
   DCHECK(!status) << "Socket listen error.";
