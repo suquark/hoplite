@@ -1,2 +1,3 @@
 #!/bin/bash
-clang-format -i object_store.cc global_control_store.cc
+make clean
+clang-format -i *.cc *.h util/*.cc util/*.h
