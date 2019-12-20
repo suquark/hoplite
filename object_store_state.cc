@@ -1,4 +1,5 @@
 #include "object_store_state.h"
+ObjectStoreState::ObjectStoreState() : progress(0){};
 
 // Return true if we are able to transfer an object.
 bool ObjectStoreState::transfer_available(const plasma::ObjectID &object_id) {
@@ -15,7 +16,7 @@ bool ObjectStoreState::transfer_available(const plasma::ObjectID &object_id) {
   }
 }
 
-void bjectStoreState::transfer_complete(const plasma::ObjectID &object_id) {
+void ObjectStoreState::transfer_complete(const plasma::ObjectID &object_id) {
   std::lock_guard<std::mutex> guard(transfer_mutex_);
   current_transfer_[object_id.hex()]--;
 }

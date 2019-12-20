@@ -47,13 +47,13 @@ public:
                          int grpc_port)
       : my_address_(my_address),
         gcs_client_(GlobalControlStoreClient(redis_address, redis_port)),
-        object_control_(GrpcServer(state_, my_address, grpc_port)),
+        object_control_(GrpcServer(plasma_client_, state_, my_address, grpc_port)),
         object_writer_(TCPServer(state_, gcs_client_, plasma_client_,
                                  my_address, object_writer_port)) {
     // connect to the plasma store
     plasma_client_.Connect(plasma_socket, "");
     // create a thread to receive remote object
-    object_writer_thread_ = object_writer_.run();
+    object_writer_thread_ = object_writer_.Run();
     // create a thread to process pull requests
     object_control_thread_ = object_control_.Run();
   }
@@ -66,14 +66,14 @@ public:
     plasma_client_.Create(object_id, size, NULL, 0, &ptr);
     memcpy(ptr->mutable_data(), data, size);
     plasma_client_.Seal(object_id);
-    gcs_client_->write_object_location(object_id.hex(), my_address_);
+    gcs_client_.write_object_location(object_id.hex(), my_address_);
     return object_id;
   }
 
   void Get(ObjectID object_id, const void **data, size_t *size) {
     // get object location from redis
     while (true) {
-      std::string address = gcs_client_->get_object_location(object_id.hex());
+      std::string address = gcs_client_.get_object_location(object_id.hex());
 
       // send pull request to one of the location
       bool reply_ok = object_control_.PullObject(address, object_id);

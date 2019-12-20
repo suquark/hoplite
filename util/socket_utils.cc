@@ -1,4 +1,3 @@
-#pragma once
 #include <arpa/inet.h>
 #include <chrono>
 #include <ctime>

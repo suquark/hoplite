@@ -12,8 +12,8 @@
 
 class TCPServer {
 public:
-  TCPServer(ObjectStoreState &state;
-            GlobalControlStoreClient & gcs_client, PlasmaClient &plasma_client,
+  TCPServer(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
+            plasma::PlasmaClient &plasma_client,
             const std::string &server_ipaddr, int port);
 
   inline std::thread Run() {
@@ -31,7 +31,8 @@ private:
   ObjectStoreState &state_;
 
   int server_fd_;
+  const std::string &server_ipaddr_;
   struct sockaddr_in address_;
-}
+};
 
 #endif // OBJECT_WRITER_H

@@ -3,18 +3,24 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
+#include "logging.h"
 #include "object_control.h"
 #include "object_store.grpc.pb.h"
+#include "socket_utils.h"
 
 using objectstore::ObjectStore;
 using objectstore::PullReply;
 using objectstore::PullRequest;
 
+using namespace plasma;
+
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
-  ObjectStoreServiceImpl(ObjectStoreState &state)
-      : ObjectStore::Service(), state_(state) {}
+  ObjectStoreServiceImpl(PlasmaClient &plasma_client, ObjectStoreState &state)
+      : ObjectStore::Service(), plasma_client_(plasma_client), state_(state) {}
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
@@ -26,8 +32,8 @@ public:
       return grpc::Status::OK;
     }
 
-    LOG(DEBUG) << get_time() << ": Received a pull request from "
-               << request->puller_ip() << " for object " << object_id.hex();
+    LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
+               << " for object " << object_id.hex();
 
     // create a TCP connection, send the object through the TCP connection
     int conn_fd;
@@ -37,19 +43,19 @@ public:
     void *object_buffer = NULL;
     size_t object_size = 0;
     // TODO: support multiple object.
-    if (tcp_server->get_pending_write() == NULL) {
+    if (state_.pending_write == NULL) {
       // fetch object from Plasma
       LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
       std::vector<ObjectBuffer> object_buffers;
-      plasma_client.Get({object_id}, -1, &object_buffers);
+      plasma_client_.Get({object_id}, -1, &object_buffers);
       object_buffer = (void *)object_buffers[0].data->data();
       object_size = object_buffers[0].data->size();
-      state_->progress = object_size;
+      state_.progress = object_size;
     } else {
       // fetch partial object in memory
       LOG(DEBUG) << "[GrpcServer] fetching a partial object";
-      object_buffer = state_->pending_write;
-      object_size = state_->pending_size;
+      object_buffer = state_.pending_write;
+      object_size = state_.pending_size;
     }
 
     // send object_id
@@ -63,7 +69,7 @@ public:
     // send object
     int64_t cursor = 0;
     while (cursor < object_size) {
-      int64_t current_progress = state_->progress;
+      int64_t current_progress = state_.progress;
       if (cursor < current_progress) {
         int bytes_sent =
             send(conn_fd, object_buffer + cursor, current_progress - cursor, 0);
@@ -80,52 +86,44 @@ public:
       LOG(FATAL) << "ack is wrong";
 
     close(conn_fd);
-    LOG(DEBUG) << get_time() << ": Finished a pull request from "
-               << request->puller_ip() << " for object " << object_id.hex();
+    LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
+               << " for object " << object_id.hex();
 
-    state_->transfer_complete(object_id);
+    state_.transfer_complete(object_id);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
 
 private:
   ObjectStoreState &state_;
+  PlasmaClient &plasma_client_;
 };
 
-class GrpcServer {
-public:
-  GrpcServer(ObjectStoreState &state, const std::string &my_address, int port)
-      : my_address_(my_address), grpc_port_(port), state_(state) {
-    std::string grpc_address = my_address + ":" + std::to_string(port);
-    grpc::ServerBuilder builder;
-    builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
-    ObjectStoreServiceImpl service(state);
-    builder.RegisterService(&service);
-    grpc_server_ = builder.BuildAndStart();
-    LOG(INFO) << "[GprcServer] grpc server " << grpc_address << " started";
-  }
+GrpcServer::GrpcServer(PlasmaClient &plasma_client, ObjectStoreState &state,
+                       const std::string &my_address, int port)
+    : my_address_(my_address), grpc_port_(port), state_(state) {
+  std::string grpc_address = my_address + ":" + std::to_string(port);
+  grpc::ServerBuilder builder;
+  builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
+  ObjectStoreServiceImpl service(plasma_client, state);
+  builder.RegisterService(&service);
+  grpc_server_ = builder.BuildAndStart();
+  LOG(INFO) << "[GprcServer] grpc server " << grpc_address << " started";
+}
 
-  bool PullObject(const std::string &remote_address,
-                  const plasma::ObjectID &object_id) {
-    auto remote_grpc_address =
-        remote_address + ":" + std::to_string(grpc_port_);
-    auto channel =
-        grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-    std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
-    grpc::ClientContext context;
-    PullRequest request;
-    PullReply reply;
-    request.set_object_id(object_id.binary());
-    request.set_puller_ip(my_address);
-    stub->Pull(&context, request, &reply);
-    return reply.ok();
-  }
+bool GrpcServer::PullObject(const std::string &remote_address,
+                            const plasma::ObjectID &object_id) {
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  auto channel =
+      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+  grpc::ClientContext context;
+  PullRequest request;
+  PullReply reply;
+  request.set_object_id(object_id.binary());
+  request.set_puller_ip(my_address_);
+  stub->Pull(&context, request, &reply);
+  return reply.ok();
+}
 
-private:
-  void worker_loop() { grpc_server_->Wait(); }
-
-  const int grpc_port_;
-  const std::string &my_address_;
-  ObjectStoreState &state_;
-  std::unique_ptr<grpc::Server> grpc_server_;
-};
+void GrpcServer::worker_loop() { grpc_server_->Wait(); }
