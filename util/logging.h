@@ -8,7 +8,7 @@ namespace ray {
 
 enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3 };
 
-#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, level)
+#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, level) << ray::RayLog::get_app_name()
 
 #define RAY_LOG_ENABLED(level) ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
 
@@ -36,6 +36,10 @@ enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3
 #define RAY_DCHECK(condition) RAY_CHECK(condition)
 
 #endif  // NDEBUG
+
+// Alias
+#define LOG RAY_LOG
+#define DCHECK RAY_DCHECK
 
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration
@@ -99,6 +103,8 @@ class RayLog : public RayLogBase {
   static void InstallFailureSignalHandler();
   // Get the log level from environment variable.
   static RayLogLevel GetLogLevelFromEnv();
+
+  inline static const std::string& get_app_name() { return app_name_; }
 
  private:
   // Hide the implementation of log provider by void *.
