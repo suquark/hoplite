@@ -24,7 +24,6 @@ public:
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
-
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     bool transfer_available = state_.transfer_available(object_id);
     if (!transfer_available) {
@@ -101,21 +100,20 @@ private:
 
 GrpcServer::GrpcServer(PlasmaClient &plasma_client, ObjectStoreState &state,
                        const std::string &my_address, int port)
-    : my_address_(my_address), grpc_port_(port), state_(state) {
+    : my_address_(my_address), grpc_port_(port), state_(state),
+      service_(std::make_shared<ObjectStoreServiceImpl>(plasma_client, state)) {
   std::string grpc_address = my_address + ":" + std::to_string(port);
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
-  ObjectStoreServiceImpl service(plasma_client, state);
-  builder.RegisterService(&service);
+  builder.RegisterService(&*service_);
   grpc_server_ = builder.BuildAndStart();
-  LOG(INFO) << "[GprcServer] grpc server " << grpc_address << " started";
 }
 
 bool GrpcServer::PullObject(const std::string &remote_address,
                             const plasma::ObjectID &object_id) {
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  auto channel =
-      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  auto channel = grpc::CreateChannel(remote_grpc_address,
+                                     grpc::InsecureChannelCredentials());
   std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
   grpc::ClientContext context;
   PullRequest request;
@@ -126,4 +124,8 @@ bool GrpcServer::PullObject(const std::string &remote_address,
   return reply.ok();
 }
 
-void GrpcServer::worker_loop() { grpc_server_->Wait(); }
+void GrpcServer::worker_loop() {
+  LOG(INFO) << "[GprcServer] grpc server " << my_address_ << " started";
+
+  grpc_server_->Wait();
+}

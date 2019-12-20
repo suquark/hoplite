@@ -47,7 +47,8 @@ public:
                          int grpc_port)
       : my_address_(my_address),
         gcs_client_(GlobalControlStoreClient(redis_address, redis_port)),
-        object_control_(GrpcServer(plasma_client_, state_, my_address, grpc_port)),
+        object_control_(
+            GrpcServer(plasma_client_, state_, my_address, grpc_port)),
         object_writer_(TCPServer(state_, gcs_client_, plasma_client_,
                                  my_address, object_writer_port)) {
     // connect to the plasma store
