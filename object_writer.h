@@ -24,7 +24,8 @@ public:
 private:
   void worker_loop();
 
-  void recv_object();
+  void receive_object(int conn_fd);
+  void receive_and_reduce_object(int conn_fd);
 
   GlobalControlStoreClient &gcs_client_;
   plasma::PlasmaClient &plasma_client_;

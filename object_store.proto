@@ -11,6 +11,19 @@ message PullReply {
   bool ok = 1;
 }
 
+message ReduceToRequest {
+  bytes src_object_id = 1;
+  bytes dst_object_id = 2;
+  bytes dst_address = 3;
+  bool is_head = 4;
+  bytes reduction_id = 5;
+}
+
+message ReduceToReply {
+  bool ok = 1;
+}
+
 service ObjectStore {
   rpc Pull(PullRequest) returns (PullReply);
+  rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
 }
