@@ -4,6 +4,8 @@
 #include <atomic>
 #include <mutex>
 #include <plasma/common.h>
+#include <plasma/client.h>
+
 #include <unordered_map>
 #include <vector>
 
@@ -44,11 +46,18 @@ public:
   std::shared_ptr<ReductionStream>
   get_reduction_stream(const plasma::ObjectID &reduction_id);
 
+  void create_reduction_endpoint(const plasma::ObjectID &reduction_id,
+                                 const std::shared_ptr<plasma::Buffer> &buffer);
+
+  std::shared_ptr<plasma::Buffer> ObjectStoreState::get_reduction_endpoint(
+      const plasma::ObjectID &reduction_id);
+
 private:
   std::mutex transfer_mutex_;
   std::unordered_map<std::string, int> current_transfer_;
-  std::unordered_map<std::string, std::shared_ptr<ReductionStream>>
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<plasma::Buffer>> reduction_endpoint_;
 };
 
 #endif // OBJECT_STORE_STATE_H

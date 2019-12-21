@@ -1,8 +1,8 @@
 #ifndef GLOBAL_CONTROL_STORE_H
 #define GLOBAL_CONTROL_STORE_H
 
-#include <plasma/common.h>
 #include <mutex>
+#include <plasma/common.h>
 #include <string>
 #include <thread>
 #include <unordered_set>
@@ -37,8 +37,9 @@ public:
   // Clean up Redis store
   void flushall();
 
-  ObjectNotifications *
-  subscribe_object_locations(const std::vector<plasma::ObjectID> &object_id_hexes, bool include_completed_objects = false);
+  ObjectNotifications *subscribe_object_locations(
+      const std::vector<plasma::ObjectID> &object_id_hexes,
+      bool include_completed_objects = false);
 
   void unsubscribe_object_locations(ObjectNotifications *notifications);
 

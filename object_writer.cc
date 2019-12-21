@@ -60,33 +60,39 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
   ObjectID reduce_id = ReadObjectID(conn_fd);
   LOG(DEBUG) << "reduce id = " << reduce_id.hex();
   ObjectID object_id = ReadObjectID(conn_fd);
-  LOG(DEBUG) << "targeted object id = " << reduce_id.hex();
+  LOG(DEBUG) << "targeted object id = " << object_id.hex();
 
-  // Get object from Plasma Store
-  std::vector<ObjectBuffer> object_buffers;
-  plasma_client_.Get({object_id}, -1, &object_buffers);
-  void *object_buffer = (void *)object_buffers[0].data->data();
-  size_t object_size = object_buffers[0].data->size();
-  std::shared_ptr<ReductionStream> stream =
-      state_.create_reduction_stream(reduce_id, object_size);
+  if (object_id == reduce_id) {
+    // this is the endpoint
+    auto buffer = state_.get_reduction_endpoint(reduce_id);
+    int status = recv_all(conn_fd, buffer->mutable_data(), buffer->size());
+  } else {
+    // Get object from Plasma Store
+    std::vector<ObjectBuffer> object_buffers;
+    plasma_client_.Get({reduce_id}, -1, &object_buffers);
+    void *object_buffer = (void *)object_buffers[0].data->data();
+    size_t object_size = object_buffers[0].data->size();
+    std::shared_ptr<ReductionStream> stream =
+        state_.create_reduction_stream(reduce_id, object_size);
 
-  // TODO: implement support for general element types.
-  size_t element_size = sizeof(float);
-  while (stream->receive_progress < object_size) {
-    int bytes_recv = recv(conn_fd, stream->data() + stream->receive_progress,
-                          object_size - stream->receive_progress, 0);
-    stream->receive_progress += bytes_recv;
-    DCHECK(bytes_recv > 0) << "socket recv error: object content";
-    int64_t n_reduce_elements =
-        (stream->receive_progress - stream->reduce_progress) / element_size;
-    float *cursor =
-        (float *)(stream->data() + (int64_t)stream->reduce_progress);
-    float *own_data_cursor =
-        (float *)(object_buffer + (int64_t)stream->reduce_progress);
-    for (int i = 0; i < n_reduce_elements; i++) {
-      cursor[i] += own_data_cursor[i];
+    // TODO: implement support for general element types.
+    size_t element_size = sizeof(float);
+    while (stream->receive_progress < object_size) {
+      int bytes_recv = recv(conn_fd, stream->data() + stream->receive_progress,
+                            object_size - stream->receive_progress, 0);
+      stream->receive_progress += bytes_recv;
+      DCHECK(bytes_recv > 0) << "socket recv error: object content";
+      int64_t n_reduce_elements =
+          (stream->receive_progress - stream->reduce_progress) / element_size;
+      float *cursor =
+          (float *)(stream->data() + (int64_t)stream->reduce_progress);
+      float *own_data_cursor =
+          (float *)(object_buffer + (int64_t)stream->reduce_progress);
+      for (int i = 0; i < n_reduce_elements; i++) {
+        cursor[i] += own_data_cursor[i];
+      }
+      stream->reduce_progress += n_reduce_elements * element_size;
     }
-    stream->reduce_progress += n_reduce_elements * element_size;
   }
 
   // reply message

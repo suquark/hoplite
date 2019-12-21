@@ -17,8 +17,8 @@ ObjectNotifications::ObjectNotifications(
 std::vector<ObjectID> ObjectNotifications::GetNotifications() {
   std::lock_guard<std::mutex> guard(notification_mutex_);
   std::vector<ObjectID> notifications;
-  for (auto& object_id_hex : ready_) {
-    notifications.push_back(from_hex((char*)object_id_hex.c_str()));
+  for (auto &object_id_hex : ready_) {
+    notifications.push_back(from_hex((char *)object_id_hex.c_str()));
   }
   ready_.clear();
   return notifications;
@@ -73,11 +73,10 @@ GlobalControlStoreClient::get_object_location(const std::string &hex) {
 }
 
 ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
-    const std::vector<ObjectID> &object_ids,
-    bool include_completed_objects) {
+    const std::vector<ObjectID> &object_ids, bool include_completed_objects) {
   std::vector<std::string> object_id_hexes;
   for (auto object_id : object_ids) {
-	  object_id_hexes.push_back(object_id.hex());
+    object_id_hexes.push_back(object_id.hex());
   }
   ObjectNotifications *notifications = new ObjectNotifications(object_id_hexes);
   {

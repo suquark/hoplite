@@ -1,6 +1,6 @@
+#include "protocol.h"
 #include "logging.h"
 #include "socket_utils.h"
-#include "protocol.h"
 
 using namespace plasma;
 

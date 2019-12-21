@@ -182,6 +182,29 @@ bool GrpcServer::PullObject(const std::string &remote_address,
   return reply.ok();
 }
 
+bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
+                                const ObjectID &reduction_id,
+                                const ObjectID &dst_object_id,
+                                const string &dst_address,
+                                const ObjectID *src_object_id = nullptr) {
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  auto channel = grpc::CreateChannel(remote_grpc_address,
+                                     grpc::InsecureChannelCredentials());
+  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+  grpc::ClientContext context;
+  ReduceToRequest request;
+  ReduceToReply reply;
+
+  request.set_reduction_id(reduction_id.binary());
+  request.set_dst_object_id(dst_object_id.binary());
+  request.set_dst_address(dst_address);
+  if (src_object_id != nullptr) {
+    request.set_src_object_id(src_object_id->binary());
+  }
+  stub->ReduceTo(&context, request, &reply);
+  return reply.ok();
+}
+
 void GrpcServer::worker_loop() {
   LOG(INFO) << "[GprcServer] grpc server " << my_address_ << " started";
 
