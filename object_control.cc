@@ -14,6 +14,8 @@
 using objectstore::ObjectStore;
 using objectstore::PullReply;
 using objectstore::PullRequest;
+using objectstore::ReduceToReply;
+using objectstore::ReduceToRequest;
 
 using namespace plasma;
 
@@ -93,21 +95,23 @@ public:
     return grpc::Status::OK;
   }
 
-
-  grpc::Status ReduceTo(grpc::ServerContext *context, const ReduceToRequest *request,
-                        ReduceToReply *reply) {
+  grpc::Status ReduceTo(grpc::ServerContext *context,
+                        const ReduceToRequest *request, ReduceToReply *reply) {
     int conn_fd;
     auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
     DCHECK(!status) << "socket connect error";
     ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     ObjectID dst_object_id = ObjectID::from_binary(request->dst_object_id());
-    status = send_all(conn_fd, (void *)reduction_id.data(), reduction_id.size());
+    status =
+        send_all(conn_fd, (void *)reduction_id.data(), reduction_id.size());
     DCHECK(!status) << "socket send error: reduction_id";
-    status = send_all(conn_fd, (void *)dst_object_id.data(), dst_object_id.size());
+    status =
+        send_all(conn_fd, (void *)dst_object_id.data(), dst_object_id.size());
     DCHECK(!status) << "socket send error: dst_object_id";
 
     void *object_buffer = NULL;
     size_t object_size = 0;
+
     if (request->has_src_object_id()) {
       LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
       ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
@@ -115,21 +119,22 @@ public:
       plasma_client_.Get({src_object_id}, -1, &object_buffers);
       object_buffer = (void *)object_buffers[0].data->data();
       object_size = object_buffers[0].data->size();
+      int status = send_all(conn_fd, object_buffer, object_size);
+      DCHECK(!status) << "Failed to send object";
     } else {
       auto stream = state_.get_reduction_stream(reduction_id);
       object_buffer = stream->data();
       object_size = stream->size();
-    }
-
-    // send object
-    int64_t cursor = 0;
-    while (cursor < object_size) {
-      int64_t current_progress = stream->reduce_progress;
-      if (cursor < current_progress) {
-        int bytes_sent =
-            send(conn_fd, object_buffer + cursor, current_progress - cursor, 0);
-        DCHECK(bytes_sent > 0) << "socket send error: object content";
-        cursor += bytes_sent;
+      // send object
+      int64_t cursor = 0;
+      while (cursor < object_size) {
+        int64_t current_progress = stream->reduce_progress;
+        if (cursor < current_progress) {
+          int bytes_sent = send(conn_fd, object_buffer + cursor,
+                                current_progress - cursor, 0);
+          DCHECK(bytes_sent > 0) << "socket send error: object content";
+          cursor += bytes_sent;
+        }
       }
     }
 
@@ -141,10 +146,7 @@ public:
       LOG(FATAL) << "ack is wrong";
 
     close(conn_fd);
-    LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
-               << " for object " << object_id.hex();
 
-    state_.transfer_complete(object_id);
     reply->set_ok(true);
     return grpc::Status::OK;
   }

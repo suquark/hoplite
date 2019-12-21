@@ -10,7 +10,7 @@ enum class MessageType {
 
 plasma::ObjectID ReadObjectID(int conn_fd);
 
-ObjectWriterMessageType ReadMessageType(int conn_fd);
+MessageType ReadMessageType(int conn_fd);
 
 int64_t ReadObjectSize(int conn_fd);
 
