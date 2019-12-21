@@ -112,7 +112,7 @@ public:
     void *object_buffer = NULL;
     size_t object_size = 0;
 
-    if (request->has_src_object_id()) {
+    if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
       LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
       ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
       std::vector<ObjectBuffer> object_buffers;

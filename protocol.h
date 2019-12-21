@@ -4,8 +4,8 @@
 #include <plasma/common.h>
 
 enum class MessageType {
-    ReceiveObject,
-    ReceiveAndReduceObject,
+  ReceiveObject,
+  ReceiveAndReduceObject,
 };
 
 plasma::ObjectID ReadObjectID(int conn_fd);

@@ -9,17 +9,18 @@
 
 class ReductionStream {
 public:
-  ReductionStream(size_t size): buf_(size), receive_progress(0), reduce_progress(0) {};
+  ReductionStream(size_t size)
+      : buf_(size), receive_progress(0), reduce_progress(0){};
 
-  inline void* data() { return (void *)buf_.data(); }
+  inline void *data() { return (void *)buf_.data(); }
   inline size_t size() { return buf_.size(); }
 
   int64_t receive_progress;
   std::atomic_int64_t reduce_progress;
+
 private:
   std::vector<uint8_t> buf_;
 };
-
 
 class ObjectStoreState {
 
@@ -37,15 +38,17 @@ public:
 
   void transfer_complete(const plasma::ObjectID &object_id);
 
-  std::shared_ptr<ReductionStream> create_reduction_stream(const plasma::ObjectID &reduction_id, size_t size);
+  std::shared_ptr<ReductionStream>
+  create_reduction_stream(const plasma::ObjectID &reduction_id, size_t size);
 
-  std::shared_ptr<ReductionStream> get_reduction_stream(const plasma::ObjectID &reduction_id);
+  std::shared_ptr<ReductionStream>
+  get_reduction_stream(const plasma::ObjectID &reduction_id);
 
 private:
   std::mutex transfer_mutex_;
   std::unordered_map<std::string, int> current_transfer_;
-  std::unordered_map<std::string, std::shared_ptr<ReductionStream>> reduction_stream_;
-
+  std::unordered_map<std::string, std::shared_ptr<ReductionStream>>
+      reduction_stream_;
 };
 
 #endif // OBJECT_STORE_STATE_H

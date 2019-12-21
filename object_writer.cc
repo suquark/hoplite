@@ -11,8 +11,8 @@
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_writer.h"
-#include "socket_utils.h"
 #include "protocol.h"
+#include "socket_utils.h"
 
 using namespace plasma;
 
@@ -27,7 +27,6 @@ TCPServer::TCPServer(ObjectStoreState &state,
             << port;
 }
 
-
 void TCPServer::worker_loop() {
   while (true) {
     LOG(DEBUG) << "waiting for a connection";
@@ -39,18 +38,18 @@ void TCPServer::worker_loop() {
 
     MessageType msg_type = ReadMessageType(conn_fd);
     switch (msg_type) {
-      case MessageType::ReceiveObject:
-        receive_object(conn_fd);
-        LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
-              << " completes";
-        break;
-      case MessageType::ReceiveAndReduceObject:
-        receive_and_reduce_object(conn_fd);
-        LOG(INFO) << "[TCPServer] reducing object from " << incoming_ip
-              << " completes";
-        break;
-      default:
-        LOG(FATAL) << "unrecognized message type " << (int) msg_type;
+    case MessageType::ReceiveObject:
+      receive_object(conn_fd);
+      LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
+                << " completes";
+      break;
+    case MessageType::ReceiveAndReduceObject:
+      receive_and_reduce_object(conn_fd);
+      LOG(INFO) << "[TCPServer] reducing object from " << incoming_ip
+                << " completes";
+      break;
+    default:
+      LOG(FATAL) << "unrecognized message type " << (int)msg_type;
     }
     close(conn_fd);
   }
@@ -68,7 +67,8 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
   plasma_client_.Get({object_id}, -1, &object_buffers);
   void *object_buffer = (void *)object_buffers[0].data->data();
   size_t object_size = object_buffers[0].data->size();
-  std::shared_ptr<ReductionStream> stream = state_.create_reduction_stream(reduce_id, object_size);
+  std::shared_ptr<ReductionStream> stream =
+      state_.create_reduction_stream(reduce_id, object_size);
 
   // TODO: implement support for general element types.
   size_t element_size = sizeof(float);
@@ -77,9 +77,12 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
                           object_size - stream->receive_progress, 0);
     stream->receive_progress += bytes_recv;
     DCHECK(bytes_recv > 0) << "socket recv error: object content";
-    int64_t n_reduce_elements = (stream->receive_progress - stream->reduce_progress) / element_size;
-    float* cursor = (float*)(stream->data() + (int64_t)stream->reduce_progress);
-    float* own_data_cursor = (float*)(object_buffer + (int64_t)stream->reduce_progress);
+    int64_t n_reduce_elements =
+        (stream->receive_progress - stream->reduce_progress) / element_size;
+    float *cursor =
+        (float *)(stream->data() + (int64_t)stream->reduce_progress);
+    float *own_data_cursor =
+        (float *)(object_buffer + (int64_t)stream->reduce_progress);
     for (int i = 0; i < n_reduce_elements; i++) {
       cursor[i] += own_data_cursor[i];
     }
