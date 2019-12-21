@@ -1,9 +1,26 @@
 #ifndef GLOBAL_CONTROL_STORE_H
 #define GLOBAL_CONTROL_STORE_H
 
+#include <mutex>
 #include <string>
+#include <thread>
+#include <unordered_set>
+#include <vector>
 
 struct redisContext;
+
+class ObjectNotifications {
+public:
+  ObjectNotifications(std::vector<std::string> object_id_hexes);
+  std::vector<std::string> GetNotifications();
+
+  void ReceiveObjectNotification(std::string object_id_hex);
+
+private:
+  std::mutex notification_mutex_;
+  std::unordered_set<std::string> pending_;
+  std::unordered_set<std::string> ready_;
+};
 
 class GlobalControlStoreClient {
 public:
@@ -19,8 +36,24 @@ public:
   // Clean up Redis store
   void flushall();
 
+  ObjectNotifications *
+  subscribe_object_locations(const std::vector<std::string> &object_id_hexes);
+
+  void unsubscribe_object_locations(ObjectNotifications *notifications);
+
+  inline std::thread Run() {
+    std::thread notification_thread(&GlobalControlStoreClient::worker_loop,
+                                    this);
+    return notification_thread;
+  }
+
 private:
+  void worker_loop();
+
+  std::mutex gcs_mutex_;
   redisContext *redis_client_;
+  redisContext *notification_client_;
+  std::unordered_set<ObjectNotifications *> notifications_;
 };
 
 #endif // GLOBAL_CONTROL_STORE_H
