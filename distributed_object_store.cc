@@ -1,3 +1,4 @@
+#include <unistd.h> // usleep
 #include <unordered_set>
 
 #include "distributed_object_store.h"

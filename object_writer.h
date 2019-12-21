@@ -5,6 +5,8 @@
 #include <iostream>
 #include <thread>
 
+#include <netinet/in.h> // struct sockaddr_in
+
 #include <plasma/client.h>
 
 #include "global_control_store.h"
