@@ -1,3 +1,4 @@
+#include "logging.h"
 #include "object_store_state.h"
 ObjectStoreState::ObjectStoreState() : progress(0){};
 
@@ -20,3 +21,18 @@ void ObjectStoreState::transfer_complete(const plasma::ObjectID &object_id) {
   std::lock_guard<std::mutex> guard(transfer_mutex_);
   current_transfer_[object_id.hex()]--;
 }
+
+  std::shared_ptr<ReductionStream> ObjectStoreState::create_reduction_stream(const plasma::ObjectID &reduction_id, size_t size) {
+     DCHECK(reduction_stream_.find(reduction_id.hex()) == reduction_stream_.end());
+     auto stream = std::make_shared<ReductionStream>(size);
+     reduction_stream_[reduction_id.hex()] = stream;
+     return stream;
+  }
+
+  std::shared_ptr<ReductionStream> ObjectStoreState::get_reduction_stream(const plasma::ObjectID &reduction_id) {
+     if (reduction_stream_.find(reduction_id.hex()) == reduction_stream_.end()) {
+       return std::shared_ptr<ReductionStream>();
+     } else {
+       return reduction_stream_[reduction_id.hex()];
+     }
+  }
