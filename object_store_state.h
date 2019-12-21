@@ -3,8 +3,8 @@
 
 #include <atomic>
 #include <mutex>
+#include <arrow/buffer.h>
 #include <plasma/common.h>
-#include <plasma/client.h>
 
 #include <unordered_map>
 #include <vector>
