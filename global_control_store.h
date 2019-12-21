@@ -41,6 +41,8 @@ public:
 
   void unsubscribe_object_locations(ObjectNotifications *notifications);
 
+  void PublishObjectCompletionEvent(const std::string &object_id_hex);
+
   inline std::thread Run() {
     std::thread notification_thread(&GlobalControlStoreClient::worker_loop,
                                     this);

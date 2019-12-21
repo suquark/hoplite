@@ -105,6 +105,7 @@ void TCPServer::receive_object(int conn_fd) {
     state_.progress += bytes_recv;
   }
   plasma_client_.Seal(object_id);
+  gcs_client_.PublishObjectCompletionEvent(object_id.hex());
 
   // reply message
   status = send_all(conn_fd, "OK", 3);

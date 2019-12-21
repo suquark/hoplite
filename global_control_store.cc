@@ -93,6 +93,11 @@ void GlobalControlStoreClient::unsubscribe_object_locations(
   delete notifications;
 }
 
+void GlobalControlStoreClient::PublishObjectCompletionEvent(
+    const std::string &object_id_hex) {
+  redisAppendCommand(notification_client_, "PUB %s %s", object_id_hex, "READY");
+}
+
 void GlobalControlStoreClient::worker_loop() {
   while (true) {
     redisReply *reply;
