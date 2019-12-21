@@ -19,6 +19,11 @@ MessageType ReadMessageType(int conn_fd) {
   return msg_type;
 }
 
+void SendMessageType(int conn_fd, MessageType msg_type) {
+  auto status = send_all(conn_fd, &msg_type, sizeof(msg_type));
+  DCHECK(!status) << "socket send error: message type";
+}
+
 int64_t ReadObjectSize(int conn_fd) {
   // receive object size
   int64_t object_size;

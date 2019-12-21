@@ -9,6 +9,7 @@
 #include "logging.h"
 #include "object_control.h"
 #include "object_store.grpc.pb.h"
+#include "protocol.h"
 #include "socket_utils.h"
 
 using objectstore::ObjectStore;
@@ -59,6 +60,8 @@ public:
       object_size = state_.pending_size;
     }
 
+    SendMessageType(conn_fd, MessageType::ReceiveObject);
+
     // send object_id
     status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
     DCHECK(!status) << "socket send error: object_id";
@@ -100,6 +103,9 @@ public:
     int conn_fd;
     auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
     DCHECK(!status) << "socket connect error";
+
+    SendMessageType(conn_fd, MessageType::ReceiveAndReduceObject);
+
     ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     ObjectID dst_object_id = ObjectID::from_binary(request->dst_object_id());
     status =
