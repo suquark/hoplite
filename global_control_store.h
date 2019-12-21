@@ -1,6 +1,7 @@
 #ifndef GLOBAL_CONTROL_STORE_H
 #define GLOBAL_CONTROL_STORE_H
 
+#include <plasma/common.h>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -12,7 +13,7 @@ struct redisContext;
 class ObjectNotifications {
 public:
   ObjectNotifications(std::vector<std::string> object_id_hexes);
-  std::vector<std::string> GetNotifications();
+  std::vector<plasma::ObjectID> GetNotifications();
 
   void ReceiveObjectNotification(std::string object_id_hex);
 
@@ -37,7 +38,7 @@ public:
   void flushall();
 
   ObjectNotifications *
-  subscribe_object_locations(const std::vector<std::string> &object_id_hexes);
+  subscribe_object_locations(const std::vector<plasma::ObjectID> &object_id_hexes, bool include_completed_objects = false);
 
   void unsubscribe_object_locations(ObjectNotifications *notifications);
 

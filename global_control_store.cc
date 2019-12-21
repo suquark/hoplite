@@ -3,6 +3,9 @@
 
 #include "global_control_store.h"
 #include "logging.h"
+#include "util/plasma_utils.h"
+
+using namespace plasma;
 
 ObjectNotifications::ObjectNotifications(
     std::vector<std::string> object_id_hexes) {
@@ -11,11 +14,11 @@ ObjectNotifications::ObjectNotifications(
   }
 }
 
-std::vector<std::string> ObjectNotifications::GetNotifications() {
+std::vector<ObjectID> ObjectNotifications::GetNotifications() {
   std::lock_guard<std::mutex> guard(notification_mutex_);
-  std::vector<std::string> notifications;
-  for (auto object_id_hex : ready_) {
-    notifications.push_back(object_id_hex);
+  std::vector<ObjectID> notifications;
+  for (auto& object_id_hex : ready_) {
+    notifications.push_back(from_hex((char*)object_id_hex.c_str()));
   }
   ready_.clear();
   return notifications;
@@ -58,7 +61,9 @@ GlobalControlStoreClient::get_object_location(const std::string &hex) {
       (redisReply *)redisCommand(redis_client_, "LRANGE %s 0 -1", hex.c_str());
 
   int num_of_copies = redis_reply->elements;
-  DCHECK(num_of_copies > 0) << "cannot find object " << hex << " in Redis";
+  if (num_of_copies == 0) {
+    return "";
+  }
 
   std::string address =
       std::string(redis_reply->element[rand() % num_of_copies]->str);
@@ -68,8 +73,12 @@ GlobalControlStoreClient::get_object_location(const std::string &hex) {
 }
 
 ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
-    const std::vector<std::string> &object_id_hexes) {
-
+    const std::vector<ObjectID> &object_ids,
+    bool include_completed_objects) {
+  std::vector<std::string> object_id_hexes;
+  for (auto object_id : object_ids) {
+	  object_id_hexes.push_back(object_id.hex());
+  }
   ObjectNotifications *notifications = new ObjectNotifications(object_id_hexes);
   {
     std::lock_guard<std::mutex> guard(gcs_mutex_);
@@ -79,6 +88,14 @@ ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
   for (auto object_id_hex : object_id_hexes) {
     redisAppendCommand(notification_client_, "SUBSCRIBE %s",
                        object_id_hex.c_str());
+  }
+
+  if (include_completed_objects) {
+    for (auto object_id_hex : object_id_hexes) {
+      if ("" == get_object_location(object_id_hex)) {
+        notifications->ReceiveObjectNotification(object_id_hex);
+      }
+    }
   }
 
   return notifications;
