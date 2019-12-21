@@ -12,11 +12,12 @@ message PullReply {
 }
 
 message ReduceToRequest {
-  bytes src_object_id = 1;
-  bytes dst_object_id = 2;
-  bytes dst_address = 3;
-  bool is_head = 4;
-  bytes reduction_id = 5;
+  bytes reduction_id = 1;
+  oneof reduction_source {
+    bytes src_object_id = 2;
+  }
+  bytes dst_object_id = 3;
+  bytes dst_address = 4;
 }
 
 message ReduceToReply {

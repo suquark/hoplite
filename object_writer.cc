@@ -57,6 +57,7 @@ void TCPServer::worker_loop() {
 }
 
 void TCPServer::receive_and_reduce_object(int conn_fd) {
+  // Protocol: [object_id(kUniqueIDSize), object_size(8B), buffer(*)]
   ObjectID reduce_id = ReadObjectID(conn_fd);
   LOG(DEBUG) << "reduce id = " << reduce_id.hex();
   ObjectID object_id = ReadObjectID(conn_fd);
@@ -68,12 +69,21 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
   void *object_buffer = (void *)object_buffers[0].data->data();
   size_t object_size = object_buffers[0].data->size();
   std::shared_ptr<ReductionStream> stream = state_.create_reduction_stream(object_size);
-  while (stream.progress < object_size) {
-    int bytes_recv = recv(conn_fd, stream->data() + stream->progress,
-                          object_size - stream->progress, 0);
-    // TODO: reduce received data
+
+  // TODO: implement support for general element types.
+  size_t element_size = sizeof(float);
+  while (stream.receive_progress < object_size) {
+    int bytes_recv = recv(conn_fd, stream->data() + stream->receive_progress,
+                          object_size - stream->receive_progress, 0);
+    stream->receive_progress += bytes_recv;
     DCHECK(bytes_recv > 0) << "socket recv error: object content";
-    stream->progress += bytes_recv;
+    int64_t n_reduce_elements = (stream->receive_progress - stream->reduction_progress) / element_size;
+    float* cursor = (float*)(stream->data() + stream->reduction_progress);
+    float* own_data_cursor = (float*)(object_buffer + stream->reduction_progress);
+    for (int i = 0; i < n_reduce_elements; i++) {
+      cursor[i] += own_data_cursor[i];
+    }
+    stream->reduction_progress += n_reduce_elements * element_size;
   }
 
   // reply message

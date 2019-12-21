@@ -9,13 +9,15 @@
 
 class ReductionStream {
 public:
-  ReductionStream(size_t size): buf_(size), progress(0);
+  ReductionStream(size_t size): buf_(size), receive_progress(0), progress(0);
 
-  void* data() { return (void *)buf_.data(); }
-  size_t size() { return (void *)buf_.size(); }
+  inline void* data() { return (void *)buf_.data(); }
+  inline size_t size() { return (void *)buf_.size(); }
 
+  int64_t receive_progress;
+  std::atomic_int64_t reduce_progress;
+private:
   std::vector<uint8_t> buf_;
-  std::atomic_int64_t progress;
 }
 
 
@@ -40,6 +42,14 @@ public:
      auto stream = std::make_shared<ReductionStream>(size);
      reduction_stream_[reduction_id.hex()] = stream;
      return stream;
+  }
+
+  std::shared_ptr<ReductionStream> get_reduction_stream(const plasma::ObjectID &reduction_id) {
+     if (reduction_stream_.find(reduction_id.hex()) == reduction_stream_.end()) {
+       return std::shared_ptr<ReductionStream>();
+     } else {
+       return reduction_stream_[reduction_id.hex()];
+     }
   }
 
 private:
