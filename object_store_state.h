@@ -47,9 +47,9 @@ public:
   get_reduction_stream(const plasma::ObjectID &reduction_id);
 
   void create_reduction_endpoint(const plasma::ObjectID &reduction_id,
-                                 const std::shared_ptr<plasma::Buffer> &buffer);
+                                 const std::shared_ptr<arrow::Buffer> &buffer);
 
-  std::shared_ptr<plasma::Buffer> ObjectStoreState::get_reduction_endpoint(
+  std::shared_ptr<arrow::Buffer> ObjectStoreState::get_reduction_endpoint(
       const plasma::ObjectID &reduction_id);
 
 private:
@@ -57,7 +57,7 @@ private:
   std::unordered_map<std::string, int> current_transfer_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<plasma::Buffer>> reduction_endpoint_;
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::Buffer>> reduction_endpoint_;
 };
 
 #endif // OBJECT_STORE_STATE_H

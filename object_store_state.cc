@@ -34,22 +34,22 @@ ObjectStoreState::create_reduction_stream(const plasma::ObjectID &reduction_id,
 std::shared_ptr<ReductionStream>
 ObjectStoreState::get_reduction_stream(const plasma::ObjectID &reduction_id) {
   if (reduction_stream_.find(reduction_id) == reduction_stream_.end()) {
-    return std::shared_ptr<ReductionStream>();
+    return nullptr;
   } else {
     return reduction_stream_[reduction_id];
   }
 }
 
 void ObjectStoreState::create_reduction_endpoint(
-    const plasma::ObjectID &reduction_id, const std::shared_ptr<plasma::Buffer> &buffer) {
+    const plasma::ObjectID &reduction_id, const std::shared_ptr<arrow::Buffer> &buffer) {
   DCHECK(reduction_endpoint_.find(reduction_id) == reduction_endpoint_.end());
   reduction_endpoint_[reduction_id] = buffer;
 }
 
-std::shared_ptr<plasma::Buffer>
+std::shared_ptr<arrow::Buffer>
 ObjectStoreState::get_reduction_endpoint(const plasma::ObjectID &reduction_id) {
   if (reduction_endpoint_.find(reduction_id) == reduction_endpoint_.end()) {
-    return std::shared_ptr<plasma::Buffer>();
+    return nullptr;
   } else {
     return reduction_endpoint_[reduction_id];
   }
