@@ -185,8 +185,8 @@ bool GrpcServer::PullObject(const std::string &remote_address,
 bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
                                 const ObjectID &reduction_id,
                                 const ObjectID &dst_object_id,
-                                const string &dst_address,
-                                const ObjectID *src_object_id = nullptr) {
+                                const std::string &dst_address,
+                                const ObjectID *src_object_id) {
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   auto channel = grpc::CreateChannel(remote_grpc_address,
                                      grpc::InsecureChannelCredentials());

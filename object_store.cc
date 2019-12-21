@@ -87,10 +87,10 @@ public:
     ObjectID tail_objectid;
     std::string tail_address;
     // TODO: support different reduce op and types
-    ObjectNotifications notifications =
+    ObjectNotifications *notifications =
         gcs_client_.subscribe_object_locations(object_ids, true);
     while (remaining_ids.size() > 0) {
-      std::vector<ObjectID> ready_ids = notifications.GetNotifications();
+      std::vector<ObjectID> ready_ids = notifications->GetNotifications();
       for (auto &ready_id : ready_ids) {
         std::string address = gcs_client_.get_object_location(ready_id.hex());
         LOG(INFO) << "Received notification, address = " << address
@@ -113,10 +113,11 @@ public:
       usleep(10);
     }
     // send it back to self
-    bool reply_ok = object_control_.InvokeReduceTo(
-      tail_address, reduction_id, reduction_id, my_address_);
+    bool reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
+                                                   reduction_id, my_address_);
     DCHECK(reply_ok);
     plasma_client_.Seal(reduction_id);
+    gcs_client_.unsubscribe_object_locations(notifications);
   }
 
   void Get(ObjectID object_id, const void **data, size_t *size) {

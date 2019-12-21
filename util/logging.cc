@@ -4,23 +4,23 @@
 #include <execinfo.h>
 #endif
 
-#include <signal.h>
-#include <stdlib.h>
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <signal.h>
+#include <stdlib.h>
 
 #ifdef RAY_USE_GLOG
-#include <sys/stat.h>
 #include "glog/logging.h"
+#include <sys/stat.h>
 #endif
 
 namespace ray {
 
 #ifdef RAY_USE_GLOG
 struct StdoutLogger : public google::base::Logger {
-  virtual void Write(bool /* should flush */, time_t /* timestamp */, const char *message,
-                     int length) {
+  virtual void Write(bool /* should flush */, time_t /* timestamp */,
+                     const char *message, int length) {
     // note: always flush otherwise it never shows up in raylet.out
     std::cout << std::string(message, length) << std::flush;
   }
@@ -36,7 +36,7 @@ static StdoutLogger stdout_logger_singleton;
 // This is the default implementation of ray log,
 // which is independent of any libs.
 class CerrLog {
- public:
+public:
   CerrLog(RayLogLevel severity) : severity_(severity), has_logged_(false) {}
 
   virtual ~CerrLog() {
@@ -54,8 +54,7 @@ class CerrLog {
     return std::cerr;
   }
 
-  template <class T>
-  CerrLog &operator<<(const T &t) {
+  template <class T> CerrLog &operator<<(const T &t) {
     if (severity_ != RayLogLevel::DEBUG) {
       has_logged_ = true;
       std::cerr << t;
@@ -63,7 +62,7 @@ class CerrLog {
     return *this;
   }
 
- protected:
+protected:
   const RayLogLevel severity_;
   bool has_logged_;
 
@@ -103,7 +102,8 @@ static int GetMappedSeverity(RayLogLevel severity) {
   case RayLogLevel::FATAL:
     return GLOG_FATAL;
   default:
-    RAY_LOG(FATAL) << "Unsupported logging level: " << static_cast<int>(severity);
+    RAY_LOG(FATAL) << "Unsupported logging level: "
+                   << static_cast<int>(severity);
     // This return won't be hit but compiler needs it.
     return GLOG_FATAL;
   }
@@ -111,7 +111,8 @@ static int GetMappedSeverity(RayLogLevel severity) {
 
 #endif
 
-void RayLog::StartRayLog(const std::string &app_name, RayLogLevel severity_threshold,
+void RayLog::StartRayLog(const std::string &app_name,
+                         RayLogLevel severity_threshold,
                          const std::string &log_dir) {
   const char *var_value = getenv("RAY_BACKEND_LOG_LEVEL");
   if (var_value != nullptr) {
@@ -128,10 +129,12 @@ void RayLog::StartRayLog(const std::string &app_name, RayLogLevel severity_thres
     } else if (data == "fatal") {
       severity_threshold = RayLogLevel::FATAL;
     } else {
-      RAY_LOG(WARNING) << "Unrecognized setting of RAY_BACKEND_LOG_LEVEL=" << var_value;
+      RAY_LOG(WARNING) << "Unrecognized setting of RAY_BACKEND_LOG_LEVEL="
+                       << var_value;
     }
-    RAY_LOG(INFO) << "Set ray log level from environment variable RAY_BACKEND_LOG_LEVEL"
-                  << " to " << static_cast<int>(severity_threshold);
+    RAY_LOG(INFO)
+        << "Set ray log level from environment variable RAY_BACKEND_LOG_LEVEL"
+        << " to " << static_cast<int>(severity_threshold);
   }
   severity_threshold_ = severity_threshold;
   app_name_ = app_name;
@@ -173,7 +176,8 @@ void RayLog::UninstallSignalAction() {
   RAY_LOG(DEBUG) << "Uninstall signal handlers.";
   // This signal list comes from glog's signalhandler.cc.
   // https://github.com/google/glog/blob/master/src/signalhandler.cc#L58-L70
-  static std::vector<int> installed_signals({SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGTERM});
+  static std::vector<int> installed_signals(
+      {SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGTERM});
   struct sigaction sig_action;
   memset(&sig_action, 0, sizeof(sig_action));
   sigemptyset(&sig_action.sa_mask);
@@ -208,8 +212,8 @@ RayLog::RayLog(const char *file_name, int line_number, RayLogLevel severity)
     : logging_provider_(nullptr), is_enabled_(severity >= severity_threshold_) {
 #ifdef RAY_USE_GLOG
   if (is_enabled_) {
-    logging_provider_ =
-        new google::LogMessage(file_name, line_number, GetMappedSeverity(severity));
+    logging_provider_ = new google::LogMessage(file_name, line_number,
+                                               GetMappedSeverity(severity));
   }
 #else
   auto logging_provider = new CerrLog(severity);
@@ -219,7 +223,8 @@ RayLog::RayLog(const char *file_name, int line_number, RayLogLevel severity)
 }
 
 std::ostream &RayLog::Stream() {
-  auto logging_provider = reinterpret_cast<LoggingProvider *>(logging_provider_);
+  auto logging_provider =
+      reinterpret_cast<LoggingProvider *>(logging_provider_);
 #ifdef RAY_USE_GLOG
   // Before calling this function, user should check IsEnabled.
   // When IsEnabled == false, logging_provider_ will be empty.
@@ -238,5 +243,4 @@ RayLog::~RayLog() {
   }
 }
 
-}  // namespace ray
-
+} // namespace ray

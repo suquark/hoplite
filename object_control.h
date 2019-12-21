@@ -22,6 +22,12 @@ public:
   bool PullObject(const std::string &remote_grpc_address,
                   const plasma::ObjectID &object_id);
 
+  bool InvokeReduceTo(const std::string &remote_address,
+                      const plasma::ObjectID &reduction_id,
+                      const plasma::ObjectID &dst_object_id,
+                      const std::string &dst_address,
+                      const plasma::ObjectID *src_object_id = nullptr);
+
 private:
   void worker_loop();
   const int grpc_port_;

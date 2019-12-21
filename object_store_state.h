@@ -1,9 +1,9 @@
 #ifndef OBJECT_STORE_STATE_H
 #define OBJECT_STORE_STATE_H
 
+#include <arrow/buffer.h>
 #include <atomic>
 #include <mutex>
-#include <arrow/buffer.h>
 #include <plasma/common.h>
 
 #include <unordered_map>
@@ -49,15 +49,16 @@ public:
   void create_reduction_endpoint(const plasma::ObjectID &reduction_id,
                                  const std::shared_ptr<arrow::Buffer> &buffer);
 
-  std::shared_ptr<arrow::Buffer> ObjectStoreState::get_reduction_endpoint(
-      const plasma::ObjectID &reduction_id);
+  std::shared_ptr<arrow::Buffer>
+  get_reduction_endpoint(const plasma::ObjectID &reduction_id);
 
 private:
   std::mutex transfer_mutex_;
   std::unordered_map<std::string, int> current_transfer_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::Buffer>> reduction_endpoint_;
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::Buffer>>
+      reduction_endpoint_;
 };
 
 #endif // OBJECT_STORE_STATE_H
