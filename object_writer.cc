@@ -15,6 +15,7 @@
 #include "socket_utils.h"
 
 using namespace plasma;
+constexpr int64_t STREAM_MAX_BLOCK_SIZE = 4 * (2 << 20); // 4MB
 
 TCPServer::TCPServer(ObjectStoreState &state,
                      GlobalControlStoreClient &gcs_client,
@@ -118,8 +119,12 @@ void TCPServer::receive_object(int conn_fd) {
   state_.pending_write = ptr->mutable_data();
   gcs_client_.write_object_location(object_id.hex(), server_ipaddr_);
   while (state_.progress < object_size) {
+    int remaining_size = object_size - state_.progress;
+    int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
+                              ? STREAM_MAX_BLOCK_SIZE
+                              : remaining_size;
     int bytes_recv = recv(conn_fd, ptr->mutable_data() + state_.progress,
-                          object_size - state_.progress, 0);
+                          recv_block_size, 0);
     DCHECK(bytes_recv > 0) << "socket recv error: object content";
     state_.progress += bytes_recv;
   }
