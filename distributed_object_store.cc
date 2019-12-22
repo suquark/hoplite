@@ -7,13 +7,12 @@
 
 using namespace plasma;
 
-DistributedObjectStore::DistributedObjectStore(const std::string &redis_address,
-                                               int redis_port,
-                                               const std::string &plasma_socket,
-                                               const std::string &my_address,
-                                               int object_writer_port,
-                                               int grpc_port)
-    : my_address_(my_address), gcs_client_{redis_address, redis_port},
+DistributedObjectStore::DistributedObjectStore(
+    const std::string &redis_address, int redis_port,
+    int redis_notification_port, const std::string &plasma_socket,
+    const std::string &my_address, int object_writer_port, int grpc_port)
+    : my_address_(my_address), gcs_client_{redis_address, redis_port,
+                                           redis_notification_port},
       object_control_{plasma_client_, state_, my_address, grpc_port},
       object_writer_{state_, gcs_client_, plasma_client_, my_address,
                      object_writer_port} {

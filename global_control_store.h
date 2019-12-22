@@ -25,7 +25,8 @@ private:
 
 class GlobalControlStoreClient {
 public:
-  GlobalControlStoreClient(const std::string &redis_address, int port);
+  GlobalControlStoreClient(const std::string &redis_address, int port,
+                           int notification_port);
 
   // Write object location to Redis server.
   void write_object_location(const std::string &object_id_hex,

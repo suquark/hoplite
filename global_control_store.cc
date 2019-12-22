@@ -34,11 +34,15 @@ void ObjectNotifications::ReceiveObjectNotification(std::string object_id_hex) {
 }
 
 GlobalControlStoreClient::GlobalControlStoreClient(
-    const std::string &redis_address, int port) {
+    const std::string &redis_address, int port, int notification_port) {
   // create a redis client
   redis_client_ = redisConnect(redis_address.c_str(), port);
   LOG(INFO) << "[RedisClient] Connected to Redis server running at "
             << redis_address << ":" << port << ".";
+  notification_client_ = redisConnect(redis_address.c_str(), notification_port);
+  LOG(INFO)
+      << "[RedisClient] Connected to Redis notification server running at "
+      << redis_address << ":" << port << ".";
 }
 
 void GlobalControlStoreClient::write_object_location(
@@ -111,7 +115,8 @@ void GlobalControlStoreClient::unsubscribe_object_locations(
 
 void GlobalControlStoreClient::PublishObjectCompletionEvent(
     const std::string &object_id_hex) {
-  redisAppendCommand(notification_client_, "PUB %s %s", object_id_hex.c_str(), "READY");
+  redisAppendCommand(notification_client_, "PUB %s %s", object_id_hex.c_str(),
+                     "READY");
 }
 
 void GlobalControlStoreClient::worker_loop() {

@@ -2,7 +2,9 @@
 if [ -z "$1" ]; then echo "ERROR: input size required"; exit; fi
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
-redis-server redis.conf &> /dev/null &
+redis-server redis.conf &> /dev/null &  # port = 6380
+redis-server redis_notification.conf &> /dev/null &  # port = 6381
+
 sleep 1
 
 worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
