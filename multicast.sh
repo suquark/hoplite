@@ -2,7 +2,9 @@
 if [ -z "$1" ]; then echo "ERROR: input size required"; exit; fi
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
-redis-server redis.conf &> /dev/null &
+redis-server redis.conf &> /dev/null &  # port = 6380
+redis-server redis_notification.conf &> /dev/null &  # port = 6381
+
 sleep 1
 
 worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
@@ -11,15 +13,6 @@ master=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 
 slaves=()
 for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
-
-for slave in ${slaves[@]}
-do
-    while ssh $slave 'sudo lsof -i -P -n' | grep -q 6666; do
-        ssh $slave sudo fuser -k 6666/tcp
-	echo killing process on $slave
-    done
-done
-
 
 echo master: $master
 echo slaves: ${slaves[@]}

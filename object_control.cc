@@ -9,11 +9,14 @@
 #include "logging.h"
 #include "object_control.h"
 #include "object_store.grpc.pb.h"
+#include "protocol.h"
 #include "socket_utils.h"
 
 using objectstore::ObjectStore;
 using objectstore::PullReply;
 using objectstore::PullRequest;
+using objectstore::ReduceToReply;
+using objectstore::ReduceToRequest;
 
 using namespace plasma;
 
@@ -57,6 +60,8 @@ public:
       object_size = state_.pending_size;
     }
 
+    SendMessageType(conn_fd, MessageType::ReceiveObject);
+
     // send object_id
     status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
     DCHECK(!status) << "socket send error: object_id";
@@ -93,6 +98,65 @@ public:
     return grpc::Status::OK;
   }
 
+  grpc::Status ReduceTo(grpc::ServerContext *context,
+                        const ReduceToRequest *request, ReduceToReply *reply) {
+    int conn_fd;
+    auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
+    DCHECK(!status) << "socket connect error";
+
+    SendMessageType(conn_fd, MessageType::ReceiveAndReduceObject);
+
+    ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
+    ObjectID dst_object_id = ObjectID::from_binary(request->dst_object_id());
+    status =
+        send_all(conn_fd, (void *)reduction_id.data(), reduction_id.size());
+    DCHECK(!status) << "socket send error: reduction_id";
+    status =
+        send_all(conn_fd, (void *)dst_object_id.data(), dst_object_id.size());
+    DCHECK(!status) << "socket send error: dst_object_id";
+
+    void *object_buffer = NULL;
+    size_t object_size = 0;
+
+    if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
+      LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
+      ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
+      std::vector<ObjectBuffer> object_buffers;
+      plasma_client_.Get({src_object_id}, -1, &object_buffers);
+      object_buffer = (void *)object_buffers[0].data->data();
+      object_size = object_buffers[0].data->size();
+      int status = send_all(conn_fd, object_buffer, object_size);
+      DCHECK(!status) << "Failed to send object";
+    } else {
+      auto stream = state_.get_reduction_stream(reduction_id);
+      object_buffer = stream->data();
+      object_size = stream->size();
+      // send object
+      int64_t cursor = 0;
+      while (cursor < object_size) {
+        int64_t current_progress = stream->reduce_progress;
+        if (cursor < current_progress) {
+          int bytes_sent = send(conn_fd, object_buffer + cursor,
+                                current_progress - cursor, 0);
+          DCHECK(bytes_sent > 0) << "socket send error: object content";
+          cursor += bytes_sent;
+        }
+      }
+    }
+
+    // receive ack
+    char ack[5];
+    status = recv_all(conn_fd, ack, 3);
+    DCHECK(!status) << "socket recv error: ack, error code = " << errno;
+    if (strcmp(ack, "OK") != 0)
+      LOG(FATAL) << "ack is wrong";
+
+    close(conn_fd);
+
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
 private:
   ObjectStoreState &state_;
   PlasmaClient &plasma_client_;
@@ -121,6 +185,29 @@ bool GrpcServer::PullObject(const std::string &remote_address,
   request.set_object_id(object_id.binary());
   request.set_puller_ip(my_address_);
   stub->Pull(&context, request, &reply);
+  return reply.ok();
+}
+
+bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
+                                const ObjectID &reduction_id,
+                                const ObjectID &dst_object_id,
+                                const std::string &dst_address,
+                                const ObjectID *src_object_id) {
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  auto channel = grpc::CreateChannel(remote_grpc_address,
+                                     grpc::InsecureChannelCredentials());
+  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+  grpc::ClientContext context;
+  ReduceToRequest request;
+  ReduceToReply reply;
+
+  request.set_reduction_id(reduction_id.binary());
+  request.set_dst_object_id(dst_object_id.binary());
+  request.set_dst_address(dst_address);
+  if (src_object_id != nullptr) {
+    request.set_src_object_id(src_object_id->binary());
+  }
+  stub->ReduceTo(&context, request, &reply);
   return reply.ok();
 }
 

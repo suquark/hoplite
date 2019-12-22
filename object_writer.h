@@ -5,6 +5,8 @@
 #include <iostream>
 #include <thread>
 
+#include <netinet/in.h> // struct sockaddr_in
+
 #include <plasma/client.h>
 
 #include "global_control_store.h"
@@ -24,7 +26,8 @@ public:
 private:
   void worker_loop();
 
-  void recv_object();
+  void receive_object(int conn_fd);
+  void receive_and_reduce_object(int conn_fd);
 
   GlobalControlStoreClient &gcs_client_;
   plasma::PlasmaClient &plasma_client_;

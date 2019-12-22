@@ -12,9 +12,11 @@
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_writer.h"
+#include "protocol.h"
 #include "socket_utils.h"
 
 using namespace plasma;
+constexpr int64_t STREAM_MAX_BLOCK_SIZE = 4 * (2 << 20); // 4MB
 
 TCPServer::TCPServer(ObjectStoreState &state,
                      GlobalControlStoreClient &gcs_client,
@@ -29,32 +31,85 @@ TCPServer::TCPServer(ObjectStoreState &state,
 
 void TCPServer::worker_loop() {
   while (true) {
-    recv_object();
+    LOG(DEBUG) << "waiting for a connection";
+    socklen_t addrlen = sizeof(address_);
+    int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
+    DCHECK(conn_fd >= 0) << "socket accept error";
+    char *incoming_ip = inet_ntoa(address_.sin_addr);
+    LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
+
+    MessageType msg_type = ReadMessageType(conn_fd);
+    switch (msg_type) {
+    case MessageType::ReceiveObject:
+      receive_object(conn_fd);
+      LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
+                << " completes";
+      break;
+    case MessageType::ReceiveAndReduceObject:
+      receive_and_reduce_object(conn_fd);
+      LOG(INFO) << "[TCPServer] reducing object from " << incoming_ip
+                << " completes";
+      break;
+    default:
+      LOG(FATAL) << "unrecognized message type " << (int)msg_type;
+    }
+    close(conn_fd);
   }
 }
 
-void TCPServer::recv_object() {
+void TCPServer::receive_and_reduce_object(int conn_fd) {
   // Protocol: [object_id(kUniqueIDSize), object_size(8B), buffer(*)]
+  ObjectID reduce_id = ReadObjectID(conn_fd);
+  LOG(DEBUG) << "reduce id = " << reduce_id.hex();
+  ObjectID object_id = ReadObjectID(conn_fd);
+  LOG(DEBUG) << "targeted object id = " << object_id.hex();
 
-  LOG(DEBUG) << "waiting for a connection";
-  socklen_t addrlen = sizeof(address_);
-  int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
-  DCHECK(conn_fd >= 0) << "socket accept error";
-  char *incoming_ip = inet_ntoa(address_.sin_addr);
-  LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
+  if (object_id == reduce_id) {
+    // this is the endpoint
+    auto buffer = state_.get_reduction_endpoint(reduce_id);
+    int status = recv_all(conn_fd, buffer->mutable_data(), buffer->size());
+  } else {
+    // Get object from Plasma Store
+    std::vector<ObjectBuffer> object_buffers;
+    plasma_client_.Get({reduce_id}, -1, &object_buffers);
+    void *object_buffer = (void *)object_buffers[0].data->data();
+    size_t object_size = object_buffers[0].data->size();
+    std::shared_ptr<ReductionStream> stream =
+        state_.create_reduction_stream(reduce_id, object_size);
 
+    // TODO: implement support for general element types.
+    size_t element_size = sizeof(float);
+    while (stream->receive_progress < object_size) {
+      int bytes_recv = recv(conn_fd, stream->data() + stream->receive_progress,
+                            object_size - stream->receive_progress, 0);
+      stream->receive_progress += bytes_recv;
+      DCHECK(bytes_recv > 0) << "socket recv error: object content";
+      int64_t n_reduce_elements =
+          (stream->receive_progress - stream->reduce_progress) / element_size;
+      float *cursor =
+          (float *)(stream->data() + (int64_t)stream->reduce_progress);
+      float *own_data_cursor =
+          (float *)(object_buffer + (int64_t)stream->reduce_progress);
+      for (int i = 0; i < n_reduce_elements; i++) {
+        cursor[i] += own_data_cursor[i];
+      }
+      stream->reduce_progress += n_reduce_elements * element_size;
+    }
+  }
+
+  // reply message
+  auto status = send_all(conn_fd, "OK", 3);
+  DCHECK(!status) << "socket send error: object ack";
+}
+
+void TCPServer::receive_object(int conn_fd) {
+  // Protocol: [object_id(kUniqueIDSize), object_size(8B), buffer(*)]
   // receive object ID
-  char obj_id[kUniqueIDSize];
-  auto status = recv_all(conn_fd, obj_id, kUniqueIDSize);
-  DCHECK(!status) << "socket recv error: object id";
-  ObjectID object_id = ObjectID::from_binary(obj_id);
+  ObjectID object_id = ReadObjectID(conn_fd);
+  LOG(DEBUG) << "start receiving object " << object_id.hex();
 
   // receive object size
-  int64_t object_size;
-  LOG(DEBUG) << "start receiving object " << object_id.hex() << " from "
-             << incoming_ip;
-  status = recv_all(conn_fd, &object_size, sizeof(object_size));
-  DCHECK(!status) << "socket recv error: object size";
+  int64_t object_size = ReadObjectSize(conn_fd);
   LOG(DEBUG) << "Received object size = " << object_size;
 
   // receive object buffer
@@ -65,18 +120,19 @@ void TCPServer::recv_object() {
   state_.pending_write = ptr->mutable_data();
   gcs_client_.write_object_location(object_id.hex(), server_ipaddr_);
   while (state_.progress < object_size) {
+    int remaining_size = object_size - state_.progress;
+    int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
+                              ? STREAM_MAX_BLOCK_SIZE
+                              : remaining_size;
     int bytes_recv = recv(conn_fd, ptr->mutable_data() + state_.progress,
-                          object_size - state_.progress, 0);
+                          recv_block_size, 0);
     DCHECK(bytes_recv > 0) << "socket recv error: object content";
     state_.progress += bytes_recv;
   }
   plasma_client_.Seal(object_id);
+  gcs_client_.PublishObjectCompletionEvent(object_id.hex());
 
   // reply message
-  status = send_all(conn_fd, "OK", 3);
+  auto status = send_all(conn_fd, "OK", 3);
   DCHECK(!status) << "socket send error: object ack";
-
-  close(conn_fd);
-  LOG(INFO) << "[TCPServer] receiving object from " << incoming_ip
-            << " completes";
 }

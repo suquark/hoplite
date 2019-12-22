@@ -5,7 +5,8 @@ current_ip=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 echo master: $1
 echo object_id: $2
 
-pkill object_store
+sudo fuser -k 6666/tcp
+sudo fuser -k 50055/tcp
 
 ## setup
 plasma-store-server -m 4000000000 -s /tmp/multicast_plasma & &> /dev/null

@@ -1,3 +1,4 @@
+#include "logging.h"
 #include <arpa/inet.h>
 #include <chrono>
 #include <ctime>
