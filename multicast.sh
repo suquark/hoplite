@@ -14,15 +14,6 @@ master=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 slaves=()
 for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
 
-for slave in ${slaves[@]}
-do
-    while ssh $slave 'sudo lsof -i -P -n' | grep -q 6666; do
-        ssh $slave sudo fuser -k 6666/tcp
-	echo killing process on $slave
-    done
-done
-
-
 echo master: $master
 echo slaves: ${slaves[@]}
 
