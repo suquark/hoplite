@@ -40,11 +40,11 @@ void test_client(DistributedObjectStore &store, ObjectID object_id) {
   store.Get(object_id, (const void **)&buffer, &size);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
-  LOG(INFO) << "Object is retrieved using " << duration.count() << " seconds";
 
   unsigned long crc = crc32(0L, Z_NULL, 0);
   crc = crc32(crc, (const unsigned char *)buffer, size);
-  LOG(INFO) << "Object retrieved CRC = " << crc;
+  LOG(INFO) << "Object is retrieved using " << duration.count()
+            << " seconds. CRC32 = " << crc;
 }
 
 int main(int argc, char **argv) {

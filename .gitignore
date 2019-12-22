@@ -36,4 +36,5 @@
 # binaries, databases, protobuf sockets
 dump.rdb
 object_store
+multicast_test
 *.pb.h

@@ -37,10 +37,10 @@ GlobalControlStoreClient::GlobalControlStoreClient(
     const std::string &redis_address, int port, int notification_port) {
   // create a redis client
   redis_client_ = redisConnect(redis_address.c_str(), port);
-  LOG(INFO) << "[RedisClient] Connected to Redis server running at "
-            << redis_address << ":" << port << ".";
+  LOG(DEBUG) << "[RedisClient] Connected to Redis server running at "
+             << redis_address << ":" << port << ".";
   notification_client_ = redisConnect(redis_address.c_str(), notification_port);
-  LOG(INFO)
+  LOG(DEBUG)
       << "[RedisClient] Connected to Redis notification server running at "
       << redis_address << ":" << notification_port << ".";
 }
