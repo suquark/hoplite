@@ -42,7 +42,7 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   notification_client_ = redisConnect(redis_address.c_str(), notification_port);
   LOG(INFO)
       << "[RedisClient] Connected to Redis notification server running at "
-      << redis_address << ":" << port << ".";
+      << redis_address << ":" << notification_port << ".";
 }
 
 void GlobalControlStoreClient::write_object_location(
