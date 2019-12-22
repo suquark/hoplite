@@ -6,36 +6,44 @@
 
 namespace ray {
 
-enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3 };
+enum class RayLogLevel {
+  DEBUG = -1,
+  INFO = 0,
+  WARNING = 1,
+  ERROR = 2,
+  FATAL = 3
+};
 
-#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, level) << ray::RayLog::get_app_name()
+#define RAY_LOG_INTERNAL(level)                                                \
+  ::ray::RayLog(__FILE__, __LINE__, level) << ray::RayLog::get_app_name()
 
-#define RAY_LOG_ENABLED(level) ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
+#define RAY_LOG_ENABLED(level)                                                 \
+  ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
 
-#define RAY_LOG(level)                                      \
-  if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)) \
+#define RAY_LOG(level)                                                         \
+  if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level))                    \
   RAY_LOG_INTERNAL(ray::RayLogLevel::level)
 
 #define RAY_IGNORE_EXPR(expr) ((void)(expr))
 
-#define RAY_CHECK(condition)                                                          \
-  (condition)                                                                         \
-      ? RAY_IGNORE_EXPR(0)                                                            \
-      : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, ray::RayLogLevel::FATAL) \
-                               << " Check failed: " #condition " "
+#define RAY_CHECK(condition)                                                   \
+  (condition) ? RAY_IGNORE_EXPR(0)                                             \
+              : ::ray::Voidify() &                                             \
+                    ::ray::RayLog(__FILE__, __LINE__, ray::RayLogLevel::FATAL) \
+                        << " Check failed: " #condition " "
 
 #ifdef NDEBUG
 
-#define RAY_DCHECK(condition)                                                         \
-  (condition)                                                                         \
-      ? RAY_IGNORE_EXPR(0)                                                            \
-      : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, ray::RayLogLevel::ERROR) \
-                               << " Debug check failed: " #condition " "
+#define RAY_DCHECK(condition)                                                  \
+  (condition) ? RAY_IGNORE_EXPR(0)                                             \
+              : ::ray::Voidify() &                                             \
+                    ::ray::RayLog(__FILE__, __LINE__, ray::RayLogLevel::ERROR) \
+                        << " Debug check failed: " #condition " "
 #else
 
 #define RAY_DCHECK(condition) RAY_CHECK(condition)
 
-#endif  // NDEBUG
+#endif // NDEBUG
 
 // Alias
 #define LOG RAY_LOG
@@ -48,26 +56,25 @@ enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3
 
 // This is also a null log which does not output anything.
 class RayLogBase {
- public:
+public:
   virtual ~RayLogBase(){};
 
   // By default, this class is a null log because it return false here.
   virtual bool IsEnabled() const { return false; };
 
-  template <typename T>
-  RayLogBase &operator<<(const T &t) {
+  template <typename T> RayLogBase &operator<<(const T &t) {
     if (IsEnabled()) {
       Stream() << t;
     }
     return *this;
   }
 
- protected:
+protected:
   virtual std::ostream &Stream() { return std::cerr; };
 };
 
 class RayLog : public RayLogBase {
- public:
+public:
   RayLog(const char *file_name, int line_number, RayLogLevel severity);
 
   virtual ~RayLog();
@@ -77,16 +84,19 @@ class RayLog : public RayLogBase {
   /// \return True if logging is enabled and false otherwise.
   virtual bool IsEnabled() const;
 
-  /// The init function of ray log for a program which should be called only once.
+  /// The init function of ray log for a program which should be called only
+  /// once.
   ///
   /// \parem appName The app name which starts the log.
   /// \param severity_threshold Logging threshold for the program.
-  /// \param logDir Logging output file name. If empty, the log won't output to file.
+  /// \param logDir Logging output file name. If empty, the log won't output to
+  /// file.
   static void StartRayLog(const std::string &appName,
                           RayLogLevel severity_threshold = RayLogLevel::INFO,
                           const std::string &logDir = "");
 
-  /// The shutdown function of ray log which should be used with StartRayLog as a pair.
+  /// The shutdown function of ray log which should be used with StartRayLog as
+  /// a pair.
   static void ShutDownRayLog();
 
   /// Uninstall the signal actions installed by InstallFailureSignalHandler.
@@ -104,11 +114,12 @@ class RayLog : public RayLogBase {
   // Get the log level from environment variable.
   static RayLogLevel GetLogLevelFromEnv();
 
-  inline static const std::string& get_app_name() { return app_name_; }
+  inline static const std::string &get_app_name() { return app_name_; }
 
- private:
+private:
   // Hide the implementation of log provider by void *.
-  // Otherwise, lib user may define the same macro to use the correct header file.
+  // Otherwise, lib user may define the same macro to use the correct header
+  // file.
   void *logging_provider_;
   /// True if log messages should be logged and false if they should be ignored.
   bool is_enabled_;
@@ -120,21 +131,20 @@ class RayLog : public RayLogBase {
   /// If this is empty, logs are printed to stdout.
   static std::string log_dir_;
 
- protected:
+protected:
   virtual std::ostream &Stream();
 };
 
 // This class make RAY_CHECK compilation pass to change the << operator to void.
 // This class is copied from glog.
 class Voidify {
- public:
+public:
   Voidify() {}
   // This has to be an operator with a precedence lower than << but
   // higher than ?:
   void operator&(RayLogBase &) {}
 };
 
-}  // namespace ray
+} // namespace ray
 
-#endif  // RAY_UTIL_LOGGING_H
-
+#endif // RAY_UTIL_LOGGING_H

@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#include "logging.h"
+
 constexpr int BACKLOG = 10;
 
 int send_all(int conn_fd, const void *buf, const size_t size) {
