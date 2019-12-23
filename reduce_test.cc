@@ -37,7 +37,7 @@ void test_server(DistributedObjectStore &store, int object_size,
   size_t size;
 
   auto start = std::chrono::system_clock::now();
-  store.Get(object_ids, &buffer, *size, object_size);
+  store.Get(object_ids, (const void **)&buffer, &size, object_size);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
 
