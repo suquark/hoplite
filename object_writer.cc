@@ -71,7 +71,7 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
   } else {
     // Get object from Plasma Store
     std::vector<ObjectBuffer> object_buffers;
-    plasma_client_.Get({reduce_id}, -1, &object_buffers);
+    plasma_client_.Get({object_id}, -1, &object_buffers);
     void *object_buffer = (void *)object_buffers[0].data->data();
     size_t object_size = object_buffers[0].data->size();
     std::shared_ptr<ReductionStream> stream =
