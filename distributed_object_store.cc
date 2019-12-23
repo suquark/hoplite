@@ -37,7 +37,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
   // generate a random object id
   ObjectID object_id = random_object_id();
-  Put(const void *data, size_t size, object_id);
+  Put(data, size, object_id);
   return object_id;
 }
 

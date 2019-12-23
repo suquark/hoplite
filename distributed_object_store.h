@@ -23,8 +23,7 @@ public:
                          const std::string &my_address, int object_writer_port,
                          int grpc_port);
 
-  void DistributedObjectStore::Put(const void *data, size_t size,
-                                   plasma::ObjectID object_id);
+  void Put(const void *data, size_t size, plasma::ObjectID object_id);
 
   plasma::ObjectID Put(const void *data, size_t size);
 
