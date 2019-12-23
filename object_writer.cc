@@ -80,8 +80,12 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
     // TODO: implement support for general element types.
     size_t element_size = sizeof(float);
     while (stream->receive_progress < object_size) {
+      int remaining_size = object_size - stream->receive_progress;
+      int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
+                                ? STREAM_MAX_BLOCK_SIZE
+                                : remaining_size;
       int bytes_recv = recv(conn_fd, stream->data() + stream->receive_progress,
-                            object_size - stream->receive_progress, 0);
+                            recv_block_size, 0);
       stream->receive_progress += bytes_recv;
       DCHECK(bytes_recv > 0) << "socket recv error: object content";
       int64_t n_reduce_elements =
