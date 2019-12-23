@@ -24,15 +24,20 @@ DistributedObjectStore::DistributedObjectStore(
   object_control_thread_ = object_control_.Run();
 }
 
-ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
-  // generate a random object id
-  ObjectID object_id = random_object_id();
+void DistributedObjectStore::Put(const void *data, size_t size,
+                                 ObjectID object_id) {
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
   plasma_client_.Create(object_id, size, NULL, 0, &ptr);
   memcpy(ptr->mutable_data(), data, size);
   plasma_client_.Seal(object_id);
   gcs_client_.write_object_location(object_id.hex(), my_address_);
+}
+
+ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
+  // generate a random object id
+  ObjectID object_id = random_object_id();
+  Put(const void *data, size_t size, object_id);
   return object_id;
 }
 
@@ -84,6 +89,10 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   DCHECK(reply_ok);
   plasma_client_.Seal(reduction_id);
   gcs_client_.unsubscribe_object_locations(notifications);
+
+  // get object from Plasma
+  *data = buffer->data();
+  *size = buffer->size();
 }
 
 void DistributedObjectStore::Get(ObjectID object_id, const void **data,

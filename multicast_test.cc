@@ -26,11 +26,10 @@ void test_server(DistributedObjectStore &store, int object_size) {
   }
 
   ObjectID object_id = store.Put(buffer, object_size);
-  LOG(INFO) << "Object is created! object_id = " << object_id.hex();
   unsigned long crc = crc32(0L, Z_NULL, 0);
   crc = crc32(crc, (const unsigned char *)buffer, object_size);
-
-  LOG(INFO) << "Object CRC = " << crc;
+  LOG(INFO) << "Object is created! object_id = " << object_id.hex()
+            << ", CRC32 = " << crc;
 }
 
 void test_client(DistributedObjectStore &store, ObjectID object_id) {

@@ -19,6 +19,9 @@ OBJECT_STORE_OBJS = protocol.o global_control_store.o object_store_state.o \
 multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
+reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
 %.grpc.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=. --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $<
 
@@ -26,4 +29,4 @@ multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -rf object_store *.o *.pb.cc *.pb.h util/*.o
+	rm -rf multicast_test *.o *.pb.cc *.pb.h util/*.o
