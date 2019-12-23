@@ -59,6 +59,7 @@ void test_client(DistributedObjectStore &store, int object_size,
   std::unique_ptr<std::vector<float>> buffer =
       get_random_float_buffer(object_size / sizeof(float), object_id.hex());
   store.Put(buffer->data(), object_size, object_id);
+  LOG(INFO) << "The chosen random float value: " << (*buffer)[1];
   LOG(INFO) << "Object is created! object_id = " << object_id.hex()
             << ", size = " << object_size;
 }
