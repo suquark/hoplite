@@ -57,6 +57,8 @@ void GlobalControlStoreClient::write_object_location(
 void GlobalControlStoreClient::flushall() {
   redisReply *reply = (redisReply *)redisCommand(redis_client_, "FLUSHALL");
   freeReplyObject(reply);
+
+  redisAppendCommand(notification_client_, "FLUSHALL");
 }
 
 std::string
