@@ -45,10 +45,12 @@ void test_server(DistributedObjectStore &store, int object_size,
 
   unsigned long crc = crc32(0L, Z_NULL, 0);
   crc = crc32(crc, (const unsigned char *)buffer, size);
+  size_t num_elements = object_size / sizeof(float);
   LOG(INFO) << "Object is reduced using " << duration.count()
             << " seconds. CRC32 = " << crc << "; Results: [" << buffer[0]
-            << ", " << buffer[1] << ", " << buffer[2] << ", ... ,"
-            << buffer[object_size / sizeof(float)] << "]";
+            << ", " << buffer[1] << ", " << buffer[2] << ", " << buffer[3]
+            << ", " << buffer[4] << ", ... , " << buffer[num_elements - 2]
+            << ", " << buffer[num_elements - 1] << "]";
 }
 
 void test_client(DistributedObjectStore &store, int object_size,
