@@ -21,7 +21,7 @@ if [ "$#" -eq 1 ]; then
 	worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 	slaves=()
 	for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
-	echo "[Putting Object] master: $my_address; slaves: ${slaves[@]}"
+	echo "[Reducing Object] master: $my_address; slaves: ${slaves[@]}"
 
 	object_ids=()
 	for oid in $(seq -f "%040g" 1 ${#slaves[@]}); do object_ids+=($oid); done
@@ -34,7 +34,7 @@ if [ "$#" -eq 1 ]; then
 		ssh -t -t ${slaves[$index]} "$(realpath -s $0) $my_address $1 ${object_ids[$index]}" &
 	done
 else
-	echo "[Getting Object] redis_address: $1 object_size: $2 objectid: $3 my_address: $my_address"
+	echo "[Putting Object] redis_address: $1 object_size: $2 objectid: $3 my_address: $my_address"
 	/home/ubuntu/efs/object_store/reduce_test $1 $my_address c $2 $3
 fi
 
