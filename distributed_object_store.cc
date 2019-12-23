@@ -32,6 +32,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
   memcpy(ptr->mutable_data(), data, size);
   plasma_client_.Seal(object_id);
   gcs_client_.write_object_location(object_id.hex(), my_address_);
+  gcs_client_.PublishObjectCompletionEvent(object_id.hex());
 }
 
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
