@@ -48,6 +48,7 @@ private:
   GrpcServer object_control_;
   std::thread object_writer_thread_;
   std::thread object_control_thread_;
+  std::thread notification_thread_;
 };
 
 #endif // DISTRIBUTED_OBJECT_STORE_H

@@ -39,6 +39,8 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   redis_client_ = redisConnect(redis_address.c_str(), port);
   LOG(DEBUG) << "[RedisClient] Connected to Redis server running at "
              << redis_address << ":" << port << ".";
+
+  publish_client_ = redisConnect(redis_address.c_str(), notification_port);
   notification_client_ = redisConnect(redis_address.c_str(), notification_port);
   LOG(DEBUG)
       << "[RedisClient] Connected to Redis notification server running at "
@@ -58,7 +60,8 @@ void GlobalControlStoreClient::flushall() {
   redisReply *reply = (redisReply *)redisCommand(redis_client_, "FLUSHALL");
   freeReplyObject(reply);
 
-  redisAppendCommand(notification_client_, "FLUSHALL");
+  reply = (redisReply *)redisCommand(publish_client_, "FLUSHALL");
+  freeReplyObject(reply);
 }
 
 std::string
@@ -97,7 +100,7 @@ ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
 
   if (include_completed_objects) {
     for (auto object_id_hex : object_id_hexes) {
-      if ("" == get_object_location(object_id_hex)) {
+      if ("" != get_object_location(object_id_hex)) {
         notifications->ReceiveObjectNotification(object_id_hex);
       }
     }
@@ -117,23 +120,28 @@ void GlobalControlStoreClient::unsubscribe_object_locations(
 
 void GlobalControlStoreClient::PublishObjectCompletionEvent(
     const std::string &object_id_hex) {
-  redisAppendCommand(notification_client_, "PUB %s %s", object_id_hex.c_str(),
-                     "READY");
+  redisReply *reply = (redisReply *)redisCommand(
+      publish_client_, "PUBLISH %s %s", object_id_hex.c_str(), "READY");
+  freeReplyObject(reply);
 }
 
 void GlobalControlStoreClient::worker_loop() {
+  LOG(INFO) << "[RedisClient] Notification server is listening on Redis";
   while (true) {
     redisReply *reply;
     redisGetReply(notification_client_, (void **)&reply);
-    if (reply->type == REDIS_REPLY_ARRAY && reply->elements == 3) {
-      if (strcmp(reply->element[0]->str, "SUBSCRIBE") != 0) {
-        // get a notification for an object completion event, update pending
-        // objects list
-        std::string object_id_hex = std::string(reply->element[1]->str);
-        for (auto notifications : notifications_) {
-          notifications->ReceiveObjectNotification(object_id_hex);
+    {
+      if (reply->type == REDIS_REPLY_ARRAY && reply->elements == 3) {
+        if (strcmp(reply->element[0]->str, "subscribe") != 0) {
+          // get a notification for an object completion event, update pending
+          // objects list
+          std::string object_id_hex = std::string(reply->element[1]->str);
+          for (auto notifications : notifications_) {
+            notifications->ReceiveObjectNotification(object_id_hex);
+          }
         }
       }
+      freeReplyObject(reply);
     }
   }
 }

@@ -22,6 +22,8 @@ DistributedObjectStore::DistributedObjectStore(
   object_writer_thread_ = object_writer_.Run();
   // create a thread to process pull requests
   object_control_thread_ = object_control_.Run();
+  // create a thread to process notifications
+  notification_thread_ = gcs_client_.Run();
 }
 
 void DistributedObjectStore::Put(const void *data, size_t size,

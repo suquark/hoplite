@@ -58,6 +58,7 @@ private:
   std::mutex gcs_mutex_;
   redisContext *redis_client_;
   redisContext *notification_client_;
+  redisContext *publish_client_;
   std::unordered_set<ObjectNotifications *> notifications_;
 };
 
