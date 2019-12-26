@@ -68,9 +68,9 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
     for (auto &ready_id : ready_ids) {
       // FIXME: Somehow the location of the object is not written to Redis.
       std::string address = gcs_client_.get_object_location(ready_id.hex());
-      while (address == "") {
-        address = gcs_client_.get_object_location(ready_id.hex());
-      }
+      DCHECK(address != "")
+          << "object (" << ready_id.hex()
+          << ") location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
                 << ", object_id = " << ready_id.hex();
       if (node_index == 1) {
