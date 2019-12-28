@@ -6,14 +6,15 @@
 #include <plasma/common.h>
 #include <thread>
 
+#include "object_sender.h"
 #include "object_store_state.h"
 
 class ObjectStoreServiceImpl;
 
 class GrpcServer {
 public:
-  GrpcServer(plasma::PlasmaClient &plasma_client, ObjectStoreState &state,
-             const std::string &ip, int port);
+  GrpcServer(ObjectSender &object_sender, plasma::PlasmaClient &plasma_client,
+             ObjectStoreState &state, const std::string &ip, int port);
 
   inline std::thread Run() {
     return std::thread(&GrpcServer::worker_loop, this);

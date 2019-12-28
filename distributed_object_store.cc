@@ -13,13 +13,17 @@ DistributedObjectStore::DistributedObjectStore(
     const std::string &my_address, int object_writer_port, int grpc_port)
     : my_address_(my_address), gcs_client_{redis_address, redis_port,
                                            redis_notification_port},
-      object_control_{plasma_client_, state_, my_address, grpc_port},
+      object_control_{object_sender_, plasma_client_, state_, my_address,
+                      grpc_port},
       object_writer_{state_, gcs_client_, plasma_client_, my_address,
-                     object_writer_port} {
+                     object_writer_port},
+      object_sender_{state_, plasma_client_} {
   // connect to the plasma store
   plasma_client_.Connect(plasma_socket, "");
   // create a thread to receive remote object
   object_writer_thread_ = object_writer_.Run();
+  // create a thread to send object
+  object_sender_thread_ = object_sender_.Run();
   // create a thread to process pull requests
   object_control_thread_ = object_control_.Run();
   // create a thread to process notifications

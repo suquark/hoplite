@@ -12,6 +12,7 @@
 
 #include "global_control_store.h"
 #include "object_control.h"
+#include "object_sender.h"
 #include "object_store_state.h"
 #include "object_writer.h"
 
@@ -34,6 +35,7 @@ public:
 
   inline void join_tasks() {
     object_writer_thread_.join();
+    object_sender_thread_.join();
     object_control_thread_.join();
   }
 
@@ -45,8 +47,10 @@ private:
   GlobalControlStoreClient gcs_client_;
   plasma::PlasmaClient plasma_client_;
   TCPServer object_writer_;
+  ObjectSender object_sender_;
   GrpcServer object_control_;
   std::thread object_writer_thread_;
+  std::thread object_sender_thread_;
   std::thread object_control_thread_;
   std::thread notification_thread_;
 };
