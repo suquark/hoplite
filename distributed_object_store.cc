@@ -95,8 +95,15 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
     usleep(10);
   }
   // send it back to self
-  bool reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
-                                                 reduction_id, my_address_);
+  bool reply_ok = false;
+  if (object_ids.size() > 1) {
+    reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
+                                              reduction_id, my_address_);
+  } else {
+    reply_ok = object_control_.InvokeReduceTo(
+        tail_address, reduction_id, reduction_id, my_address_, &tail_objectid);
+  }
+
   DCHECK(reply_ok);
   plasma_client_.Seal(reduction_id);
   gcs_client_.unsubscribe_object_locations(notifications);
