@@ -6,7 +6,7 @@ CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Iutil
 CXXFLAGS += -std=c++11 -g
 
-PROTOC = protoc
+PROTOC = /usr/local/bin/protoc
 PROTOS_PATH = .
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
