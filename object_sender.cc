@@ -58,7 +58,7 @@ void ObjectSender::send_object(const ReduceToRequest *request) {
   size_t object_size = 0;
 
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
-    LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
+    LOG(INFO) << "[GrpcServer] fetching a complete object from plasma";
     ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
     plasma_client_.Get({src_object_id}, -1, &object_buffers);
@@ -67,9 +67,17 @@ void ObjectSender::send_object(const ReduceToRequest *request) {
     int status = send_all(conn_fd, object_buffer, object_size);
     DCHECK(!status) << "Failed to send object";
   } else {
+    LOG(INFO)
+        << "[GrpcServer] fetching an incomplete object from reduction stream";
     auto stream = state_.get_reduction_stream(reduction_id);
+    while (stream == nullptr) {
+      usleep(1000);
+      stream = state_.get_reduction_stream(reduction_id);
+    }
+
     object_buffer = stream->data();
     object_size = stream->size();
+
     // send object
     int64_t cursor = 0;
     while (cursor < object_size) {
