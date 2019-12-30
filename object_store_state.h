@@ -31,7 +31,7 @@ public:
 
   // FIXME: here we assume we are downloading only 1 object
   // need to fix this later
-  std::atomic_int64_t progress;
+  std::atomic<std::int64_t> progress;
   size_t pending_size;
   void *pending_write = NULL;
 
