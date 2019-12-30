@@ -18,7 +18,7 @@ public:
   inline size_t size() { return buf_.size(); }
 
   int64_t receive_progress;
-  std::atomic_int64_t reduce_progress;
+  std::atomic<std::int64_t> reduce_progress;
 
 private:
   std::vector<uint8_t> buf_;
