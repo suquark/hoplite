@@ -35,5 +35,6 @@
 .cquery_cache/
 # binaries, databases, protobuf sockets
 dump.rdb
-object_store
+multicast_test
+reduce_test
 *.pb.h
