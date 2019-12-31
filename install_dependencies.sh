@@ -4,7 +4,7 @@
 if [ ! -d grpc ]; then
      git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc.git
 
-     sudo apt-get install \
+     sudo apt-get install -y \
           build-essential \
 	  autoconf \
 	  libtool \
@@ -31,7 +31,7 @@ fi
 if [ ! -d arrow ]; then
      git clone https://github.com/apache/arrow.git
 
-     sudo apt-get install \
+     sudo apt-get install -y \
           build-essential \
           cmake \
           libboost-filesystem-dev \
@@ -51,7 +51,7 @@ fi
 
 ## build hiredis (redis client)
 if [ ! -d hiredis ]; then
-     sudo apt-get install \
+     sudo apt-get install -y \
           libssl-dev
      git clone https://github.com/redis/hiredis.git
      pushd hiredis
