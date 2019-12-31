@@ -24,6 +24,18 @@ private:
   std::vector<uint8_t> buf_;
 };
 
+class ReductionEndpointStream {
+public:
+  ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
+      : buf_ptr_(buf_ptr), finished(false);
+  std::atomic_bool finished;
+  inline void *mutable_data() { return (void *)buf_ptr->mutable_data(); }
+  inline size_t size() { return buf_ptr_.size(); }
+
+private:
+  std::shared_ptr<arrow::Buffer> buf_ptr_;
+};
+
 class ObjectStoreState {
 
 public:
@@ -57,7 +69,7 @@ private:
   std::unordered_map<std::string, int> current_transfer_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::Buffer>>
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionEndpointStream>>
       reduction_endpoint_;
 };
 
