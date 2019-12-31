@@ -105,7 +105,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   }
 
   DCHECK(reply_ok);
-  reduction_endpoint->finished.wait();
+  reduction_endpoint->finished.lock();
+  reduction_endpoint->finished.unlock();
   plasma_client_.Seal(reduction_id);
   gcs_client_.unsubscribe_object_locations(notifications);
 
