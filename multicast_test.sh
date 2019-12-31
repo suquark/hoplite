@@ -12,6 +12,8 @@ sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
 sleep 2
 
+working_dir=$(dirname $(realpath -s $0))
+
 if [ "$#" -eq 1 ]; then
 	redis-server redis.conf &> /dev/null &  # port = 6380
 	redis-server redis_notification.conf &> /dev/null &  # port = 6381
@@ -22,7 +24,7 @@ if [ "$#" -eq 1 ]; then
 	echo "[Putting Object] master: $my_address; slaves: ${slaves[@]}"
 
 	## multicast
-	/home/ubuntu/efs/object_store/multicast_test $my_address $my_address s $1 &
+	$working_dir/multicast_test $my_address $my_address s $1 &
 	sleep 2
 
 	for slave in ${slaves[@]}
@@ -32,7 +34,7 @@ if [ "$#" -eq 1 ]; then
 else
 	echo "[Getting Object] redis_address: $1 object_id: $2 my_address: $my_address"
 	## multicast
-	/home/ubuntu/efs/object_store/multicast_test $1 $my_address c $2
+	$working_dir/multicast_test $1 $my_address c $2
 fi
 
 sleep 360000
