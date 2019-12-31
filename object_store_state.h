@@ -8,6 +8,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <condition_variable>
 
 class ReductionStream {
 public:
@@ -27,8 +28,8 @@ private:
 class ReductionEndpointStream {
 public:
   ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
-      : buf_ptr_(buf_ptr), finished(false){};
-  std::atomic_bool finished;
+      : buf_ptr_(buf_ptr), finished(){};
+  std::condition_variable finished;
   inline void *mutable_data() { return (void *)buf_ptr_->mutable_data(); }
   inline size_t size() { return buf_ptr_->size(); }
 
