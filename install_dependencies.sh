@@ -17,13 +17,13 @@ if [ ! -d grpc ]; then
      pushd grpc
      git submodule update --init --recursive
 
-     make -j && sudo make install
+     make && sudo make install
      popd
 
      pushd grpc/third_party/protobuf
      ./autogen.sh
      ./configure
-     make -j && sudo make install
+     make && sudo make install
      popd
 fi
 
@@ -41,11 +41,11 @@ if [ ! -d arrow ]; then
      mkdir arrow/cpp/build
      pushd arrow/cpp/build
 
-     cmake ..
-     make -j && sudo make install
+     # cmake ..
+     # make -j && sudo make install
 
-     cmake -D ARROW_PLASMA=on -D ARROW_BUILD_TESTS=on ..
-     make -j && sudo make install
+     cmake -D ARROW_PLASMA=on ..
+     make && sudo make install
      popd
 fi
 
@@ -66,7 +66,7 @@ if [ ! -d $REDIS_VER ]; then
      wget http://download.redis.io/releases/$REDIS_VER.tar.gz
      tar xzf $REDIS_VER.tar.gz && rm $REDIS_VER.tar.gz
      pushd $REDIS_VER
-     make -j && sudo make install
+     make && sudo make install
      popd
 fi
 
