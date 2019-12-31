@@ -7,12 +7,14 @@ redis-server redis_notification.conf &> /dev/null &  # port = 6381
 
 sleep 1
 
-worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
+worker_pubips=$(ray get_worker_ips ~/ray_bootstrap_config.yaml)
 
-master=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
+# master=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
+
+master=$(hostname -I | awk '{print $1}')
 
 slaves=()
-for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
+for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s hostname -I | awk '{print $1}')); done
 
 echo master: $master
 echo slaves: ${slaves[@]}
