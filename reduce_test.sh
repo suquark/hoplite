@@ -10,7 +10,7 @@ plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
 # export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
-sleep 2
+# sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
 
@@ -28,7 +28,7 @@ if [ "$#" -eq 1 ]; then
 	for oid in $(seq -f "%040g" 1 ${#slaves[@]}); do object_ids+=($oid); done
 
 	$working_dir/reduce_test $my_address $my_address s $1 ${object_ids[@]} &
-	sleep 2
+	# sleep 2
 
 	for index in ${!slaves[@]}
 	do
