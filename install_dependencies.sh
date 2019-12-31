@@ -17,13 +17,13 @@ if [ ! -d grpc ]; then
      pushd grpc
      git submodule update --init --recursive
 
-     make && sudo make install
+     CXXFLAGS='-Wno-error' make && sudo make install
      popd
 
      pushd grpc/third_party/protobuf
      ./autogen.sh
      ./configure
-     make && sudo make install
+     CXXFLAGS='-Wno-error' make && sudo make install
      popd
 fi
 
