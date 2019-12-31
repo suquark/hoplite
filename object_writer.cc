@@ -68,6 +68,7 @@ void TCPServer::receive_and_reduce_object(int conn_fd) {
     // this is the endpoint
     auto buffer = state_.get_reduction_endpoint(reduce_id);
     int status = recv_all(conn_fd, buffer->mutable_data(), buffer->size());
+    buffer->finished.unlock();
   } else {
     // Get object from Plasma Store
     std::vector<ObjectBuffer> object_buffers;

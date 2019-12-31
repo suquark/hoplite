@@ -24,6 +24,20 @@ private:
   std::vector<uint8_t> buf_;
 };
 
+class ReductionEndpointStream {
+public:
+  ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
+      : buf_ptr_(buf_ptr) {
+    finished.lock();
+  };
+  std::mutex finished;
+  inline void *mutable_data() { return (void *)buf_ptr_->mutable_data(); }
+  inline size_t size() { return buf_ptr_->size(); }
+
+private:
+  std::shared_ptr<arrow::Buffer> buf_ptr_;
+};
+
 class ObjectStoreState {
 
 public:
@@ -46,10 +60,11 @@ public:
   std::shared_ptr<ReductionStream>
   get_reduction_stream(const plasma::ObjectID &reduction_id);
 
-  void create_reduction_endpoint(const plasma::ObjectID &reduction_id,
-                                 const std::shared_ptr<arrow::Buffer> &buffer);
+  std::shared_ptr<ReductionEndpointStream>
+  create_reduction_endpoint(const plasma::ObjectID &reduction_id,
+                            const std::shared_ptr<arrow::Buffer> &buffer);
 
-  std::shared_ptr<arrow::Buffer>
+  std::shared_ptr<ReductionEndpointStream>
   get_reduction_endpoint(const plasma::ObjectID &reduction_id);
 
 private:
@@ -57,7 +72,7 @@ private:
   std::unordered_map<std::string, int> current_transfer_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::Buffer>>
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionEndpointStream>>
       reduction_endpoint_;
 };
 
