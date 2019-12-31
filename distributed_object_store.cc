@@ -59,7 +59,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
   plasma_client_.Create(reduction_id, _expected_size, NULL, 0, &buffer);
-  auto reduction_endpoint = state_.create_reduction_endpoint(reduction_id, buffer);
+  auto reduction_endpoint =
+      state_.create_reduction_endpoint(reduction_id, buffer);
 
   int node_index = 0;
   ObjectID tail_objectid;

@@ -27,9 +27,9 @@ private:
 class ReductionEndpointStream {
 public:
   ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
-      : buf_ptr_(buf_ptr){
-        finished.lock();
-      };
+      : buf_ptr_(buf_ptr) {
+    finished.lock();
+  };
   std::mutex finished;
   inline void *mutable_data() { return (void *)buf_ptr_->mutable_data(); }
   inline size_t size() { return buf_ptr_->size(); }
@@ -60,7 +60,7 @@ public:
   std::shared_ptr<ReductionStream>
   get_reduction_stream(const plasma::ObjectID &reduction_id);
 
-  std::shared_ptr<ReductionEndpointStream> 
+  std::shared_ptr<ReductionEndpointStream>
   create_reduction_endpoint(const plasma::ObjectID &reduction_id,
                             const std::shared_ptr<arrow::Buffer> &buffer);
 
