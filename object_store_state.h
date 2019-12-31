@@ -60,8 +60,9 @@ public:
   std::shared_ptr<ReductionStream>
   get_reduction_stream(const plasma::ObjectID &reduction_id);
 
-  void create_reduction_endpoint(const plasma::ObjectID &reduction_id,
-                                 const std::shared_ptr<arrow::Buffer> &buffer);
+  std::shared_ptr<ReductionEndpointStream> 
+  create_reduction_endpoint(const plasma::ObjectID &reduction_id,
+                            const std::shared_ptr<arrow::Buffer> &buffer);
 
   std::shared_ptr<ReductionEndpointStream>
   get_reduction_endpoint(const plasma::ObjectID &reduction_id);
