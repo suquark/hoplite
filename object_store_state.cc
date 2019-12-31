@@ -44,7 +44,7 @@ void ObjectStoreState::create_reduction_endpoint(
     const plasma::ObjectID &reduction_id,
     const std::shared_ptr<arrow::Buffer> &buffer) {
   DCHECK(reduction_endpoint_.find(reduction_id) == reduction_endpoint_.end());
-  reduction_endpoint_[reduction_id] = ReductionEndpointStream(buffer);
+  reduction_endpoint_[reduction_id] = std::make_shared<ReductionEndpointStream>(buffer);
 }
 
 std::shared_ptr<ReductionEndpointStream>

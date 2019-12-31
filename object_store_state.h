@@ -27,10 +27,10 @@ private:
 class ReductionEndpointStream {
 public:
   ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
-      : buf_ptr_(buf_ptr), finished(false);
+      : buf_ptr_(buf_ptr), finished(false){};
   std::atomic_bool finished;
-  inline void *mutable_data() { return (void *)buf_ptr->mutable_data(); }
-  inline size_t size() { return buf_ptr_.size(); }
+  inline void *mutable_data() { return (void *)buf_ptr_->mutable_data(); }
+  inline size_t size() { return buf_ptr_->size(); }
 
 private:
   std::shared_ptr<arrow::Buffer> buf_ptr_;
