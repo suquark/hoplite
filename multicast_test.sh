@@ -16,7 +16,6 @@ working_dir=$(dirname $(realpath -s $0))
 
 if [ "$#" -eq 1 ]; then
 	redis-server redis.conf &> /dev/null &  # port = 6380
-	redis-server redis_notification.conf &> /dev/null &  # port = 6381
 	sleep 2
 	worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 	slaves=()

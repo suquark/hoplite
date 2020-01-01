@@ -139,6 +139,7 @@ ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
     grpc::ClientContext context;
     SubscriptionRequest request;
     SubscriptionReply reply;
+    request.set_subscriber_ip(my_address_);
     request.set_object_id(object_id.binary());
     stub->Subscribe(&context, request, &reply);
 
