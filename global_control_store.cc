@@ -22,6 +22,26 @@ using objectstore::UnsubscriptionRequest;
 
 using namespace plasma;
 
+class NotificationListenerImpl final
+    : public objectstore::NotificationListener::Service {
+public:
+  NotificationListenerImpl(ObjectNotifications &object_notification)
+      : objectstore::NotificationListener::Service(),
+        object_notification_(object_notification) {}
+
+  grpc::Status ObjectIsReady(grpc::ServerContext *context,
+                             const ObjectIsReadyRequest *request,
+                             ObjectIsReadyReply *reply) {
+    object_notification_.ReceiveObjectNotification(
+        ObjectID::from_binary(request->object_id()));
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+private:
+  ObjectNotifications &object_notification_;
+};
+
 ObjectNotifications::ObjectNotifications(std::vector<ObjectID> object_ids) {
   for (auto object_id : object_ids) {
     pending_.insert(object_id);
@@ -48,12 +68,20 @@ void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id) {
 }
 
 GlobalControlStoreClient::GlobalControlStoreClient(
-    const std::string &redis_address, int port, int notification_port)
-    : redis_address_(redis_address), notification_port_(notification_port) {
+    const std::string &redis_address, int port, const std::string &my_address,
+    int notification_port)
+    : redis_address_(redis_address), my_address_(my_address),
+      notification_port_(notification_port) {
   // create a redis client
   redis_client_ = redisConnect(redis_address.c_str(), port);
   LOG(DEBUG) << "[RedisClient] Connected to Redis server running at "
              << redis_address << ":" << port << ".";
+
+  std::string grpc_address = my_address + ":" + std::to_string(port);
+  grpc::ServerBuilder builder;
+  builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
+  builder.RegisterService(&*service_);
+  grpc_server_ = builder.BuildAndStart();
 }
 
 void GlobalControlStoreClient::write_object_location(
@@ -136,7 +164,8 @@ void GlobalControlStoreClient::unsubscribe_object_locations(
 void GlobalControlStoreClient::PublishObjectCompletionEvent(
     const ObjectID &object_id) {
 
-  auto remote_address = redis_address_ + ":" + std::to_string(notification_port_);
+  auto remote_address =
+      redis_address_ + ":" + std::to_string(notification_port_);
   auto channel =
       grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
   std::unique_ptr<objectstore::NotificationServer::Stub> stub(
@@ -150,4 +179,8 @@ void GlobalControlStoreClient::PublishObjectCompletionEvent(
   DCHECK(reply.ok()) << "Object completes " << object_id.hex() << " failed.";
 }
 
-void GlobalControlStoreClient::worker_loop() {}
+void GlobalControlStoreClient::worker_loop() {
+  LOG(INFO) << "[GCSClient] Gcs client " << my_address_ << " started";
+
+  grpc_server_->Wait();
+}

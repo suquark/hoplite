@@ -10,6 +10,8 @@
 
 struct redisContext;
 
+struct NotificationListenerImpl;
+
 class ObjectNotifications {
 public:
   ObjectNotifications(std::vector<plasma::ObjectID> object_ids);
@@ -26,6 +28,7 @@ private:
 class GlobalControlStoreClient {
 public:
   GlobalControlStoreClient(const std::string &redis_address, int redis_port,
+                           const std::string &my_address,
                            int notification_port);
 
   // Write object location to Redis server.
@@ -57,10 +60,14 @@ private:
 
   std::mutex gcs_mutex_;
   const std::string &redis_address_;
+  const std::string &my_address_;
   const int notification_port_;
 
   redisContext *redis_client_;
   std::unordered_set<ObjectNotifications *> notifications_;
+
+  std::unique_ptr<grpc::Server> grpc_server_;
+  std::shared_ptr<NotificationListenerImpl> service_;
 };
 
 #endif // GLOBAL_CONTROL_STORE_H
