@@ -8,11 +8,12 @@
 using namespace plasma;
 
 DistributedObjectStore::DistributedObjectStore(
-    const std::string &redis_address, int redis_port,
-    int redis_notification_port, const std::string &plasma_socket,
+    const std::string &redis_address, int redis_port, int notification_port,
+    int notification_listening_port, const std::string &plasma_socket,
     const std::string &my_address, int object_writer_port, int grpc_port)
     : my_address_(my_address), gcs_client_{redis_address, redis_port,
-                                           redis_notification_port},
+                                           my_address, notification_port,
+                                           notification_listening_port},
       object_control_{object_sender_, plasma_client_, state_, my_address,
                       grpc_port},
       object_writer_{state_, gcs_client_, plasma_client_, my_address,
@@ -37,8 +38,8 @@ void DistributedObjectStore::Put(const void *data, size_t size,
   plasma_client_.Create(object_id, size, NULL, 0, &ptr);
   memcpy(ptr->mutable_data(), data, size);
   plasma_client_.Seal(object_id);
-  gcs_client_.write_object_location(object_id.hex(), my_address_);
-  gcs_client_.PublishObjectCompletionEvent(object_id.hex());
+  gcs_client_.write_object_location(object_id, my_address_);
+  gcs_client_.PublishObjectCompletionEvent(object_id);
 }
 
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
@@ -72,7 +73,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
     std::vector<ObjectID> ready_ids = notifications->GetNotifications();
     for (auto &ready_id : ready_ids) {
       // FIXME: Somehow the location of the object is not written to Redis.
-      std::string address = gcs_client_.get_object_location(ready_id.hex());
+      std::string address = gcs_client_.get_object_location(ready_id);
       DCHECK(address != "")
           << "object (" << ready_id.hex()
           << ") location is not ready, but notification is received!";
@@ -120,7 +121,7 @@ void DistributedObjectStore::Get(ObjectID object_id, const void **data,
                                  size_t *size) {
   // get object location from redis
   while (true) {
-    std::string address = gcs_client_.get_object_location(object_id.hex());
+    std::string address = gcs_client_.get_object_location(object_id);
 
     // send pull request to one of the location
     bool reply_ok = object_control_.PullObject(address, object_id);

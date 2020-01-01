@@ -9,6 +9,7 @@
 
 #include "distributed_object_store.h"
 #include "logging.h"
+#include "notification.h"
 #include "plasma_utils.h"
 
 using namespace plasma;
@@ -71,17 +72,21 @@ int main(int argc, char **argv) {
 
   ::ray::RayLog::StartRayLog(my_address + ": ");
 
-  DistributedObjectStore store(redis_address, 6380, 6381,
+  DistributedObjectStore store(redis_address, 6380, 7777, 8888,
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
   if (argv[3][0] == 's') {
     store.flushall();
+
+    NotificationServer notification_server(my_address, 7777, 8888);
+    std::thread notification_server_thread = notification_server.Run();
     std::vector<ObjectID> object_ids;
     for (int i = 5; i < argc; i++) {
       object_ids.push_back(from_hex(argv[i]));
     }
     test_server(store, atoi(argv[4]), object_ids);
+    notification_server_thread.join();
   } else {
     test_client(store, atoi(argv[4]), from_hex(argv[5]));
   }
