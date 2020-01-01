@@ -29,8 +29,8 @@ private:
 class GlobalControlStoreClient {
 public:
   GlobalControlStoreClient(const std::string &redis_address, int redis_port,
-                           const std::string &my_address,
-                           int notification_port);
+                           const std::string &my_address, int notification_port,
+                           int notification_listen_port);
 
   // Write object location to Redis server.
   void write_object_location(const plasma::ObjectID &object_id,
@@ -63,6 +63,7 @@ private:
   const std::string &redis_address_;
   const std::string &my_address_;
   const int notification_port_;
+  const int notification_listen_port_;
 
   redisContext *redis_client_;
   std::unordered_set<ObjectNotifications *> notifications_;

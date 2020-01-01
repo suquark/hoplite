@@ -25,21 +25,23 @@ using namespace plasma;
 class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
 public:
-  NotificationListenerImpl(ObjectNotifications &object_notification)
+  NotificationListenerImpl(
+      std::unordered_set<ObjectNotifications *> &object_notifications)
       : objectstore::NotificationListener::Service(),
-        object_notification_(object_notification) {}
+        object_notifications_(object_notifications) {}
 
   grpc::Status ObjectIsReady(grpc::ServerContext *context,
                              const ObjectIsReadyRequest *request,
                              ObjectIsReadyReply *reply) {
-    object_notification_.ReceiveObjectNotification(
-        ObjectID::from_binary(request->object_id()));
+    for (auto notifications : object_notifications_) {
+      notifications->ReceiveObjectNotification(ObjectID::from_binary(request->object_id()));
+    }
     reply->set_ok(true);
     return grpc::Status::OK;
   }
 
 private:
-  ObjectNotifications &object_notification_;
+  std::unordered_set<ObjectNotifications *> &object_notifications_;
 };
 
 ObjectNotifications::ObjectNotifications(std::vector<ObjectID> object_ids) {
@@ -69,15 +71,18 @@ void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id) {
 
 GlobalControlStoreClient::GlobalControlStoreClient(
     const std::string &redis_address, int port, const std::string &my_address,
-    int notification_port)
+    int notification_port, int notification_listen_port)
     : redis_address_(redis_address), my_address_(my_address),
-      notification_port_(notification_port) {
+      notification_port_(notification_port),
+      notification_listen_port_(notification_listen_port),
+      service_(std::make_shared<NotificationListenerImpl>(notifications_)) {
   // create a redis client
   redis_client_ = redisConnect(redis_address.c_str(), port);
   LOG(DEBUG) << "[RedisClient] Connected to Redis server running at "
              << redis_address << ":" << port << ".";
 
-  std::string grpc_address = my_address + ":" + std::to_string(port);
+  std::string grpc_address =
+      my_address + ":" + std::to_string(notification_listen_port);
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&*service_);

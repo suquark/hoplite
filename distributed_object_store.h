@@ -19,7 +19,7 @@
 class DistributedObjectStore {
 public:
   DistributedObjectStore(const std::string &redis_address, int redis_port,
-                         int redis_notification_port,
+                         int notification_port, int notification_listening_port,
                          const std::string &plasma_socket,
                          const std::string &my_address, int object_writer_port,
                          int grpc_port);
