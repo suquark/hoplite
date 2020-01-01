@@ -34,7 +34,8 @@ public:
                              const ObjectIsReadyRequest *request,
                              ObjectIsReadyReply *reply) {
     for (auto notifications : object_notifications_) {
-      notifications->ReceiveObjectNotification(ObjectID::from_binary(request->object_id()));
+      notifications->ReceiveObjectNotification(
+          ObjectID::from_binary(request->object_id()));
     }
     reply->set_ok(true);
     return grpc::Status::OK;
