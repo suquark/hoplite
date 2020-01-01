@@ -1,6 +1,7 @@
 #ifndef GLOBAL_CONTROL_STORE_H
 #define GLOBAL_CONTROL_STORE_H
 
+#include <grpcpp/server.h>
 #include <mutex>
 #include <plasma/common.h>
 #include <string>

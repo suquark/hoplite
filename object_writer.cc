@@ -123,7 +123,7 @@ void TCPServer::receive_object(int conn_fd) {
   state_.progress = 0;
   state_.pending_size = object_size;
   state_.pending_write = ptr->mutable_data();
-  gcs_client_.write_object_location(object_id.hex(), server_ipaddr_);
+  gcs_client_.write_object_location(object_id, server_ipaddr_);
   while (state_.progress < object_size) {
     int remaining_size = object_size - state_.progress;
     int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
@@ -135,7 +135,7 @@ void TCPServer::receive_object(int conn_fd) {
     state_.progress += bytes_recv;
   }
   plasma_client_.Seal(object_id);
-  gcs_client_.PublishObjectCompletionEvent(object_id.hex());
+  gcs_client_.PublishObjectCompletionEvent(object_id);
 
   // reply message
   auto status = send_all(conn_fd, "OK", 3);
