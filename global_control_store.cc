@@ -1,73 +1,80 @@
+#include <grpc/grpc.h>
+#include <grpcpp/grpcpp.h>
+#include <grpcpp/server.h>
+#include <grpcpp/server_builder.h>
+#include <grpcpp/server_context.h>
 #include <hiredis.h>
 #include <string.h>
 
 #include "global_control_store.h"
 #include "logging.h"
+#include "object_store.grpc.pb.h"
 #include "util/plasma_utils.h"
+
+using objectstore::ObjectCompleteReply;
+using objectstore::ObjectCompleteRequest;
+using objectstore::ObjectIsReadyReply;
+using objectstore::ObjectIsReadyRequest;
+using objectstore::SubscriptionReply;
+using objectstore::SubscriptionRequest;
+using objectstore::UnsubscriptionReply;
+using objectstore::UnsubscriptionRequest;
 
 using namespace plasma;
 
-ObjectNotifications::ObjectNotifications(
-    std::vector<std::string> object_id_hexes) {
-  for (auto object_id_hex : object_id_hexes) {
-    pending_.insert(object_id_hex);
+ObjectNotifications::ObjectNotifications(std::vector<ObjectID> object_ids) {
+  for (auto object_id : object_ids) {
+    pending_.insert(object_id);
   }
 }
 
 std::vector<ObjectID> ObjectNotifications::GetNotifications() {
   std::lock_guard<std::mutex> guard(notification_mutex_);
   std::vector<ObjectID> notifications;
-  for (auto &object_id_hex : ready_) {
-    notifications.push_back(from_hex((char *)object_id_hex.c_str()));
+  for (auto &object_id : ready_) {
+    notifications.push_back(object_id);
   }
   ready_.clear();
   return notifications;
 }
 
-void ObjectNotifications::ReceiveObjectNotification(std::string object_id_hex) {
+void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id) {
   std::lock_guard<std::mutex> guard(notification_mutex_);
-  if (pending_.find(object_id_hex) == pending_.end()) {
+  if (pending_.find(object_id) == pending_.end()) {
     return;
   }
-  pending_.erase(object_id_hex);
-  ready_.insert(object_id_hex);
+  pending_.erase(object_id);
+  ready_.insert(object_id);
 }
 
 GlobalControlStoreClient::GlobalControlStoreClient(
-    const std::string &redis_address, int port, int notification_port) {
+    const std::string &redis_address, int port, int notification_port)
+    : redis_address_(redis_address), notification_port_(notification_port) {
   // create a redis client
   redis_client_ = redisConnect(redis_address.c_str(), port);
   LOG(DEBUG) << "[RedisClient] Connected to Redis server running at "
              << redis_address << ":" << port << ".";
-
-  publish_client_ = redisConnect(redis_address.c_str(), notification_port);
-  notification_client_ = redisConnect(redis_address.c_str(), notification_port);
-  LOG(DEBUG)
-      << "[RedisClient] Connected to Redis notification server running at "
-      << redis_address << ":" << notification_port << ".";
 }
 
 void GlobalControlStoreClient::write_object_location(
-    const std::string &object_id_hex, const std::string &my_address) {
-  LOG(INFO) << "[RedisClient] Adding object " << object_id_hex
+    const ObjectID &object_id, const std::string &my_address) {
+  LOG(INFO) << "[RedisClient] Adding object " << object_id.hex()
             << " to Redis with address = " << my_address << ".";
-  redisReply *redis_reply = (redisReply *)redisCommand(
-      redis_client_, "LPUSH %s %s", object_id_hex.c_str(), my_address.c_str());
+  redisReply *redis_reply =
+      (redisReply *)redisCommand(redis_client_, "LPUSH %s %s",
+                                 object_id.hex().c_str(), my_address.c_str());
   freeReplyObject(redis_reply);
 }
 
 void GlobalControlStoreClient::flushall() {
   redisReply *reply = (redisReply *)redisCommand(redis_client_, "FLUSHALL");
   freeReplyObject(reply);
-
-  reply = (redisReply *)redisCommand(publish_client_, "FLUSHALL");
-  freeReplyObject(reply);
 }
 
 std::string
-GlobalControlStoreClient::get_object_location(const std::string &hex) {
-  redisReply *redis_reply =
-      (redisReply *)redisCommand(redis_client_, "LRANGE %s 0 -1", hex.c_str());
+GlobalControlStoreClient::get_object_location(const ObjectID &object_id) {
+  redisReply *redis_reply = (redisReply *)redisCommand(
+      redis_client_, "LRANGE %s 0 -1", object_id.hex().c_str());
 
   int num_of_copies = redis_reply->elements;
   if (num_of_copies == 0) {
@@ -83,25 +90,33 @@ GlobalControlStoreClient::get_object_location(const std::string &hex) {
 
 ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
     const std::vector<ObjectID> &object_ids, bool include_completed_objects) {
-  std::vector<std::string> object_id_hexes;
-  for (auto object_id : object_ids) {
-    object_id_hexes.push_back(object_id.hex());
-  }
-  ObjectNotifications *notifications = new ObjectNotifications(object_id_hexes);
+  ObjectNotifications *notifications = new ObjectNotifications(object_ids);
   {
     std::lock_guard<std::mutex> guard(gcs_mutex_);
     notifications_.insert(notifications);
   }
 
-  for (auto object_id_hex : object_id_hexes) {
-    redisAppendCommand(notification_client_, "SUBSCRIBE %s",
-                       object_id_hex.c_str());
+  for (auto object_id : object_ids) {
+    auto remote_address =
+        redis_address_ + ":" + std::to_string(notification_port_);
+    auto channel =
+        grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+    std::unique_ptr<objectstore::NotificationServer::Stub> stub(
+        objectstore::NotificationServer::NewStub(channel));
+    grpc::ClientContext context;
+    SubscriptionRequest request;
+    SubscriptionReply reply;
+    request.set_object_id(object_id.binary());
+    stub->Subscribe(&context, request, &reply);
+
+    DCHECK(reply.ok()) << "Subscribing object " << object_id.hex()
+                       << " failed.";
   }
 
   if (include_completed_objects) {
-    for (auto object_id_hex : object_id_hexes) {
-      if ("" != get_object_location(object_id_hex)) {
-        notifications->ReceiveObjectNotification(object_id_hex);
+    for (auto object_id : object_ids) {
+      if ("" != get_object_location(object_id)) {
+        notifications->ReceiveObjectNotification(object_id);
       }
     }
   }
@@ -119,29 +134,20 @@ void GlobalControlStoreClient::unsubscribe_object_locations(
 }
 
 void GlobalControlStoreClient::PublishObjectCompletionEvent(
-    const std::string &object_id_hex) {
-  redisReply *reply = (redisReply *)redisCommand(
-      publish_client_, "PUBLISH %s %s", object_id_hex.c_str(), "READY");
-  freeReplyObject(reply);
+    const ObjectID &object_id) {
+
+  auto remote_address = redis_address_ + ":" + std::to_string(notification_port_);
+  auto channel =
+      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
+      objectstore::NotificationServer::NewStub(channel));
+  grpc::ClientContext context;
+  ObjectCompleteRequest request;
+  ObjectCompleteReply reply;
+  request.set_object_id(object_id.binary());
+  stub->ObjectComplete(&context, request, &reply);
+
+  DCHECK(reply.ok()) << "Object completes " << object_id.hex() << " failed.";
 }
 
-void GlobalControlStoreClient::worker_loop() {
-  LOG(INFO) << "[RedisClient] Notification server is listening on Redis";
-  while (true) {
-    redisReply *reply;
-    redisGetReply(notification_client_, (void **)&reply);
-    {
-      if (reply->type == REDIS_REPLY_ARRAY && reply->elements == 3) {
-        if (strcmp(reply->element[0]->str, "subscribe") != 0) {
-          // get a notification for an object completion event, update pending
-          // objects list
-          std::string object_id_hex = std::string(reply->element[1]->str);
-          for (auto notifications : notifications_) {
-            notifications->ReceiveObjectNotification(object_id_hex);
-          }
-        }
-      }
-      freeReplyObject(reply);
-    }
-  }
-}
+void GlobalControlStoreClient::worker_loop() {}

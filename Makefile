@@ -13,7 +13,7 @@ GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 PROTO_OBJS = object_store.pb.o object_store.grpc.pb.o
 UTILS_OBJS = util/logging.o util/socket_utils.o util/plasma_utils.o
-OBJECT_STORE_OBJS = protocol.o global_control_store.o object_store_state.o \
+OBJECT_STORE_OBJS = protocol.o notification.o global_control_store.o object_store_state.o \
 	object_writer.o object_sender.o object_control.o distributed_object_store.o
 
 all: multicast_test reduce_test

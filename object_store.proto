@@ -24,6 +24,50 @@ message ReduceToReply {
   bool ok = 1;
 }
 
+message SubscriptionRequest {
+  bytes subscriber_ip = 1;
+  bytes object_id = 2;
+}
+
+message SubscriptionReply {
+  bool ok = 1;
+}
+
+message UnsubscriptionRequest {
+  bytes unsubscriber_ip = 1;
+  bytes object_id = 2;
+}
+
+message UnsubscriptionReply {
+  bool ok = 1;
+}
+
+message ObjectCompleteRequest{
+    bytes object_id = 1;
+}
+
+message ObjectCompleteReply {
+    bool ok = 1;
+}
+
+message ObjectIsReadyRequest{
+      bytes object_id = 1;
+}
+
+message ObjectIsReadyReply {
+      bool ok = 1;
+}
+
+service NotificationServer {
+  rpc Subscribe(SubscriptionRequest) returns (SubscriptionReply);
+  rpc Unsubscribe(UnsubscriptionRequest) returns (UnsubscriptionReply);
+  rpc ObjectComplete(ObjectCompleteRequest) returns (ObjectCompleteReply);
+}
+
+service NotificationListener {
+  rpc ObjectIsReady(ObjectIsReadyRequest) returns (ObjectIsReadyReply);
+}
+
 service ObjectStore {
   rpc Pull(PullRequest) returns (PullReply);
   rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
