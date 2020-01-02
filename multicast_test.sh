@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ "$#" -lt 1 ]; then echo "ERROR: input size required"; exit; fi
-if [ "$#" -gt 2 ]; then echo "ERROR: too many arguments: $#"; exit; fi
+if [ "$#" -gt 3 ]; then echo "ERROR: too many arguments: $#"; exit; fi
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
@@ -21,19 +21,21 @@ if [ "$#" -eq 1 ]; then
 	slaves=()
 	for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
 	echo "[Putting Object] master: $my_address; slaves: ${slaves[@]}"
+	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-multicast
+	mkdir -p $log_dir
 
 	## multicast
-	$working_dir/multicast_test $my_address $my_address s $1 &
+	($working_dir/multicast_test $my_address $my_address s $1 2>&1 | tee $log_dir/$my_address.server.log) &
 	sleep 2
 
 	for slave in ${slaves[@]}
 	do
-		ssh -t -t $slave "$(realpath -s $0) $my_address 8c97b7d89adb8bd86c9fa562704ce40ef645627a" &
+		ssh -t -t $slave "$(realpath -s $0) $my_address 8c97b7d89adb8bd86c9fa562704ce40ef645627a $log_dir" &
 	done
 else
 	echo "[Getting Object] redis_address: $1 object_id: $2 my_address: $my_address"
 	## multicast
-	$working_dir/multicast_test $1 $my_address c $2
+	($working_dir/multicast_test $1 $my_address c $2 2>&1 | tee $3/$my_address.server.log) &
 fi
 
 sleep 360000
