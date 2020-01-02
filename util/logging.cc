@@ -224,9 +224,7 @@ RayLog::RayLog(const char *file_name, int line_number, const char *function_name
   auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   std::stringstream ss;
   ss << timestamp << " " << std::this_thread::get_id() << " " << file_name << ":" << line_number << " " << function_name << ": ";
-  std::string log_str;
-  ss >> log_str;
-  *logging_provider << log_str;
+  *logging_provider << ss.str();
   logging_provider_ = logging_provider;
 #endif
 }
