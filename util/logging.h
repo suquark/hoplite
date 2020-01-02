@@ -15,7 +15,7 @@ enum class RayLogLevel {
 };
 
 #define RAY_LOG_INTERNAL(level)                                                \
-  ::ray::RayLog(__FILE__, __LINE__, level) << ray::RayLog::get_app_name()
+  ::ray::RayLog(__FILE__, __LINE__, level) << " " << __func__ << ": " << ray::RayLog::get_app_name()
 
 #define RAY_LOG_ENABLED(level)                                                 \
   ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
