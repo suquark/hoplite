@@ -218,7 +218,7 @@ RayLog::RayLog(const char *file_name, int line_number, const char *function_name
   }
 #else
   auto logging_provider = new CerrLog(severity);
-  *logging_provider << std::chrono::high_resolution_clock::now().count() << file_name << ":" << line_number << " in "<< function_name << ": ";
+  *logging_provider << std::chrono::high_resolution_clock::now().time_since_epoch().count() << file_name << ":" << line_number << " in "<< function_name << ": ";
   logging_provider_ = logging_provider;
 #endif
 }
