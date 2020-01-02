@@ -13,6 +13,8 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 # sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
+log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")
+mkdir -p $log_dir
 
 if [ "$#" -eq 1 ]; then
 	redis-server redis.conf &> /dev/null &  # port = 6380
@@ -26,7 +28,7 @@ if [ "$#" -eq 1 ]; then
 	object_ids=()
 	for oid in $(seq -f "%040g" 1 ${#slaves[@]}); do object_ids+=($oid); done
 
-	$working_dir/reduce_test $my_address $my_address s $1 ${object_ids[@]} &
+	($working_dir/reduce_test $my_address $my_address s $1 ${object_ids[@]} 2>&1 | tee $log_dir/$my_address.server.log) &
 	# sleep 2
 
 	for index in ${!slaves[@]}
@@ -35,7 +37,7 @@ if [ "$#" -eq 1 ]; then
 	done
 else
 	echo "[Putting Object] redis_address: $1 object_size: $2 objectid: $3 my_address: $my_address"
-	$working_dir/reduce_test $1 $my_address c $2 $3
+	$working_dir/reduce_test $1 $my_address c $2 $3 2>&1 | tee $log_dir/$my_address.client.log
 fi
 
 sleep 360000
