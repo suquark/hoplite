@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <chrono>
 #include <thread>
+#include <string>
+#include <sstream>
 
 #ifdef RAY_USE_GLOG
 #include "glog/logging.h"
@@ -219,7 +221,12 @@ RayLog::RayLog(const char *file_name, int line_number, const char *function_name
   }
 #else
   auto logging_provider = new CerrLog(severity);
-  *logging_provider << std::chrono::high_resolution_clock::now().time_since_epoch().count() << " " << file_name << ":" << line_number << " in "<< function_name << " thread_id " << std::this_thread::get_id() << ": ";
+  auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  std::stringstream ss;
+  ss << timestamp << " " << std::this_thread::get_id() << " " << file_name << ":" << line_number << " " << function_name << ": ";
+  std::string log_str;
+  ss >> log_str;
+  *logging_provider << log_str;
   logging_provider_ = logging_provider;
 #endif
 }
