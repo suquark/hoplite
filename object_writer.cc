@@ -12,7 +12,6 @@
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_writer.h"
-#include "protocol.h"
 #include "socket_utils.h"
 
 using namespace plasma;

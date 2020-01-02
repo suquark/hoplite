@@ -23,7 +23,9 @@ public:
 private:
   void worker_loop();
 
-  void send_object(const objectstore::ReduceToRequest *request);
+  void send_object(const objectstore::PullRequest *request);
+
+  void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
   std::list<objectstore::ReduceToRequest *> pending_tasks_;
 
