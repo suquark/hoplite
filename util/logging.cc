@@ -207,7 +207,7 @@ bool RayLog::IsLevelEnabled(RayLogLevel log_level) {
   return log_level >= severity_threshold_;
 }
 
-RayLog::RayLog(const char *file_name, int line_number, RayLogLevel severity)
+RayLog::RayLog(const char *file_name, int line_number, const char *function_name, RayLogLevel severity)
     // glog does not have DEBUG level, we can handle it using is_enabled_.
     : logging_provider_(nullptr), is_enabled_(severity >= severity_threshold_) {
 #ifdef RAY_USE_GLOG
@@ -217,7 +217,7 @@ RayLog::RayLog(const char *file_name, int line_number, RayLogLevel severity)
   }
 #else
   auto logging_provider = new CerrLog(severity);
-  *logging_provider << file_name << ":" << line_number << ": ";
+  *logging_provider << file_name << ":" << line_number << " in "<< function_name << ": ";
   logging_provider_ = logging_provider;
 #endif
 }
