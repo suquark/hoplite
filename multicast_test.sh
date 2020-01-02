@@ -35,7 +35,7 @@ if [ "$#" -eq 1 ]; then
 else
 	echo "[Getting Object] redis_address: $1 object_id: $2 my_address: $my_address"
 	## multicast
-	($working_dir/multicast_test $1 $my_address c $2 2>&1 | tee $3/$my_address.server.log) &
+	($working_dir/multicast_test $1 $my_address c $2 2>&1 | tee $3/$my_address.client.log) &
 fi
 
 sleep 360000
