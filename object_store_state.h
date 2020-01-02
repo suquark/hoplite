@@ -14,7 +14,7 @@ public:
   ReductionStream(size_t size)
       : buf_(size), receive_progress(0), reduce_progress(0){};
 
-  inline void *data() { return (void *)buf_.data(); }
+  inline uint8_t *data() { return (uint8_t *)buf_.data(); }
   inline size_t size() { return buf_.size(); }
 
   int64_t receive_progress;
@@ -31,8 +31,11 @@ public:
     finished.lock();
   };
   std::mutex finished;
-  inline void *mutable_data() { return (void *)buf_ptr_->mutable_data(); }
+  inline uint8_t *data() { return (uint8_t *)buf_ptr_->mutable_data(); }
   inline size_t size() { return buf_ptr_->size(); }
+
+  int64_t receive_progress;
+  std::atomic_int64_t reduce_progress;
 
 private:
   std::shared_ptr<arrow::Buffer> buf_ptr_;

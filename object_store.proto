@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package objectstore;
 
+// Object Control Protocol
+
 message PullRequest {
   bytes object_id = 1;
   bytes puller_ip = 2;
@@ -16,13 +18,41 @@ message ReduceToRequest {
   oneof reduction_source {
     bytes src_object_id = 2;
   }
-  bytes dst_object_id = 3;
+  repeated bytes dst_object_ids = 3;
   bytes dst_address = 4;
+  bool is_endpoint = 5;
 }
 
 message ReduceToReply {
   bool ok = 1;
 }
+
+service ObjectStore {
+  rpc Pull(PullRequest) returns (PullReply);
+  rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
+}
+
+// Object Writer Protocol
+
+message ReceiveObjectRequest {
+  bytes object_id = 1;
+  int64 object_size = 2;
+}
+
+message ReceiveAndReduceObjectRequest {
+  bytes reduction_id = 1;
+  repeated bytes object_ids = 2;
+  bool is_endpoint = 3;
+}
+
+message ObjectWriterRequest {
+  oneof message_type {
+    ReceiveObjectRequest receive_object = 1;
+    ReceiveAndReduceObjectRequest receive_and_reduce_object = 2;
+  }
+}
+
+// Notification Protocol
 
 message SubscriptionRequest {
   bytes subscriber_ip = 1;
@@ -68,7 +98,4 @@ service NotificationListener {
   rpc ObjectIsReady(ObjectIsReadyRequest) returns (ObjectIsReadyReply);
 }
 
-service ObjectStore {
-  rpc Pull(PullRequest) returns (PullReply);
-  rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
-}
+
