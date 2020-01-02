@@ -95,22 +95,12 @@ public:
                           RayLogLevel severity_threshold = RayLogLevel::INFO,
                           const std::string &logDir = "");
 
-  /// The shutdown function of ray log which should be used with StartRayLog as
-  /// a pair.
-  static void ShutDownRayLog();
-
-  /// Uninstall the signal actions installed by InstallFailureSignalHandler.
-  static void UninstallSignalAction();
-
   /// Return whether or not the log level is enabled in current setting.
   ///
   /// \param log_level The input log level to test.
   /// \return True if input log level is not lower than the threshold.
   static bool IsLevelEnabled(RayLogLevel log_level);
 
-  /// Install the failure signal handler to output call stack when crash.
-  /// If glog is not installed, this function won't do anything.
-  static void InstallFailureSignalHandler();
   // Get the log level from environment variable.
   static RayLogLevel GetLogLevelFromEnv();
 
