@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ "$#" -lt 1 ]; then echo "ERROR: input size required"; exit; fi
-if [ "$#" -gt 3 ]; then echo "ERROR: too many arguments: $#"; exit; fi
+if [ "$#" -gt 4 ]; then echo "ERROR: too many arguments: $#"; exit; fi
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
@@ -13,8 +13,6 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 # sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
-log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")
-mkdir -p $log_dir
 
 if [ "$#" -eq 1 ]; then
 	redis-server redis.conf &> /dev/null &  # port = 6380
@@ -27,17 +25,19 @@ if [ "$#" -eq 1 ]; then
 
 	object_ids=()
 	for oid in $(seq -f "%040g" 1 ${#slaves[@]}); do object_ids+=($oid); done
+	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-reduce
+	mkdir -p $log_dir
 
 	($working_dir/reduce_test $my_address $my_address s $1 ${object_ids[@]} 2>&1 | tee $log_dir/$my_address.server.log) &
 	# sleep 2
 
 	for index in ${!slaves[@]}
 	do
-		ssh -t -t ${slaves[$index]} "$(realpath -s $0) $my_address $1 ${object_ids[$index]}" &
+		ssh -t -t ${slaves[$index]} "$(realpath -s $0) $my_address $1 ${object_ids[$index]} $log_dir" &
 	done
 else
 	echo "[Putting Object] redis_address: $1 object_size: $2 objectid: $3 my_address: $my_address"
-	$working_dir/reduce_test $1 $my_address c $2 $3 2>&1 | tee $log_dir/$my_address.client.log
+	$working_dir/reduce_test $1 $my_address c $2 $3 2>&1 | tee $4/$my_address.client.log
 fi
 
 sleep 360000
