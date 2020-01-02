@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
 
-  ::ray::RayLog::StartRayLog(my_address + ": ");
+  ::ray::RayLog::StartRayLog(my_address);
 
   DistributedObjectStore store(redis_address, 6380, 7777, 8888,
                                "/tmp/multicast_plasma", my_address, 6666,
