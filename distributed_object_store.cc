@@ -35,7 +35,11 @@ void DistributedObjectStore::Put(const void *data, size_t size,
                                  ObjectID object_id) {
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
-  plasma_client_.Create(object_id, size, NULL, 0, &ptr);
+  auto pstatus = plasma_client_.Create(object_id, size, NULL, 0, &ptr);
+  DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
+                       << object_id.hex() << " size = " << size
+                       << ", status = " << pstatus.ToString();
+
   memcpy(ptr->mutable_data(), data, size);
   plasma_client_.Seal(object_id);
   gcs_client_.write_object_location(object_id, my_address_);
@@ -60,7 +64,11 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   ObjectID reduction_id = random_object_id();
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
-  plasma_client_.Create(reduction_id, _expected_size, NULL, 0, &buffer);
+  auto pstatus = plasma_client_.Create(reduction_id, _expected_size, NULL, 0, &buffer);
+  DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
+                       << reduction_id.hex() << " size = " << _expected_size
+                       << ", status = " << pstatus.ToString();
+
   auto reduction_endpoint =
       state_.create_reduction_endpoint(reduction_id, buffer);
 
@@ -124,8 +132,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 
   DCHECK(reply_ok);
   // wait until the object is fully reduced.
-  reduction_endpoint->finished_mutex.lock();
-  reduction_endpoint->finished_mutex.unlock();
+  reduction_endpoint->wait();
 
   // reduce remaining objects.
   plasma_client_.Seal(reduction_id);

@@ -28,17 +28,23 @@ class ReductionEndpointStream {
 public:
   ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
       : buf_ptr_(buf_ptr) {
-    finished_mutex.lock();
+    finished_mutex_.lock();
   };
-  std::mutex finished_mutex;
   inline uint8_t *data() { return (uint8_t *)buf_ptr_->mutable_data(); }
   inline size_t size() { return buf_ptr_->size(); }
+  inline void finish() { finished_mutex_.unlock(); }
+  inline void wait() {
+    finished_mutex_.lock();
+    finished_mutex_.unlock();
+  }
 
   int64_t receive_progress;
   std::atomic_int64_t reduce_progress;
 
 private:
   std::shared_ptr<arrow::Buffer> buf_ptr_;
+  std::mutex finished_mutex_;
+
 };
 
 class ObjectStoreState {

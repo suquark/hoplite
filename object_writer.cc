@@ -145,7 +145,7 @@ void TCPServer::receive_and_reduce_object(
         state_.get_reduction_endpoint(reduction_id);
     stream_reduce_add<std::shared_ptr<ReductionEndpointStream>, float>(
         conn_fd, stream, buffers, object_size);
-    stream->finished_mutex.unlock();
+    stream->finish();
   } else {
     std::shared_ptr<ReductionStream> stream =
         state_.create_reduction_stream(reduction_id, object_size);
