@@ -54,7 +54,7 @@ std::thread timed_exit(int seconds) {
 
 int main(int argc, char **argv) {
   // signal(SIGPIPE, SIG_IGN);
-  LOGFUNC("main");
+  LOGFUNC(__func__);
   start_time = std::chrono::high_resolution_clock::now();
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
