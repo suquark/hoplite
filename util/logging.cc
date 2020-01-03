@@ -128,13 +128,17 @@ RayLog::~RayLog() {
   }
 }
 
-LogFunc::LogFunc(const std::string& message)
-  : message_(message) {
-  LOG(INFO) << "[TIMELINE] [BEGIN] " << message_;
+LogFunc::LogFunc(const std::string& file_name, int line_number,
+                 const std::string& function_name, const std::string& message)
+  : file_name_(file_name), line_number_(line_number), 
+    function_name_(function_name), message_(message) {
+  if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::INFO))
+    ::ray::RayLog(file_name, line_number, function_name, ray::RayLogLevel::INFO) << "[TIMELINE] [BEGIN] " << message_;
 }
 
 LogFunc::~LogFunc() {
-  LOG(INFO) << "[TIMELINE] [END] " << message_;
+  if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::INFO))
+    ::ray::RayLog(file_name, line_number, function_name, ray::RayLogLevel::INFO) << "[TIMELINE] [END] " << message_;
 }
 
 } // namespace ray

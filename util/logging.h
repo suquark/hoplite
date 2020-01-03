@@ -49,8 +49,8 @@ enum class RayLogLevel {
 // Alias
 #define LOG RAY_LOG
 #define DCHECK RAY_DCHECK
-#define LOGFUNC                                                                \
-  ::ray::LogFunc _logme
+#define LOGFUNC(message)                                                                \
+  ::ray::LogFunc _logme(__FILE__, __LINE__, __func__, message)
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration
 // which hide the implementation into logging.cc file.
@@ -140,9 +140,13 @@ public:
 
 class LogFunc {
 public:
-  LogFunc(const std::string& message);
+  LogFunc(const std::string& file_name, int line_number,
+          const std::string& function_name, const std::string& message);
   ~LogFunc();
 private:
+  std::string file_name_;
+  int line_number_;
+  std::string function_name_;
   std::string message_;
 };
 
