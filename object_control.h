@@ -25,8 +25,8 @@ public:
 
   bool InvokeReduceTo(const std::string &remote_address,
                       const plasma::ObjectID &reduction_id,
-                      const plasma::ObjectID &dst_object_id,
-                      const std::string &dst_address,
+                      const std::vector<plasma::ObjectID> &dst_object_ids,
+                      const std::string &dst_address, bool is_endpoint,
                       const plasma::ObjectID *src_object_id = nullptr);
 
 private:

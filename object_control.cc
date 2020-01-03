@@ -9,7 +9,6 @@
 #include "logging.h"
 #include "object_control.h"
 #include "object_store.grpc.pb.h"
-#include "protocol.h"
 #include "socket_utils.h"
 
 using objectstore::ObjectStore;
@@ -39,59 +38,7 @@ public:
     LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
                << " for object " << object_id.hex();
 
-    // create a TCP connection, send the object through the TCP connection
-    int conn_fd;
-    auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
-    DCHECK(!status) << "socket connect error";
-
-    void *object_buffer = NULL;
-    size_t object_size = 0;
-    // TODO: support multiple object.
-    if (state_.pending_write == NULL) {
-      // fetch object from Plasma
-      LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
-      std::vector<ObjectBuffer> object_buffers;
-      plasma_client_.Get({object_id}, -1, &object_buffers);
-      object_buffer = (void *)object_buffers[0].data->data();
-      object_size = object_buffers[0].data->size();
-      state_.progress = object_size;
-    } else {
-      // fetch partial object in memory
-      LOG(DEBUG) << "[GrpcServer] fetching a partial object";
-      object_buffer = state_.pending_write;
-      object_size = state_.pending_size;
-    }
-
-    SendMessageType(conn_fd, MessageType::ReceiveObject);
-
-    // send object_id
-    status = send_all(conn_fd, (void *)object_id.data(), kUniqueIDSize);
-    DCHECK(!status) << "socket send error: object_id";
-
-    // send object size
-    status = send_all(conn_fd, (void *)&object_size, sizeof(object_size));
-    DCHECK(!status) << "socket send error: object size";
-
-    // send object
-    int64_t cursor = 0;
-    while (cursor < object_size) {
-      int64_t current_progress = state_.progress;
-      if (cursor < current_progress) {
-        int bytes_sent =
-            send(conn_fd, object_buffer + cursor, current_progress - cursor, 0);
-        DCHECK(bytes_sent > 0) << "socket send error: object content";
-        cursor += bytes_sent;
-      }
-    }
-
-    // receive ack
-    char ack[5];
-    status = recv_all(conn_fd, ack, 3);
-    DCHECK(!status) << "socket recv error: ack, error code = " << errno;
-    if (strcmp(ack, "OK") != 0)
-      LOG(FATAL) << "ack is wrong";
-
-    close(conn_fd);
+    object_sender_.send_object(request);
     LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
                << " for object " << object_id.hex();
 
@@ -141,11 +88,11 @@ bool GrpcServer::PullObject(const std::string &remote_address,
   return reply.ok();
 }
 
-bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
-                                const ObjectID &reduction_id,
-                                const ObjectID &dst_object_id,
-                                const std::string &dst_address,
-                                const ObjectID *src_object_id) {
+bool GrpcServer::InvokeReduceTo(
+    const std::string &remote_address, const ObjectID &reduction_id,
+    const std::vector<plasma::ObjectID> &dst_object_ids,
+    const std::string &dst_address, bool is_endpoint,
+    const ObjectID *src_object_id) {
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   auto channel = grpc::CreateChannel(remote_grpc_address,
                                      grpc::InsecureChannelCredentials());
@@ -155,8 +102,11 @@ bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
   ReduceToReply reply;
 
   request.set_reduction_id(reduction_id.binary());
-  request.set_dst_object_id(dst_object_id.binary());
+  for (auto &object_id : dst_object_ids) {
+    request.add_dst_object_ids(object_id.binary());
+  }
   request.set_dst_address(dst_address);
+  request.set_is_endpoint(is_endpoint);
   if (src_object_id != nullptr) {
     request.set_src_object_id(src_object_id->binary());
   }

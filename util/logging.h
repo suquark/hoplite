@@ -28,17 +28,18 @@ enum class RayLogLevel {
 
 #define RAY_CHECK(condition)                                                   \
   (condition) ? RAY_IGNORE_EXPR(0)                                             \
-              : ::ray::Voidify() &                                             \
-                    ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::FATAL) \
-                        << " Check failed: " #condition " "
+              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, \
+                                                 ray::RayLogLevel::FATAL)      \
+                                       << " Check failed: " #condition " "
 
 #ifdef NDEBUG
 
 #define RAY_DCHECK(condition)                                                  \
   (condition) ? RAY_IGNORE_EXPR(0)                                             \
-              : ::ray::Voidify() &                                             \
-                    ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::ERROR) \
-                        << " Debug check failed: " #condition " "
+              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, \
+                                                 ray::RayLogLevel::ERROR)      \
+                                       << " Debug check failed: " #condition   \
+                                          " "
 #else
 
 #define RAY_DCHECK(condition) RAY_CHECK(condition)
@@ -75,7 +76,8 @@ protected:
 
 class RayLog : public RayLogBase {
 public:
-  RayLog(const char *file_name, int line_number, const char *function_name, RayLogLevel severity);
+  RayLog(const char *file_name, int line_number, const char *function_name,
+         RayLogLevel severity);
 
   virtual ~RayLog();
 

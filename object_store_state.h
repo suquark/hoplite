@@ -14,7 +14,7 @@ public:
   ReductionStream(size_t size)
       : buf_(size), receive_progress(0), reduce_progress(0){};
 
-  inline void *data() { return (void *)buf_.data(); }
+  inline uint8_t *data() { return (uint8_t *)buf_.data(); }
   inline size_t size() { return buf_.size(); }
 
   int64_t receive_progress;
@@ -28,14 +28,22 @@ class ReductionEndpointStream {
 public:
   ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
       : buf_ptr_(buf_ptr) {
-    finished.lock();
+    finished_mutex_.lock();
   };
-  std::mutex finished;
-  inline void *mutable_data() { return (void *)buf_ptr_->mutable_data(); }
+  inline uint8_t *data() { return (uint8_t *)buf_ptr_->mutable_data(); }
   inline size_t size() { return buf_ptr_->size(); }
+  inline void finish() { finished_mutex_.unlock(); }
+  inline void wait() {
+    finished_mutex_.lock();
+    finished_mutex_.unlock();
+  }
+
+  int64_t receive_progress;
+  std::atomic_int64_t reduce_progress;
 
 private:
   std::shared_ptr<arrow::Buffer> buf_ptr_;
+  std::mutex finished_mutex_;
 };
 
 class ObjectStoreState {
@@ -47,7 +55,7 @@ public:
   // need to fix this later
   std::atomic_int64_t progress;
   size_t pending_size;
-  void *pending_write = NULL;
+  uint8_t *pending_write = NULL;
 
   // Return true if we are able to transfer an object.
   bool transfer_available(const plasma::ObjectID &object_id);

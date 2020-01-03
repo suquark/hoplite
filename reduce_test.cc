@@ -65,6 +65,11 @@ void test_client(DistributedObjectStore &store, int object_size,
             << ", size = " << object_size;
 }
 
+std::thread timed_exit(int seconds) {
+  usleep(seconds * 1000000);
+  exit(0);
+}
+
 int main(int argc, char **argv) {
   // argv: *, redis_address, my_address, s/c, object_size, [object_ids]
   std::string redis_address = std::string(argv[1]);
@@ -75,6 +80,8 @@ int main(int argc, char **argv) {
   DistributedObjectStore store(redis_address, 6380, 7777, 8888,
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
+
+  std::thread exit_thread(timed_exit, 30);
 
   if (argv[3][0] == 's') {
     store.flushall();
@@ -91,6 +98,7 @@ int main(int argc, char **argv) {
     test_client(store, atoi(argv[4]), from_hex(argv[5]));
   }
 
+  exit_thread.join();
   store.join_tasks();
   return 0;
 }

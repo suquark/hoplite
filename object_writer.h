@@ -10,6 +10,7 @@
 #include <plasma/client.h>
 
 #include "global_control_store.h"
+#include "object_store.grpc.pb.h"
 #include "object_store_state.h"
 
 class TCPServer {
@@ -26,8 +27,13 @@ public:
 private:
   void worker_loop();
 
-  void receive_object(int conn_fd);
-  void receive_and_reduce_object(int conn_fd);
+  void receive_object(int conn_fd, const plasma::ObjectID &object_id,
+                      int64_t object_size);
+
+  void
+  receive_and_reduce_object(int conn_fd, const plasma::ObjectID &reduction_id,
+                            const std::vector<plasma::ObjectID> &object_ids,
+                            bool is_endpoint);
 
   GlobalControlStoreClient &gcs_client_;
   plasma::PlasmaClient &plasma_client_;

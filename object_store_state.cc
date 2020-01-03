@@ -53,6 +53,8 @@ ObjectStoreState::create_reduction_endpoint(
 std::shared_ptr<ReductionEndpointStream>
 ObjectStoreState::get_reduction_endpoint(const plasma::ObjectID &reduction_id) {
   if (reduction_endpoint_.find(reduction_id) == reduction_endpoint_.end()) {
+    LOG(DEBUG) << "reduction endpoint id = " << reduction_id.hex()
+               << " not found";
     return nullptr;
   } else {
     return reduction_endpoint_[reduction_id];

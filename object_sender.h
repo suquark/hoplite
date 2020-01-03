@@ -20,10 +20,12 @@ public:
     return sender_thread;
   }
 
+  void send_object(const objectstore::PullRequest *request);
+
 private:
   void worker_loop();
 
-  void send_object(const objectstore::ReduceToRequest *request);
+  void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
   std::list<objectstore::ReduceToRequest *> pending_tasks_;
 
