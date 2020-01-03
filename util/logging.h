@@ -141,7 +141,7 @@ public:
 
 class LogFunc {
 public:
-  LogFunc(const std::string message&);
+  LogFunc(const std::string& message);
   ~LogFunc();
 private:
   std::string message_;
