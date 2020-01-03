@@ -35,7 +35,7 @@ DistributedObjectStore::DistributedObjectStore(
 
 void DistributedObjectStore::Put(const void *data, size_t size,
                                  ObjectID object_id) {
-  std::sstream message;
+  std::stringstream message;
   message << "DistributedObjectStore Put " << data << " " << size << " " << object_id.hex();
   LOGFUNC(message.str());
   // put object into Plasma
@@ -52,7 +52,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
 }
 
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
-  std::sstream message;
+  std::stringstream message;
   message << "DistributedObjectStore Put without object_id " << data << " " << size;
   LOGFUNC(message.str());
   // generate a random object id
@@ -64,7 +64,7 @@ ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
 void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
                                  const void **data, size_t *size,
                                  size_t _expected_size) {
-  std::sstream message;
+  std::stringstream message;
   message << "DistributedObjectStore Get " << object_ids << " " << data << " " << size << " " << _expected_size;
   LOGFUNC(message.str());
 
