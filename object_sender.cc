@@ -60,7 +60,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
 
-  void *object_buffer = NULL;
+  const uint8_t *object_buffer = NULL;
   size_t object_size = 0;
   // TODO: support multiple object.
   if (state_.pending_write == NULL) {
@@ -70,7 +70,7 @@ void ObjectSender::send_object(const PullRequest *request) {
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     plasma_client_.Get({object_id}, -1, &object_buffers);
     LOG(DEBUG) << "[GrpcServer] fetched a completed object from plasma, object id = " << object_id.hex();
-    object_buffer = (void *)object_buffers[0].data->data();
+    object_buffer = object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
     state_.progress = object_size;
   } else {
@@ -129,7 +129,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
 
   SendMessage(conn_fd, ow_request);
 
-  void *object_buffer = NULL;
+  const uint8_t *object_buffer = NULL;
   size_t object_size = 0;
 
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
@@ -138,7 +138,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
     plasma_client_.Get({src_object_id}, -1, &object_buffers);
-    object_buffer = (void *)object_buffers[0].data->data();
+    object_buffer = object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
     int status = send_all(conn_fd, object_buffer, object_size);
     DCHECK(!status) << "Failed to send object";
