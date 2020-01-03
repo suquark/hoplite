@@ -15,7 +15,7 @@ enum class RayLogLevel {
 };
 
 #define RAY_LOG_INTERNAL(level)                                                \
-  ::ray::RayLog(__FILE__, __LINE__, level) << ray::RayLog::get_app_name()
+  ::ray::RayLog(__FILE__, __LINE__, __func__, level)
 
 #define RAY_LOG_ENABLED(level)                                                 \
   ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
@@ -29,7 +29,7 @@ enum class RayLogLevel {
 #define RAY_CHECK(condition)                                                   \
   (condition) ? RAY_IGNORE_EXPR(0)                                             \
               : ::ray::Voidify() &                                             \
-                    ::ray::RayLog(__FILE__, __LINE__, ray::RayLogLevel::FATAL) \
+                    ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::FATAL) \
                         << " Check failed: " #condition " "
 
 #ifdef NDEBUG
@@ -37,7 +37,7 @@ enum class RayLogLevel {
 #define RAY_DCHECK(condition)                                                  \
   (condition) ? RAY_IGNORE_EXPR(0)                                             \
               : ::ray::Voidify() &                                             \
-                    ::ray::RayLog(__FILE__, __LINE__, ray::RayLogLevel::ERROR) \
+                    ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::ERROR) \
                         << " Debug check failed: " #condition " "
 #else
 
@@ -75,7 +75,7 @@ protected:
 
 class RayLog : public RayLogBase {
 public:
-  RayLog(const char *file_name, int line_number, RayLogLevel severity);
+  RayLog(const char *file_name, int line_number, const char *function_name, RayLogLevel severity);
 
   virtual ~RayLog();
 
@@ -95,22 +95,12 @@ public:
                           RayLogLevel severity_threshold = RayLogLevel::INFO,
                           const std::string &logDir = "");
 
-  /// The shutdown function of ray log which should be used with StartRayLog as
-  /// a pair.
-  static void ShutDownRayLog();
-
-  /// Uninstall the signal actions installed by InstallFailureSignalHandler.
-  static void UninstallSignalAction();
-
   /// Return whether or not the log level is enabled in current setting.
   ///
   /// \param log_level The input log level to test.
   /// \return True if input log level is not lower than the threshold.
   static bool IsLevelEnabled(RayLogLevel log_level);
 
-  /// Install the failure signal handler to output call stack when crash.
-  /// If glog is not installed, this function won't do anything.
-  static void InstallFailureSignalHandler();
   // Get the log level from environment variable.
   static RayLogLevel GetLogLevelFromEnv();
 
