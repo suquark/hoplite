@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sstream>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string>
 #include <thread>
 
@@ -106,7 +107,7 @@ RayLog::RayLog(const char *file_name, int line_number,
   auto timestamp =
       std::chrono::high_resolution_clock::now().time_since_epoch().count();
   std::stringstream ss;
-  ss << timestamp << " " << get_app_name() << ":" << std::this_thread::get_id()
+  ss << timestamp << " " << get_app_name() << ":" << getpid() << ":" << std::this_thread::get_id()
      << " " << file_name << ":" << line_number << " " << function_name
      << " ]: ";
   *logging_provider << ss.str();
