@@ -165,7 +165,11 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
 
   // receive object buffer
   std::shared_ptr<Buffer> ptr;
-  plasma_client_.Create(object_id, object_size, NULL, 0, &ptr);
+  auto pstatus = plasma_client_.Create(object_id, object_size, NULL, 0, &ptr);
+  DCHECK(pstatus.ok()) << "Plasma failed to allocate object id = "
+                       << object_id.hex() << " size = " << object_size
+                       << ", status = " << pstatus.ToString();
+
   state_.progress = 0;
   state_.pending_size = object_size;
   state_.pending_write = ptr->mutable_data();
