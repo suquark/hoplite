@@ -148,6 +148,7 @@ private:
   int line_number_;
   std::string function_name_;
   std::string message_;
+  std::string hashstamp_;
 };
 
 } // namespace ray
