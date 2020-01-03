@@ -65,7 +65,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
                                  const void **data, size_t *size,
                                  size_t _expected_size) {
   std::stringstream message;
-  message << "DistributedObjectStore Get " << object_ids << " " << data << " " << size << " " << _expected_size;
+  message << "DistributedObjectStore Get " << &object_ids << " " << data << " " << size << " " << _expected_size;
   LOGFUNC(message.str());
 
   DCHECK(object_ids.size() > 0);
