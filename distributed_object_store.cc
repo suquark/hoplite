@@ -19,6 +19,7 @@ DistributedObjectStore::DistributedObjectStore(
       object_writer_{state_, gcs_client_, plasma_client_, my_address,
                      object_writer_port},
       object_sender_{state_, plasma_client_} {
+  LogFunc logme("DistributedObjectStore");
   // connect to the plasma store
   plasma_client_.Connect(plasma_socket, "");
   // create a thread to receive remote object

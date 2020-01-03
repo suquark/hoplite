@@ -139,4 +139,12 @@ public:
 
 } // namespace ray
 
+class LogFunc {
+public:
+  LogFunc(const std::string message&);
+  ~LogFunc();
+private:
+  std::string message_;
+};
+
 #endif // RAY_UTIL_LOGGING_H
