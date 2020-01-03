@@ -110,7 +110,12 @@ bool GrpcServer::InvokeReduceTo(
   if (src_object_id != nullptr) {
     request.set_src_object_id(src_object_id->binary());
   }
-  stub->ReduceTo(&context, request, &reply);
+  auto status = stub->ReduceTo(&context, request, &reply);
+  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
+                      << remote_grpc_address
+                      << ", message: " << status.error_message()
+                      << ", details = " << status.error_code();
+
   return reply.ok();
 }
 
