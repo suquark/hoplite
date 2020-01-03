@@ -25,7 +25,7 @@ void ReceiveMessage(int conn_fd, ObjectWriterRequest *request) {
   DCHECK(!status) << "receive message_len failed";
 
   std::vector<uint8_t> message(message_len);
-  int status = recv_all(conn_fd, message.data(), message_len);
+  status = recv_all(conn_fd, message.data(), message_len);
   DCHECK(!status) << "receive message failed";
 
   request->ParseFromArray(message.data(), message.size());
@@ -33,7 +33,8 @@ void ReceiveMessage(int conn_fd, ObjectWriterRequest *request) {
 
 template <typename T, typename DT>
 void stream_reduce_add(int conn_fd, T &stream,
-                       std::vector<uint8_t *> reduce_buffers, size_t size) {
+                       std::vector<uint8_t *> reduce_buffers,
+                       size_t object_size) {
   // TODO: implement support for general element types.
   const size_t element_size = sizeof(DT);
   while (stream->receive_progress < object_size) {
@@ -82,28 +83,31 @@ void TCPServer::worker_loop() {
 
     ObjectWriterRequest message;
     ReceiveMessage(conn_fd, &message);
-    switch (message.message_type) {
-    case ObjectWriterRequest::kReceiveObject:
+    switch (message.message_type_case()) {
+    case ObjectWriterRequest::kReceiveObject: {
       auto request = message.receive_object();
-      ObjectID object_id = ObjectID::from_binary(request->object_id());
-      int64_t object_size = request->object_size();
+      ObjectID object_id = ObjectID::from_binary(request.object_id());
+      int64_t object_size = request.object_size();
       receive_object(conn_fd, object_id, object_size);
       break;
-    case ObjectWriterRequest::kReceiveAndReduceObject:
+    }
+    case ObjectWriterRequest::kReceiveAndReduceObject: {
       auto request = message.receive_and_reduce_object();
-      ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
-      LOG(DEBUG) << "reduction id = " << reduce_id.hex();
+      ObjectID reduction_id = ObjectID::from_binary(request.reduction_id());
+      LOG(DEBUG) << "reduction id = " << reduction_id.hex();
 
       std::vector<ObjectID> object_ids;
-      for (auto &object_id : request->object_ids()) {
+      for (auto &object_id_str : request.object_ids()) {
+        ObjectID object_id = ObjectID::from_binary(object_id_str);
         object_ids.push_back(object_id);
         LOG(DEBUG) << "targeted object id = " << object_id.hex();
       }
-      bool is_endpoint = request->is_endpoint();
+      bool is_endpoint = request.is_endpoint();
       receive_and_reduce_object(conn_fd, reduction_id, object_ids, is_endpoint);
       break;
+    }
     default:
-      LOG(FATAL) << "unrecognized message type " << message.message_type;
+      LOG(FATAL) << "unrecognized message type " << message.message_type_case();
     }
     close(conn_fd);
   }
@@ -124,27 +128,27 @@ void TCPServer::receive_and_reduce_object(
   size_t object_size;
   // TODO: should we include the reduce size in the message?
   if (is_endpoint) {
-    object_size = state_.get_reduction_endpoint(reduce_id)->size();
+    object_size = state_.get_reduction_endpoint(reduction_id)->size();
   } else {
     object_size = object_buffers[0].data->size();
   }
 
   std::vector<uint8_t *> buffers;
   for (auto &buf_info : object_buffers) {
-    buffers.push_back(buf_info.data->data());
+    buffers.push_back(buf_info.data->mutable_data());
     DCHECK(buf_info.data->size() == object_size)
         << "reduction object size mismatch";
   }
 
   if (is_endpoint) {
     std::shared_ptr<ReductionEndpointStream> stream =
-        state_.get_reduction_endpoint(reduce_id);
+        state_.get_reduction_endpoint(reduction_id);
     stream_reduce_add<std::shared_ptr<ReductionEndpointStream>, float>(
         conn_fd, stream, buffers, object_size);
     stream->finished_mutex.unlock();
   } else {
     std::shared_ptr<ReductionStream> stream =
-        state_.create_reduction_stream(reduce_id, object_size);
+        state_.create_reduction_stream(reduction_id, object_size);
     stream_reduce_add<std::shared_ptr<ReductionStream>, float>(
         conn_fd, stream, buffers, object_size);
   }

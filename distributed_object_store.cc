@@ -91,7 +91,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
         if (node_index == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
           bool reply_ok = object_control_.InvokeReduceTo(
-              tail_address, reduction_id, {ready_id}, address, false,  &tail_objectid);
+              tail_address, reduction_id, {ready_id}, address, false,
+              &tail_objectid);
           DCHECK(reply_ok);
         } else if (node_index > 1) {
           // Send 'ReduceTo' command to the other node in the chain.
@@ -113,12 +114,12 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   bool reply_ok = false;
   if (object_ids.size() > 1) {
     reply_ok = object_control_.InvokeReduceTo(
-      tail_address, reduction_id, local_object_ids, my_address_, true);
+        tail_address, reduction_id, local_object_ids, my_address_, true);
   } else {
     // In this case, the master node is one of the only 2 nodes.
-    reply_ok = object_control_.InvokeReduceTo(
-        tail_address, reduction_id, local_object_ids, my_address_, true,
-        &tail_objectid);
+    reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
+                                              local_object_ids, my_address_,
+                                              true, &tail_objectid);
   }
 
   DCHECK(reply_ok);

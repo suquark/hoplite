@@ -11,20 +11,20 @@
 
 using namespace plasma;
 using objectstore::ObjectWriterRequest;
+using objectstore::PullRequest;
 using objectstore::ReceiveAndReduceObjectRequest;
 using objectstore::ReceiveObjectRequest;
-using objectstore::PullRequest;
 using objectstore::ReduceToRequest;
 
 void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
-  size_t message_size = ow_request.ByteSizeLong();
+  size_t message_size = message.ByteSizeLong();
   auto status = send_all(conn_fd, (void *)&message_size, sizeof(message_size));
   DCHECK(!status) << "socket send error: message_size";
 
-  std::vector<uint8_t> message(message_size);
-  ow_request.SerializeWithCachedSizesToArray(message.data());
+  std::vector<uint8_t> message_buf(message_size);
+  message.SerializeWithCachedSizesToArray(message_buf.data());
 
-  status = send_all(conn_fd, (void *)message.data(), message.size());
+  status = send_all(conn_fd, (void *)message_buf.data(), message_buf.size());
   DCHECK(!status) << "socket send error: message";
 }
 
@@ -67,6 +67,7 @@ void ObjectSender::send_object(const PullRequest *request) {
     // fetch object from Plasma
     LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
     std::vector<ObjectBuffer> object_buffers;
+    ObjectID object_id = ObjectID::from_binary(request->object_id());
     plasma_client_.Get({object_id}, -1, &object_buffers);
     object_buffer = (void *)object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
@@ -82,7 +83,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   ReceiveObjectRequest ro_request;
   ro_request.set_object_id(request->object_id());
   ro_request.set_object_size(object_size);
-  ow_request.set_receive_object(ro_request);
+  ow_request.set_allocated_receive_object(&ro_request);
 
   SendMessage(conn_fd, ow_request);
 
@@ -116,11 +117,11 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   ObjectWriterRequest ow_request;
   ReceiveAndReduceObjectRequest ro_request;
   ro_request.set_reduction_id(request->reduction_id());
-  for (auto &oid_str : request->dst_object_id()) {
+  for (auto &oid_str : request->dst_object_ids()) {
     ro_request.add_object_ids(oid_str);
   }
   ro_request.set_is_endpoint(request->is_endpoint());
-  ow_request.set_receive_and_reduce_object(ro_request);
+  ow_request.set_allocated_receive_and_reduce_object(&ro_request);
 
   SendMessage(conn_fd, ow_request);
 
@@ -140,6 +141,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   } else {
     LOG(INFO)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
+    ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
     while (stream == nullptr) {
       usleep(1000);

@@ -102,7 +102,7 @@ bool GrpcServer::InvokeReduceTo(
   ReduceToReply reply;
 
   request.set_reduction_id(reduction_id.binary());
-  for (auto &object_id in dst_object_ids) {
+  for (auto &object_id : dst_object_ids) {
     request.add_dst_object_ids(object_id.binary());
   }
   request.set_dst_address(dst_address);
