@@ -28,9 +28,9 @@ class ReductionEndpointStream {
 public:
   ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
       : buf_ptr_(buf_ptr) {
-    finished.lock();
+    finished_mutex.lock();
   };
-  std::mutex finished;
+  std::mutex finished_mutex;
   inline uint8_t *data() { return (uint8_t *)buf_ptr_->mutable_data(); }
   inline size_t size() { return buf_ptr_->size(); }
 

@@ -56,6 +56,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   // TODO: get size by checking the size of ObjectIDs
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
                                              object_ids.end());
+  std::vector<ObjectID> local_object_ids;
   ObjectID reduction_id = random_object_id();
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
@@ -66,11 +67,12 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   int node_index = 0;
   ObjectID tail_objectid;
   std::string tail_address;
-  // TODO: support different reduce op and types
+  // TODO: support different reduce op and types.
   ObjectNotifications *notifications =
       gcs_client_.subscribe_object_locations(object_ids, true);
   while (remaining_ids.size() > 0) {
     std::vector<ObjectID> ready_ids = notifications->GetNotifications();
+    // TODO: we can sort the ready ids by its node address.
     for (auto &ready_id : ready_ids) {
       // FIXME: Somehow the location of the object is not written to Redis.
       std::string address = gcs_client_.get_object_location(ready_id);
@@ -79,36 +81,52 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
           << ") location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
                 << ", object_id = " << ready_id.hex();
-      if (node_index == 1) {
-        bool reply_ok = object_control_.InvokeReduceTo(
-            tail_address, reduction_id, ready_id, address, &tail_objectid);
-        DCHECK(reply_ok);
-      } else if (node_index > 1) {
-        bool reply_ok = object_control_.InvokeReduceTo(
-            tail_address, reduction_id, ready_id, address);
-        DCHECK(reply_ok);
+      if (address == my_address_) {
+        // move local objects to another address, because there's no
+        // necessary to transfer them through the network.
+        local_object_ids.push_back(ready_id);
+      } else {
+        // wait until at lease 2 objects in nodes except the master node are
+        // ready.
+        if (node_index == 1) {
+          // Send 'ReduceTo' command to the first node in the chain.
+          bool reply_ok = object_control_.InvokeReduceTo(
+              tail_address, reduction_id, {ready_id}, address, false,  &tail_objectid);
+          DCHECK(reply_ok);
+        } else if (node_index > 1) {
+          // Send 'ReduceTo' command to the other node in the chain.
+          bool reply_ok = object_control_.InvokeReduceTo(
+              tail_address, reduction_id, {ready_id}, address, false);
+          DCHECK(reply_ok);
+        }
+        tail_objectid = ready_id;
+        tail_address = address;
+        node_index++;
       }
-      tail_objectid = ready_id;
-      tail_address = address;
-      node_index++;
       // mark it as done
       remaining_ids.erase(ready_id);
     }
     usleep(10);
   }
-  // send it back to self
+
+  // send the reduced object back to the master node.
   bool reply_ok = false;
   if (object_ids.size() > 1) {
-    reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
-                                              reduction_id, my_address_);
-  } else {
     reply_ok = object_control_.InvokeReduceTo(
-        tail_address, reduction_id, reduction_id, my_address_, &tail_objectid);
+      tail_address, reduction_id, local_object_ids, my_address_, true);
+  } else {
+    // In this case, the master node is one of the only 2 nodes.
+    reply_ok = object_control_.InvokeReduceTo(
+        tail_address, reduction_id, local_object_ids, my_address_, true,
+        &tail_objectid);
   }
 
   DCHECK(reply_ok);
-  reduction_endpoint->finished.lock();
-  reduction_endpoint->finished.unlock();
+  // wait until the object is fully reduced.
+  reduction_endpoint->finished_mutex.lock();
+  reduction_endpoint->finished_mutex.unlock();
+
+  // reduce remaining objects.
   plasma_client_.Seal(reduction_id);
   gcs_client_.unsubscribe_object_locations(notifications);
 
