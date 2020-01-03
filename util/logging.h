@@ -49,7 +49,8 @@ enum class RayLogLevel {
 // Alias
 #define LOG RAY_LOG
 #define DCHECK RAY_DCHECK
-
+#define LOGFUNC                                                                \
+  ::ray::LogFunc _logme
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration
 // which hide the implementation into logging.cc file.
