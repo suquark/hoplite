@@ -130,11 +130,11 @@ RayLog::~RayLog() {
 
 LogFunc::LogFunc(const std::string& message)
   : message_(message) {
-  LOG(INFO) << "[TIMELINE] [BEGIN] " << message;
+  LOG(INFO) << "[TIMELINE] [BEGIN] " << message_;
 }
 
 LogFunc::~LogFunc() {
-  LOG(INFO) << "[TIMELINE] [END] " << message;
+  LOG(INFO) << "[TIMELINE] [END] " << message_;
 }
 
 } // namespace ray
