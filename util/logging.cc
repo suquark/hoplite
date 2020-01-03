@@ -5,14 +5,14 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <signal.h>
-#include <stdlib.h>
-#include <chrono>
-#include <thread>
-#include <string>
 #include <sstream>
+#include <stdlib.h>
+#include <string>
+#include <thread>
 
 namespace ray {
 
@@ -38,10 +38,10 @@ public:
   }
 
   template <class T> CerrLog &operator<<(const T &t) {
-    if (severity_ != RayLogLevel::DEBUG) {
-      has_logged_ = true;
-      std::cerr << t;
-    }
+    // if (severity_ != RayLogLevel::DEBUG) {
+    has_logged_ = true;
+    std::cerr << t;
+    //  }
     return *this;
   }
 
@@ -98,13 +98,17 @@ bool RayLog::IsLevelEnabled(RayLogLevel log_level) {
   return log_level >= severity_threshold_;
 }
 
-RayLog::RayLog(const char *file_name, int line_number, const char *function_name, RayLogLevel severity)
+RayLog::RayLog(const char *file_name, int line_number,
+               const char *function_name, RayLogLevel severity)
     // glog does not have DEBUG level, we can handle it using is_enabled_.
     : logging_provider_(nullptr), is_enabled_(severity >= severity_threshold_) {
   auto logging_provider = new CerrLog(severity);
-  auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  auto timestamp =
+      std::chrono::high_resolution_clock::now().time_since_epoch().count();
   std::stringstream ss;
-  ss << timestamp << " " << get_app_name() << ":" << std::this_thread::get_id() << " " << file_name << ":" << line_number << " " << function_name << " ]: ";
+  ss << timestamp << " " << get_app_name() << ":" << std::this_thread::get_id()
+     << " " << file_name << ":" << line_number << " " << function_name
+     << " ]: ";
   *logging_provider << ss.str();
   logging_provider_ = logging_provider;
 }

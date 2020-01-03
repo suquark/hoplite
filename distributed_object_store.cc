@@ -64,7 +64,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   ObjectID reduction_id = random_object_id();
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
-  auto pstatus = plasma_client_.Create(reduction_id, _expected_size, NULL, 0, &buffer);
+  auto pstatus =
+      plasma_client_.Create(reduction_id, _expected_size, NULL, 0, &buffer);
   DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
                        << reduction_id.hex() << " size = " << _expected_size
                        << ", status = " << pstatus.ToString();

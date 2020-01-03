@@ -69,7 +69,9 @@ void ObjectSender::send_object(const PullRequest *request) {
     std::vector<ObjectBuffer> object_buffers;
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     plasma_client_.Get({object_id}, -1, &object_buffers);
-    LOG(DEBUG) << "[GrpcServer] fetched a completed object from plasma, object id = " << object_id.hex();
+    LOG(DEBUG)
+        << "[GrpcServer] fetched a completed object from plasma, object id = "
+        << object_id.hex();
     object_buffer = object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
     state_.progress = object_size;
@@ -100,7 +102,8 @@ void ObjectSender::send_object(const PullRequest *request) {
     }
   }
 
-  LOG(DEBUG) << "send object id = " << ObjectID::from_binary(request->object_id()).hex() << " done";
+  LOG(DEBUG) << "send object id = "
+             << ObjectID::from_binary(request->object_id()).hex() << " done";
 
   // receive ack
   char ack[5];

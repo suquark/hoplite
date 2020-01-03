@@ -44,7 +44,6 @@ public:
 private:
   std::shared_ptr<arrow::Buffer> buf_ptr_;
   std::mutex finished_mutex_;
-
 };
 
 class ObjectStoreState {
