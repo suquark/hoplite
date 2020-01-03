@@ -137,8 +137,6 @@ public:
   void operator&(RayLogBase &) {}
 };
 
-} // namespace ray
-
 class LogFunc {
 public:
   LogFunc(const std::string& message);
@@ -146,5 +144,7 @@ public:
 private:
   std::string message_;
 };
+
+} // namespace ray
 
 #endif // RAY_UTIL_LOGGING_H
