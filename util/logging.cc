@@ -133,12 +133,12 @@ LogFunc::LogFunc(const std::string& file_name, int line_number,
   : file_name_(file_name), line_number_(line_number), 
     function_name_(function_name), message_(message) {
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::INFO))
-    ::ray::RayLog(file_name, line_number, function_name, ray::RayLogLevel::INFO) << "[TIMELINE] [BEGIN] " << message_;
+    ::ray::RayLog(file_name_, line_number_, function_name_, ray::RayLogLevel::INFO) << "[TIMELINE] [BEGIN] " << message_;
 }
 
 LogFunc::~LogFunc() {
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::INFO))
-    ::ray::RayLog(file_name, line_number, function_name, ray::RayLogLevel::INFO) << "[TIMELINE] [END] " << message_;
+    ::ray::RayLog(file_name_, line_number_, function_name_, ray::RayLogLevel::INFO) << "[TIMELINE] [END] " << message_;
 }
 
 } // namespace ray
