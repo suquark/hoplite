@@ -47,6 +47,11 @@ void test_client(DistributedObjectStore &store, ObjectID object_id) {
             << " seconds. CRC32 = " << crc;
 }
 
+std::thread timed_exit(int seconds) {
+  usleep(seconds * 1000000);
+  exit(0);
+}
+
 int main(int argc, char **argv) {
   // signal(SIGPIPE, SIG_IGN);
   start_time = std::chrono::high_resolution_clock::now();
@@ -59,6 +64,8 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
+  std::thread exit_thread(timed_exit, 20);
+
   if (argv[3][0] == 's') {
     NotificationServer notification_server(my_address, 7777, 8888);
     std::thread notification_server_thread = notification_server.Run();
@@ -69,6 +76,7 @@ int main(int argc, char **argv) {
     test_client(store, from_hex(argv[4]));
   }
 
+  exit_thread.join();
   store.join_tasks();
   return 0;
 }
