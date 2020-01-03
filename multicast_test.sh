@@ -10,6 +10,7 @@ plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
 # export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
+sudo fuser -km /tmp/multicast_plasma &> /dev/null
 sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
