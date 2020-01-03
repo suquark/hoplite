@@ -79,7 +79,7 @@ void TCPServer::worker_loop() {
     int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
     DCHECK(conn_fd >= 0) << "socket accept error";
     char *incoming_ip = inet_ntoa(address_.sin_addr);
-    LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
+    LOG(INFO) << "recieve a TCP connection from " << incoming_ip;
 
     ObjectWriterRequest message;
     ReceiveMessage(conn_fd, &message);
@@ -190,4 +190,5 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   // reply message
   auto status = send_all(conn_fd, "OK", 3);
   DCHECK(!status) << "socket send error: object ack";
+  LOG(DEBUG) << "object " << object_id.hex() << " received";
 }

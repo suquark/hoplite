@@ -69,6 +69,7 @@ void ObjectSender::send_object(const PullRequest *request) {
     std::vector<ObjectBuffer> object_buffers;
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     plasma_client_.Get({object_id}, -1, &object_buffers);
+    LOG(DEBUG) << "[GrpcServer] fetched a completed object from plasma, object id = " << object_id.hex();
     object_buffer = (void *)object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
     state_.progress = object_size;
@@ -80,10 +81,10 @@ void ObjectSender::send_object(const PullRequest *request) {
   }
 
   ObjectWriterRequest ow_request;
-  ReceiveObjectRequest ro_request;
-  ro_request.set_object_id(request->object_id());
-  ro_request.set_object_size(object_size);
-  ow_request.set_allocated_receive_object(&ro_request);
+  auto ro_request = new ReceiveObjectRequest();
+  ro_request->set_object_id(request->object_id());
+  ro_request->set_object_size(object_size);
+  ow_request.set_allocated_receive_object(ro_request);
 
   SendMessage(conn_fd, ow_request);
 
@@ -99,6 +100,8 @@ void ObjectSender::send_object(const PullRequest *request) {
     }
   }
 
+  LOG(DEBUG) << "send object id = " << ObjectID::from_binary(request->object_id()).hex() << " done";
+
   // receive ack
   char ack[5];
   status = recv_all(conn_fd, ack, 3);
@@ -107,6 +110,7 @@ void ObjectSender::send_object(const PullRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   close(conn_fd);
+  LOG(DEBUG) << "function returned";
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
@@ -115,13 +119,13 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   DCHECK(!status) << "socket connect error";
 
   ObjectWriterRequest ow_request;
-  ReceiveAndReduceObjectRequest ro_request;
-  ro_request.set_reduction_id(request->reduction_id());
+  auto ro_request = new ReceiveAndReduceObjectRequest();
+  ro_request->set_reduction_id(request->reduction_id());
   for (auto &oid_str : request->dst_object_ids()) {
-    ro_request.add_object_ids(oid_str);
+    ro_request->add_object_ids(oid_str);
   }
-  ro_request.set_is_endpoint(request->is_endpoint());
-  ow_request.set_allocated_receive_and_reduce_object(&ro_request);
+  ro_request->set_is_endpoint(request->is_endpoint());
+  ow_request.set_allocated_receive_and_reduce_object(ro_request);
 
   SendMessage(conn_fd, ow_request);
 
