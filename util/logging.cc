@@ -133,7 +133,7 @@ LogFunc::LogFunc(const std::string& file_name, int line_number,
                  const std::string& function_name, const std::string& message)
   : file_name_(file_name), line_number_(line_number), 
     function_name_(function_name), message_(message) {
-  stringstream hashstampstream;
+  std::stringstream hashstampstream;
   hashstampstream << std::chrono::high_resolution_clock::now().time_since_epoch().count();
   hashstamp_ = hashstampstream.str()
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::INFO))
