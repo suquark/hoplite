@@ -181,8 +181,9 @@ void GlobalControlStoreClient::PublishObjectCompletionEvent(
   ObjectCompleteRequest request;
   ObjectCompleteReply reply;
   request.set_object_id(object_id.binary());
-  stub->ObjectComplete(&context, request, &reply);
-
+  auto status = stub->ObjectComplete(&context, request, &reply);
+  DCHECK(status.ok()) << "ObjectComplete gRPC failure, message: "
+                      << status.error_message();
   DCHECK(reply.ok()) << "Object completes " << object_id.hex() << " failed.";
 }
 

@@ -44,7 +44,8 @@ void stream_reduce_add(int conn_fd, T &stream,
                                   : remaining_size;
     int bytes_recv = recv(conn_fd, stream->data() + stream->receive_progress,
                           recv_block_size, 0);
-    DCHECK(bytes_recv > 0) << "socket recv error: object content";
+    DCHECK(bytes_recv > 0) << "socket recv error: object content, errno = "
+                           << errno;
     auto reduce_progress = stream->reduce_progress.load();
 
     stream->receive_progress += bytes_recv;
@@ -127,7 +128,9 @@ void TCPServer::receive_and_reduce_object(
 
   // Get object buffers from Plasma Store
   std::vector<ObjectBuffer> object_buffers;
-  plasma_client_.Get(object_ids, -1, &object_buffers);
+  auto pstatus = plasma_client_.Get(object_ids, -1, &object_buffers);
+  DCHECK(pstatus.ok()) << "Plasma failed to get objects";
+
   size_t object_size;
   // TODO: should we include the reduce size in the message?
   if (is_endpoint) {
@@ -138,7 +141,9 @@ void TCPServer::receive_and_reduce_object(
 
   std::vector<uint8_t *> buffers;
   for (auto &buf_info : object_buffers) {
-    buffers.push_back(buf_info.data->mutable_data());
+    auto buf_ptr = (uint8_t *)buf_info.data->data();
+    DCHECK(buf_ptr) << "object buffer is nullptr";
+    buffers.push_back(buf_ptr);
     DCHECK(buf_info.data->size() == object_size)
         << "reduction object size mismatch";
   }
