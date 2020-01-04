@@ -92,7 +92,7 @@ LogFunc::LogFunc(const std::string& file_name, int line_number,
 
 LogFunc::~LogFunc() {
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::DEBUG))
-    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(), ray::RayLogLevel::DEBUG) << "[TIMELINE] [" << hashstamp_ << "] [END]";
+    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(), ray::RayLogLevel::DEBUG) << "[TIMELINE] [" << hashstamp_ << "] [END] " << message_;
 }
 
 } // namespace ray
