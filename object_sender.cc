@@ -30,11 +30,13 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
 
 ObjectSender::ObjectSender(ObjectStoreState &state, PlasmaClient &plasma_client)
     : state_(state), plasma_client_(plasma_client) {
+  TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
 }
 
 void ObjectSender::worker_loop() {
   while (true) {
+    // TODO: This should not be busy-waiting
     if (pending_tasks_.empty()) {
       usleep(1000);
       continue;
@@ -55,6 +57,7 @@ void ObjectSender::AppendTask(const ReduceToRequest *request) {
 }
 
 void ObjectSender::send_object(const PullRequest *request) {
+  TIMELINE("ObjectSender::send_object()");
   // create a TCP connection, send the object through the TCP connection
   int conn_fd;
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
@@ -117,6 +120,7 @@ void ObjectSender::send_object(const PullRequest *request) {
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
+  TIMELINE("ObjectSender::send_object_for_reduce()");
   int conn_fd;
   auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";

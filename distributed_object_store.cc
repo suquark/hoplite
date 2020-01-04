@@ -19,6 +19,7 @@ DistributedObjectStore::DistributedObjectStore(
       object_writer_{state_, gcs_client_, plasma_client_, my_address,
                      object_writer_port},
       object_sender_{state_, plasma_client_} {
+  TIMELINE("DistributedObjectStore construction function");
   // connect to the plasma store
   plasma_client_.Connect(plasma_socket, "");
   // create a thread to receive remote object
@@ -33,6 +34,8 @@ DistributedObjectStore::DistributedObjectStore(
 
 void DistributedObjectStore::Put(const void *data, size_t size,
                                  ObjectID object_id) {
+  TIMELINE(std::string("DistributedObjectStore Put single object ") +
+           object_id.hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
   auto pstatus = plasma_client_.Create(object_id, size, NULL, 0, &ptr);
@@ -47,6 +50,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
 }
 
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
+  TIMELINE("DistributedObjectStore Put without object_id");
   // generate a random object id
   ObjectID object_id = random_object_id();
   Put(data, size, object_id);
@@ -56,6 +60,8 @@ ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
 void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
                                  const void **data, size_t *size,
                                  size_t _expected_size) {
+  TIMELINE("DistributedObjectStore Get multiple objects");
+
   DCHECK(object_ids.size() > 0);
   // TODO: get size by checking the size of ObjectIDs
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
@@ -146,6 +152,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 
 void DistributedObjectStore::Get(ObjectID object_id, const void **data,
                                  size_t *size) {
+  TIMELINE(std::string("DistributedObjectStore Get single object ") +
+           object_id.hex());
   // get object location from redis
   while (true) {
     std::string address = gcs_client_.get_object_location(object_id);

@@ -60,6 +60,8 @@ int main(int argc, char **argv) {
 
   ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
 
+  TIMELINE("main");
+
   DistributedObjectStore store(redis_address, 6380, 7777, 8888,
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
