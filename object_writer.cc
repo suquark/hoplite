@@ -67,6 +67,7 @@ TCPServer::TCPServer(ObjectStoreState &state,
                      const std::string &server_ipaddr, int port)
     : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr),
       plasma_client_(plasma_client) {
+  TIMELINE(std::string("TCPServer construction function ") + server_ipaddr + ":" + std::to_string(port));
   tcp_bind_and_listen(port, &address_, &server_fd_);
   LOG(INFO) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
             << port;
@@ -74,6 +75,7 @@ TCPServer::TCPServer(ObjectStoreState &state,
 
 void TCPServer::worker_loop() {
   while (true) {
+    TIMELINE("TCPServer::worker_loop() step");
     LOG(DEBUG) << "waiting for a connection";
     socklen_t addrlen = sizeof(address_);
     int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
@@ -117,6 +119,7 @@ void TCPServer::worker_loop() {
 void TCPServer::receive_and_reduce_object(
     int conn_fd, const ObjectID &reduction_id,
     const std::vector<ObjectID> &object_ids, bool is_endpoint) {
+  TIMELINE(std::string("TCPServer::receive_and_reduce_object() ") + object_id.hex() + " " + to_string(object_size));
 
   // The endpoint can have no objects to reduce.
   DCHECK(object_ids.size() > 0 || is_endpoint)
@@ -160,6 +163,7 @@ void TCPServer::receive_and_reduce_object(
 
 void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
                                int64_t object_size) {
+  TIMELINE(std::string("TCPServer::receive_object() ") + object_id.hex() + " " + to_string(object_size));
   LOG(DEBUG) << "start receiving object " << object_id.hex()
              << ", size = " << object_size;
 
