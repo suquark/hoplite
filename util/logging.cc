@@ -54,7 +54,7 @@ bool RayLog::IsLevelEnabled(RayLogLevel log_level) {
 
 RayLog::RayLog(const char *file_name, int line_number,
                const char *function_name, RayLogLevel severity)
-    : stream_(){
+    : stream_(), severity_(severity){
   auto timestamp =
       std::chrono::high_resolution_clock::now().time_since_epoch().count();
   stream_ << timestamp << " " << get_app_name() << ":" << getpid() << ":" << std::this_thread::get_id()
@@ -65,6 +65,10 @@ RayLog::RayLog(const char *file_name, int line_number,
 RayLog::~RayLog() {
   stream_ << "\n";
   std::cerr << stream_.str() << std::flush;
+  if (severity_ == RayLogLevel::FATAL) {
+    PrintBackTrace();
+    std::abort();
+  }
 }
 
 LogFunc::LogFunc(const std::string& file_name, int line_number,
