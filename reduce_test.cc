@@ -33,7 +33,8 @@ get_random_float_buffer(size_t size, const std::string &seed_str) {
   return retval;
 }
 
-void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id, int64_t object_size) {
+void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id,
+                       int64_t object_size) {
   DCHECK(object_size % sizeof(float) == 0);
   std::unique_ptr<std::vector<float>> buffer =
       get_random_float_buffer(object_size / sizeof(float), object_id.hex());
@@ -44,7 +45,7 @@ void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id,
 }
 
 void test_server(DistributedObjectStore &store, int64_t object_size,
-                 const std::vector<ObjectID> &object_ids) {
+                 const std::vector<ObjectID> &object_ids, float expected_sum) {
   DCHECK(object_size % sizeof(float) == 0);
   float *buffer;
   size_t size;
@@ -62,6 +63,9 @@ void test_server(DistributedObjectStore &store, int64_t object_size,
             << ", " << buffer[1] << ", " << buffer[2] << ", " << buffer[3]
             << ", " << buffer[4] << ", ... , " << buffer[num_elements - 2]
             << ", " << buffer[num_elements - 1] << "]";
+  LOG(INFO) << "Result errors: first item = " << buffer[1] - expected_sum
+            << ", last item = "
+            << buffer[num_elements - 1] / (num_elements - 1) - expected_sum;
 }
 
 std::thread timed_exit(int seconds) {
@@ -82,21 +86,29 @@ int main(int argc, char **argv) {
 
   std::thread exit_thread(timed_exit, 30);
 
-  int64_t object_size = std::strtoll(argv[4]);
+  int64_t object_size = std::strtoll(argv[4], NULL, 10);
 
   if (argv[3][0] == 's') {
     store.flushall();
 
     NotificationServer notification_server(my_address, 7777, 8888);
     std::thread notification_server_thread = notification_server.Run();
-    ObjectID local_object_id = from_hex("0000000000000000000000000000000000000000");
-    put_random_buffer(store, object_id, object_size);
+    ObjectID local_object_id =
+        from_hex("0000000000000000000000000000000000000000");
+    put_random_buffer(store, local_object_id, object_size);
 
-    std::vector<ObjectID> object_ids {local_object_id};
+    std::vector<ObjectID> object_ids{local_object_id};
     for (int i = 5; i < argc; i++) {
       object_ids.push_back(from_hex(argv[i]));
     }
-    test_server(store, std::strtoll(argv[4]), object_ids);
+
+    float sum = 0;
+    for (auto &oid : object_ids) {
+      sum += get_uniform_random_float(oid.hex());
+    }
+    LOG(INFO) << "expected sum: " << sum;
+
+    test_server(store, object_size, object_ids, sum);
     notification_server_thread.join();
   } else {
     ObjectID object_id = from_hex(argv[5]);

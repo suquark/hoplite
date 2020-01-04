@@ -5,6 +5,6 @@
 
 unsigned char hex_to_dec(char a);
 
-plasma::ObjectID from_hex(char *hex);
+plasma::ObjectID from_hex(const char *hex);
 
 #endif
