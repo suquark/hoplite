@@ -119,7 +119,7 @@ void TCPServer::worker_loop() {
 void TCPServer::receive_and_reduce_object(
     int conn_fd, const ObjectID &reduction_id,
     const std::vector<ObjectID> &object_ids, bool is_endpoint) {
-  TIMELINE(std::string("TCPServer::receive_and_reduce_objectt() ") + object_id.hex() + " " + std::to_string(object_size));
+  TIMELINE(std::string("TCPServer::receive_and_reduce_object() ") + reduction_id.hex() + " " + std::to_string(is_endpoint));
 
   // The endpoint can have no objects to reduce.
   DCHECK(object_ids.size() > 0 || is_endpoint)
