@@ -127,14 +127,19 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 
   // send the reduced object back to the master node.
   bool reply_ok = false;
-  if (object_ids.size() > 1) {
-    reply_ok = object_control_.InvokeReduceTo(
-        tail_address, reduction_id, local_object_ids, my_address_, true);
-  } else {
-    // In this case, the master node is one of the only 2 nodes.
+  if (node_index == 0) {
+    // all the objects are local
+    // TODO: add support when all the objects are local
+    LOG(FATAL) << "All the objects are local";
+  } else if (node_index == 1) {
+    // only two nodes, no streaming needed
     reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
                                               local_object_ids, my_address_,
                                               true, &tail_objectid);
+  } else {
+    // more than 2 nodes
+    reply_ok = object_control_.InvokeReduceTo(
+        tail_address, reduction_id, local_object_ids, my_address_, true);
   }
 
   DCHECK(reply_ok);
