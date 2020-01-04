@@ -12,26 +12,45 @@
 class ReductionStream {
 public:
   ReductionStream(size_t size)
-      : buf_(size), receive_progress(0), reduce_progress(0){};
+      : buf_(size), receive_progress(0), progress(0){};
 
-  inline uint8_t *data() { return (uint8_t *)buf_.data(); }
+  inline const uint8_t *data() { return buf_.data(); }
+  inline uint8_t *mutable_data() { return buf_.data(); }
   inline size_t size() { return buf_.size(); }
 
   int64_t receive_progress;
-  std::atomic_int64_t reduce_progress;
+  std::atomic_int64_t progress;
 
 private:
   std::vector<uint8_t> buf_;
 };
 
-class ReductionEndpointStream {
+
+class ReadOnlyStream {
 public:
-  ReductionEndpointStream(std::shared_ptr<arrow::Buffer> buf_ptr)
-      : buf_ptr_(buf_ptr), receive_progress(0), reduce_progress(0) {
-    finished_mutex_.lock();
-  };
-  inline uint8_t *data() { return (uint8_t *)buf_ptr_->mutable_data(); }
+  ReadOnlyStream(std::shared_ptr<arrow::Buffer> buf_ptr)
+      : buf_ptr_(buf_ptr), progress(buf_ptr_->size()) {}
+  inline const uint8_t *data() { return buf_ptr_->data(); }
   inline size_t size() { return buf_ptr_->size(); }
+  const int64_t progress;
+
+private:
+  const std::shared_ptr<arrow::Buffer> buf_ptr_;
+};
+
+
+class ProgressiveStream {
+public:
+  ProgressiveStream(std::shared_ptr<arrow::Buffer> buf_ptr)
+      : buf_ptr_(buf_ptr), progress(0), receive_progress(0) {
+    finished_mutex_.lock();
+  }
+  inline const uint8_t *data() { return buf_ptr_->data(); }
+  inline uint8_t *mutable_data() {
+    auto data_ptr = buf_ptr_->mutable_data();
+    DCHECK(data_ptr != nullptr) << "The object has been sealed";
+  }
+  inline int64_t size() { return buf_ptr_->size(); }
   inline void finish() { finished_mutex_.unlock(); }
   inline void wait() {
     finished_mutex_.lock();
@@ -39,23 +58,18 @@ public:
   }
 
   int64_t receive_progress;
-  std::atomic_int64_t reduce_progress;
+  std::atomic_int64_t progress;
 
 private:
-  std::shared_ptr<arrow::Buffer> buf_ptr_;
+  const std::shared_ptr<arrow::Buffer> buf_ptr_;
   std::mutex finished_mutex_;
 };
+
 
 class ObjectStoreState {
 
 public:
   ObjectStoreState();
-
-  // FIXME: here we assume we are downloading only 1 object
-  // need to fix this later
-  std::atomic_int64_t progress;
-  size_t pending_size;
-  uint8_t *pending_write = NULL;
 
   // Return true if we are able to transfer an object.
   bool transfer_available(const plasma::ObjectID &object_id);
@@ -68,20 +82,20 @@ public:
   std::shared_ptr<ReductionStream>
   get_reduction_stream(const plasma::ObjectID &reduction_id);
 
-  std::shared_ptr<ReductionEndpointStream>
-  create_reduction_endpoint(const plasma::ObjectID &reduction_id,
+  std::shared_ptr<ProgressiveStream>
+  create_progressive_stream(const plasma::ObjectID &object_id,
                             const std::shared_ptr<arrow::Buffer> &buffer);
 
-  std::shared_ptr<ReductionEndpointStream>
-  get_reduction_endpoint(const plasma::ObjectID &reduction_id);
+  std::shared_ptr<ProgressiveStream>
+  get_progressive_stream(const plasma::ObjectID &object_id);
 
 private:
   std::mutex transfer_mutex_;
   std::unordered_map<std::string, int> current_transfer_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionEndpointStream>>
-      reduction_endpoint_;
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<ProgressiveStream>>
+      progressive_stream_;
 };
 
 #endif // OBJECT_STORE_STATE_H

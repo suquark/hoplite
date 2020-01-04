@@ -40,23 +40,23 @@ ObjectStoreState::get_reduction_stream(const plasma::ObjectID &reduction_id) {
   }
 }
 
-std::shared_ptr<ReductionEndpointStream>
-ObjectStoreState::create_reduction_endpoint(
+std::shared_ptr<ProgressiveStream>
+ObjectStoreState::create_progressive_stream(
     const plasma::ObjectID &reduction_id,
     const std::shared_ptr<arrow::Buffer> &buffer) {
-  DCHECK(reduction_endpoint_.find(reduction_id) == reduction_endpoint_.end());
-  reduction_endpoint_[reduction_id] =
-      std::make_shared<ReductionEndpointStream>(buffer);
-  return reduction_endpoint_[reduction_id];
+  DCHECK(progressive_stream_.find(reduction_id) == progressive_stream_.end());
+  progressive_stream_[reduction_id] =
+      std::make_shared<ProgressiveStream>(buffer);
+  return progressive_stream_[reduction_id];
 }
 
-std::shared_ptr<ReductionEndpointStream>
-ObjectStoreState::get_reduction_endpoint(const plasma::ObjectID &reduction_id) {
-  if (reduction_endpoint_.find(reduction_id) == reduction_endpoint_.end()) {
+std::shared_ptr<ProgressiveStream>
+ObjectStoreState::get_progressive_stream(const plasma::ObjectID &reduction_id) {
+  if (progressive_stream_.find(reduction_id) == progressive_stream_.end()) {
     LOG(DEBUG) << "reduction endpoint id = " << reduction_id.hex()
                << " not found";
     return nullptr;
   } else {
-    return reduction_endpoint_[reduction_id];
+    return progressive_stream_[reduction_id];
   }
 }
