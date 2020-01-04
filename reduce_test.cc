@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 
     NotificationServer notification_server(my_address, 7777, 8888);
     std::thread notification_server_thread = notification_server.Run();
-    std::vector<ObjectID> object_ids;
+    std::vector<ObjectID> object_ids {from_hex("0000000000000000000000000000000000000000")};
     for (int i = 5; i < argc; i++) {
       object_ids.push_back(from_hex(argv[i]));
     }
