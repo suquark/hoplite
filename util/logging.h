@@ -87,7 +87,7 @@ public:
   inline static const std::string &get_app_name() { return app_name_; }
 
   template <typename T> RayLog &operator<<(const T &t) {
-    stream_ <<
+    stream_ << t;
     return *this;
   }
 
@@ -98,7 +98,6 @@ private:
   // file.
   std::stringstream stream_;
   /// True if log messages should be logged and false if they should be ignored.
-  bool is_enabled_;
   static RayLogLevel severity_threshold_;
   // In InitGoogleLogging, it simply keeps the pointer.
   // We need to make sure the app name passed to InitGoogleLogging exist.
@@ -112,7 +111,7 @@ public:
   Voidify() {}
   // This has to be an operator with a precedence lower than << but
   // higher than ?:
-  void operator&(RayLogBase &) {}
+  void operator&(RayLog &) {}
 };
 
 class LogFunc {
