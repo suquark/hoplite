@@ -11,8 +11,7 @@
 
 class ReductionStream {
 public:
-  ReductionStream(size_t size)
-      : buf_(size), receive_progress(0), progress(0){};
+  ReductionStream(size_t size) : buf_(size), receive_progress(0), progress(0){};
 
   inline const uint8_t *data() { return buf_.data(); }
   inline uint8_t *mutable_data() { return buf_.data(); }
@@ -25,7 +24,6 @@ private:
   std::vector<uint8_t> buf_;
 };
 
-
 class ReadOnlyStream {
 public:
   ReadOnlyStream(std::shared_ptr<arrow::Buffer> buf_ptr)
@@ -37,7 +35,6 @@ public:
 private:
   const std::shared_ptr<arrow::Buffer> buf_ptr_;
 };
-
 
 class ProgressiveStream {
 public:
@@ -61,7 +58,6 @@ private:
   const std::shared_ptr<arrow::Buffer> buf_ptr_;
   std::mutex finished_mutex_;
 };
-
 
 class ObjectStoreState {
 

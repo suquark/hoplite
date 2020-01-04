@@ -32,21 +32,21 @@ void ReceiveMessage(int conn_fd, ObjectWriterRequest *request) {
 }
 
 template <typename T>
-void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr, int64_t object_size) {
+void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
+                       int64_t object_size) {
   int remaining_size = object_size - stream->receive_progress;
   // here we receive no more than STREAM_MAX_BLOCK_SIZE for streaming
   int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
                             ? STREAM_MAX_BLOCK_SIZE
                             : remaining_size;
-  int bytes_recv = recv(conn_fd, data_ptr + stream->receive_progress,
-                        recv_block_size, 0);
+  int bytes_recv =
+      recv(conn_fd, data_ptr + stream->receive_progress, recv_block_size, 0);
   DCHECK(bytes_recv > 0) << "socket recv error: object content, errno = "
-                          << errno;
+                         << errno;
   stream->receive_progress += bytes_recv;
 }
 
-template <typename T>
-void stream_write(int conn_fd, T *stream) {
+template <typename T> void stream_write(int conn_fd, T *stream) {
   const int64_t object_size = stream->size();
   uint8_t *data_ptr = stream->mutable_data();
   while (stream->receive_progress < object_size) {
@@ -173,14 +173,12 @@ void TCPServer::receive_and_reduce_object(
     gcs_client_.write_object_location(reduction_id, server_ipaddr_);
     std::shared_ptr<ProgressiveStream> stream =
         state_.get_progressive_stream(reduction_id);
-    stream_reduce_add<ProgressiveStream, float>(
-        conn_fd, stream.get(), buffers);
+    stream_reduce_add<ProgressiveStream, float>(conn_fd, stream.get(), buffers);
     stream->finish();
   } else {
     std::shared_ptr<ReductionStream> stream =
         state_.create_reduction_stream(reduction_id, object_size);
-    stream_reduce_add<ReductionStream, float>(
-        conn_fd, stream.get(), buffers);
+    stream_reduce_add<ReductionStream, float>(conn_fd, stream.get(), buffers);
   }
 
   // reply message

@@ -28,9 +28,8 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
   DCHECK(!status) << "socket send error: message";
 }
 
-template <typename T>
-void stream_send(int conn_fd, T *stream) {
-  const uint8_t* data_ptr = stream->data();
+template <typename T> void stream_send(int conn_fd, T *stream) {
+  const uint8_t *data_ptr = stream->data();
   const int64_t object_size = stream->size();
 
   // send object
@@ -158,7 +157,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
-    while (stream == nullptr) {
+    while (!stream) {
       usleep(1000);
       stream = state_.get_reduction_stream(reduction_id);
     }

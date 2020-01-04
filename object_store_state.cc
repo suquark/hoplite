@@ -39,8 +39,7 @@ ObjectStoreState::get_reduction_stream(const plasma::ObjectID &reduction_id) {
   }
 }
 
-std::shared_ptr<ProgressiveStream>
-ObjectStoreState::create_progressive_stream(
+std::shared_ptr<ProgressiveStream> ObjectStoreState::create_progressive_stream(
     const plasma::ObjectID &reduction_id,
     const std::shared_ptr<arrow::Buffer> &buffer) {
   DCHECK(progressive_stream_.find(reduction_id) == progressive_stream_.end());
