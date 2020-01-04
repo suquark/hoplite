@@ -26,6 +26,6 @@
 
 `./reduce_test.sh $data_size`
 
-# Lint
+## Lint
 
 `./format.sh`
