@@ -21,8 +21,7 @@ RayLogLevel RayLog::severity_threshold_ = RayLogLevel::INFO;
 std::string RayLog::app_name_ = "";
 
 void RayLog::StartRayLog(const std::string &app_name,
-                         RayLogLevel severity_threshold,
-                         const std::string &log_dir) {
+                         RayLogLevel severity_threshold) {
   const char *var_value = getenv("RAY_BACKEND_LOG_LEVEL");
   if (var_value != nullptr) {
     std::string data = var_value;

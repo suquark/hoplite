@@ -2,6 +2,7 @@
 #define RAY_UTIL_LOGGING_H
 
 #include <iostream>
+#include <sstream>
 #include <string>
 
 namespace ray {
