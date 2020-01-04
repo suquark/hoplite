@@ -1,6 +1,5 @@
 #include <unistd.h> // usleep
 #include <unordered_set>
-#include <sstream>
 
 #include "distributed_object_store.h"
 #include "logging.h"
@@ -35,9 +34,7 @@ DistributedObjectStore::DistributedObjectStore(
 
 void DistributedObjectStore::Put(const void *data, size_t size,
                                  ObjectID object_id) {
-  std::stringstream message;
-  message << "DistributedObjectStore Put " << data << " " << size << " " << object_id.hex();
-  TIMELINE(message.str());
+  TIMELINE(std::string("Put single object ") + object_id.hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
   auto pstatus = plasma_client_.Create(object_id, size, NULL, 0, &ptr);
