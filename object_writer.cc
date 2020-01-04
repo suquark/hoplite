@@ -59,7 +59,6 @@ template <typename T> void stream_write(int conn_fd, T *stream) {
 template <typename T, typename DT>
 void stream_reduce_add(int conn_fd, T *stream,
                        std::vector<uint8_t *> reduce_buffers) {
-  // TODO: implement support for general element types.
   const size_t element_size = sizeof(DT);
   uint8_t *data_ptr = stream->mutable_data();
   const int64_t object_size = stream->size();
