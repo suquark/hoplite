@@ -50,7 +50,7 @@ enum class RayLogLevel {
 // Alias
 #define LOG RAY_LOG
 #define DCHECK RAY_DCHECK
-#define LOGFUNC(message)                                                                \
+#define TIMELINE(message)                                                                \
   ::ray::LogFunc _logme(__FILE__, __LINE__, __func__, message)
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration

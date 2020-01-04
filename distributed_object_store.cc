@@ -20,7 +20,7 @@ DistributedObjectStore::DistributedObjectStore(
       object_writer_{state_, gcs_client_, plasma_client_, my_address,
                      object_writer_port},
       object_sender_{state_, plasma_client_} {
-  LOGFUNC("DistributedObjectStore construction function");
+  TIMELINE("DistributedObjectStore construction function");
   // connect to the plasma store
   plasma_client_.Connect(plasma_socket, "");
   // create a thread to receive remote object
@@ -37,7 +37,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
                                  ObjectID object_id) {
   std::stringstream message;
   message << "DistributedObjectStore Put " << data << " " << size << " " << object_id.hex();
-  LOGFUNC(message.str());
+  TIMELINE(message.str());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
   auto pstatus = plasma_client_.Create(object_id, size, NULL, 0, &ptr);
@@ -54,7 +54,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
   std::stringstream message;
   message << "DistributedObjectStore Put without object_id " << data << " " << size;
-  LOGFUNC(message.str());
+  TIMELINE(message.str());
   // generate a random object id
   ObjectID object_id = random_object_id();
   Put(data, size, object_id);
