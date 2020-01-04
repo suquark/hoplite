@@ -1,6 +1,5 @@
 #include "object_store_state.h"
 #include "logging.h"
-ObjectStoreState::ObjectStoreState() : progress(0){};
 
 // Return true if we are able to transfer an object.
 bool ObjectStoreState::transfer_available(const plasma::ObjectID &object_id) {

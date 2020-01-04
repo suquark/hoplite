@@ -46,10 +46,7 @@ public:
     finished_mutex_.lock();
   }
   inline const uint8_t *data() { return buf_ptr_->data(); }
-  inline uint8_t *mutable_data() {
-    auto data_ptr = buf_ptr_->mutable_data();
-    DCHECK(data_ptr != nullptr) << "The object has been sealed";
-  }
+  inline uint8_t *mutable_data() { return buf_ptr_->mutable_data(); }
   inline int64_t size() { return buf_ptr_->size(); }
   inline void finish() { finished_mutex_.unlock(); }
   inline void wait() {
@@ -69,8 +66,6 @@ private:
 class ObjectStoreState {
 
 public:
-  ObjectStoreState();
-
   // Return true if we are able to transfer an object.
   bool transfer_available(const plasma::ObjectID &object_id);
 
