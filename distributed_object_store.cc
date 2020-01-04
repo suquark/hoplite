@@ -52,9 +52,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
 }
 
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
-  std::stringstream message;
-  message << "DistributedObjectStore Put without object_id " << data << " " << size;
-  TIMELINE(message.str());
+  TIMELINE("DistributedObjectStore Put without object_id");
   // generate a random object id
   ObjectID object_id = random_object_id();
   Put(data, size, object_id);
@@ -64,9 +62,7 @@ ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
 void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
                                  const void **data, size_t *size,
                                  size_t _expected_size) {
-  std::stringstream message;
-  message << "DistributedObjectStore Get " << &object_ids << " " << data << " " << size << " " << _expected_size;
-  TIMELINE(message.str());
+  TIMELINE("DistributedObjectStore Get multiple objects");
 
   DCHECK(object_ids.size() > 0);
   // TODO: get size by checking the size of ObjectIDs
@@ -158,6 +154,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 
 void DistributedObjectStore::Get(ObjectID object_id, const void **data,
                                  size_t *size) {
+  TIMELINE("DistributedObjectStore Get single object");
   // get object location from redis
   while (true) {
     std::string address = gcs_client_.get_object_location(object_id);
