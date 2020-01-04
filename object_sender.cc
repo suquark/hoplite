@@ -36,7 +36,7 @@ ObjectSender::ObjectSender(ObjectStoreState &state, PlasmaClient &plasma_client)
 
 void ObjectSender::worker_loop() {
   while (true) {
-    TIMELINE("ObjectSender::worker_loop() step");
+    // TODO: This should not be busy-waiting
     if (pending_tasks_.empty()) {
       usleep(1000);
       continue;
