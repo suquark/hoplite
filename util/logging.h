@@ -21,7 +21,7 @@ enum class RayLogLevel {
   ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
 
 #define RAY_LOG(level)                                                         \
-  if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level))                    \
+  if (RAY_LOG_ENABLED(level))                                                  \
   RAY_LOG_INTERNAL(ray::RayLogLevel::level)
 
 #define RAY_IGNORE_EXPR(expr) ((void)(expr))
@@ -57,35 +57,13 @@ enum class RayLogLevel {
 // In logging.cc, we can choose different log libs using different macros.
 
 // This is also a null log which does not output anything.
-class RayLogBase {
-public:
-  virtual ~RayLogBase(){};
 
-  // By default, this class is a null log because it return false here.
-  virtual bool IsEnabled() const { return false; };
-
-  template <typename T> RayLogBase &operator<<(const T &t) {
-    if (IsEnabled()) {
-      Stream() << t;
-    }
-    return *this;
-  }
-
-protected:
-  virtual std::ostream &Stream() { return std::cerr; };
-};
-
-class RayLog : public RayLogBase {
+class RayLog {
 public:
   RayLog(const char *file_name, int line_number, const char *function_name,
          RayLogLevel severity);
 
-  virtual ~RayLog();
-
-  /// Return whether or not current logging instance is enabled.
-  ///
-  /// \return True if logging is enabled and false otherwise.
-  virtual bool IsEnabled() const;
+  ~RayLog();
 
   /// The init function of ray log for a program which should be called only
   /// once.
@@ -95,8 +73,7 @@ public:
   /// \param logDir Logging output file name. If empty, the log won't output to
   /// file.
   static void StartRayLog(const std::string &appName,
-                          RayLogLevel severity_threshold = RayLogLevel::INFO,
-                          const std::string &logDir = "");
+                          RayLogLevel severity_threshold = RayLogLevel::INFO);
 
   /// Return whether or not the log level is enabled in current setting.
   ///
@@ -109,23 +86,23 @@ public:
 
   inline static const std::string &get_app_name() { return app_name_; }
 
+  template <typename T> RayLog &operator<<(const T &t) {
+    stream_ <<
+    return *this;
+  }
+
+
 private:
   // Hide the implementation of log provider by void *.
   // Otherwise, lib user may define the same macro to use the correct header
   // file.
-  void *logging_provider_;
+  std::stringstream stream_;
   /// True if log messages should be logged and false if they should be ignored.
   bool is_enabled_;
   static RayLogLevel severity_threshold_;
   // In InitGoogleLogging, it simply keeps the pointer.
   // We need to make sure the app name passed to InitGoogleLogging exist.
   static std::string app_name_;
-  /// The directory where the log files are stored.
-  /// If this is empty, logs are printed to stdout.
-  static std::string log_dir_;
-
-protected:
-  virtual std::ostream &Stream();
 };
 
 // This class make RAY_CHECK compilation pass to change the << operator to void.
