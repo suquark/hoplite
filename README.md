@@ -6,5 +6,26 @@
 ./install_dependencies.sh
 ```
 
-After the installation, the headers and binaries of `hiredis` are under `hiredis`; the redis binaries are under `redis/src`.
+## Multicast
 
+### MPI (baseline)
+
+`cd mpi && ./mpi_broadcast.sh $node_number $data_size`
+
+### Our library
+
+`./multicast_test.sh $data_size`
+
+## Reduce
+
+### MPI (baseline)
+
+`cd mpi && ./mpi_reduce.sh $node_number $data_size`
+
+### Our library
+
+`./reduce_test.sh $data_size`
+
+## Lint
+
+`./format.sh`
