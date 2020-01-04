@@ -71,6 +71,14 @@ RayLog::~RayLog() {
   }
 }
 
+void RayLog::PrintBackTrace(){
+#if defined(_EXECINFO_H) || !defined(_WIN32)
+  void *buffer[255];
+  const int calls = backtrace(buffer, sizeof(buffer) / sizeof(void *));
+  backtrace_symbols_fd(buffer, calls, 1);
+#endif
+}
+
 LogFunc::LogFunc(const std::string& file_name, int line_number,
                  const std::string& function_name, const std::string& message)
   : file_name_(file_name), line_number_(line_number), 

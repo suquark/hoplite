@@ -104,13 +104,7 @@ private:
   // In InitGoogleLogging, it simply keeps the pointer.
   // We need to make sure the app name passed to InitGoogleLogging exist.
   static std::string app_name_;
-  void PrintBackTrace() {
-#if defined(_EXECINFO_H) || !defined(_WIN32)
-    void *buffer[255];
-    const int calls = backtrace(buffer, sizeof(buffer) / sizeof(void *));
-    backtrace_symbols_fd(buffer, calls, 1);
-#endif
-  }
+  void PrintBackTrace();
 };
 
 // This class make RAY_CHECK compilation pass to change the << operator to void.
