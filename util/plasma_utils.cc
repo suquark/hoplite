@@ -8,7 +8,7 @@ unsigned char hex_to_dec(char a) {
   }
 }
 
-plasma::ObjectID from_hex(char *hex) {
+plasma::ObjectID from_hex(const char *hex) {
   unsigned char id[plasma::kUniqueIDSize];
   for (int i = 0; i < plasma::kUniqueIDSize; i++) {
     id[i] = hex_to_dec(hex[2 * i]) * 16 + hex_to_dec(hex[2 * i + 1]);
