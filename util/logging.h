@@ -50,7 +50,7 @@ enum class RayLogLevel {
 // Alias
 #define LOG RAY_LOG
 #define DCHECK RAY_DCHECK
-#define TIMELINE(message)                                                                \
+#define TIMELINE(message)                                                      \
   ::ray::LogFunc _logme(__FILE__, __LINE__, __func__, message)
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration
@@ -92,13 +92,12 @@ public:
     return *this;
   }
 
-
 private:
   // Hide the implementation of log provider by void *.
   // Otherwise, lib user may define the same macro to use the correct header
   // file.
   std::stringstream stream_;
-  RayLogLevel severity_; 
+  RayLogLevel severity_;
   /// True if log messages should be logged and false if they should be ignored.
   static RayLogLevel severity_threshold_;
   // In InitGoogleLogging, it simply keeps the pointer.
@@ -119,9 +118,10 @@ public:
 
 class LogFunc {
 public:
-  LogFunc(const std::string& file_name, int line_number,
-          const std::string& function_name, const std::string& message);
+  LogFunc(const std::string &file_name, int line_number,
+          const std::string &function_name, const std::string &message);
   ~LogFunc();
+
 private:
   std::string file_name_;
   int line_number_;

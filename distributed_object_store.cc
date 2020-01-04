@@ -34,7 +34,8 @@ DistributedObjectStore::DistributedObjectStore(
 
 void DistributedObjectStore::Put(const void *data, size_t size,
                                  ObjectID object_id) {
-  TIMELINE(std::string("DistributedObjectStore Put single object ") + object_id.hex());
+  TIMELINE(std::string("DistributedObjectStore Put single object ") +
+           object_id.hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
   auto pstatus = plasma_client_.Create(object_id, size, NULL, 0, &ptr);
@@ -151,7 +152,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 
 void DistributedObjectStore::Get(ObjectID object_id, const void **data,
                                  size_t *size) {
-  TIMELINE(std::string("DistributedObjectStore Get single object ") + object_id.hex());
+  TIMELINE(std::string("DistributedObjectStore Get single object ") +
+           object_id.hex());
   // get object location from redis
   while (true) {
     std::string address = gcs_client_.get_object_location(object_id);

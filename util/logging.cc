@@ -11,9 +11,9 @@
 #include <signal.h>
 #include <sstream>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string>
 #include <thread>
+#include <unistd.h>
 
 namespace ray {
 
@@ -54,12 +54,12 @@ bool RayLog::IsLevelEnabled(RayLogLevel log_level) {
 
 RayLog::RayLog(const char *file_name, int line_number,
                const char *function_name, RayLogLevel severity)
-    : stream_(), severity_(severity){
+    : stream_(), severity_(severity) {
   auto timestamp =
       std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  stream_ << timestamp << " " << get_app_name() << ":" << getpid() << ":" << std::this_thread::get_id()
-          << " " << file_name << ":" << line_number << " " << function_name
-          << " ]: ";
+  stream_ << timestamp << " " << get_app_name() << ":" << getpid() << ":"
+          << std::this_thread::get_id() << " " << file_name << ":"
+          << line_number << " " << function_name << " ]: ";
 }
 
 RayLog::~RayLog() {
@@ -71,7 +71,7 @@ RayLog::~RayLog() {
   }
 }
 
-void RayLog::PrintBackTrace(){
+void RayLog::PrintBackTrace() {
 #if defined(_EXECINFO_H) || !defined(_WIN32)
   void *buffer[255];
   const int calls = backtrace(buffer, sizeof(buffer) / sizeof(void *));
@@ -79,20 +79,25 @@ void RayLog::PrintBackTrace(){
 #endif
 }
 
-LogFunc::LogFunc(const std::string& file_name, int line_number,
-                 const std::string& function_name, const std::string& message)
-  : file_name_(file_name), line_number_(line_number), 
-    function_name_(function_name), message_(message) {
+LogFunc::LogFunc(const std::string &file_name, int line_number,
+                 const std::string &function_name, const std::string &message)
+    : file_name_(file_name), line_number_(line_number),
+      function_name_(function_name), message_(message) {
   std::stringstream hashstampstream;
-  hashstampstream << std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  hashstampstream
+      << std::chrono::high_resolution_clock::now().time_since_epoch().count();
   hashstampstream >> hashstamp_;
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::DEBUG))
-    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(), ray::RayLogLevel::DEBUG) << "[TIMELINE] [" << hashstamp_ << "] [BEGIN] " << message_;
+    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(),
+                  ray::RayLogLevel::DEBUG)
+        << "[TIMELINE] [" << hashstamp_ << "] [BEGIN] " << message_;
 }
 
 LogFunc::~LogFunc() {
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::DEBUG))
-    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(), ray::RayLogLevel::DEBUG) << "[TIMELINE] [" << hashstamp_ << "] [END] " << message_;
+    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(),
+                  ray::RayLogLevel::DEBUG)
+        << "[TIMELINE] [" << hashstamp_ << "] [END] " << message_;
 }
 
 } // namespace ray
