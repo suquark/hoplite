@@ -202,7 +202,7 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
                        << object_id.hex() << " size = " << object_size
                        << ", status = " << pstatus.ToString();
 
-  auto stream = state_.create_progressive_stream(reduction_id, ptr);
+  auto stream = state_.create_progressive_stream(object_id, ptr);
   // notify other nodes that our stream is on progress
   gcs_client_.write_object_location(object_id, server_ipaddr_);
   stream_write<ProgressiveStream>(conn_fd, stream.get());
