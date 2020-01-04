@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ -z "$2" ]; then echo "ERROR: node number and input size required"; exit; fi
 
-make reduce > /dev/null
+make allreduce > /dev/null
 
 worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 
