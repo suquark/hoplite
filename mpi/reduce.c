@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
   }
 
   int num_elements_per_proc = atoi(argv[1]);
-  double time;
+  double time = 0;
 
   MPI_Init(NULL, NULL);
 
