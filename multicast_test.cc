@@ -9,16 +9,9 @@
 #include "logging.h"
 #include "notification.h"
 #include "plasma_utils.h"
+#include "test_util.h"
 
 using namespace plasma;
-
-std::chrono::high_resolution_clock::time_point start_time;
-
-double get_time() {
-  auto now = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> time_span = now - start_time;
-  return time_span.count();
-}
 
 void test_server(DistributedObjectStore &store, int object_size) {
   char *buffer = new char[1024 * 1024 * 1024];
@@ -27,10 +20,10 @@ void test_server(DistributedObjectStore &store, int object_size) {
   }
 
   ObjectID object_id = store.Put(buffer, object_size);
-  unsigned long crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, (const unsigned char *)buffer, object_size);
+  auto arrow_buffer = std::make_shared<Buffer>(buffer, object_size);
+
   LOG(INFO) << "Object is created! object_id = " << object_id.hex()
-            << ", CRC32 = " << crc;
+            << ", CRC32 = " << checksum_crc32(arrow_buffer);
 }
 
 void test_client(DistributedObjectStore &store, ObjectID object_id) {
@@ -40,10 +33,8 @@ void test_client(DistributedObjectStore &store, ObjectID object_id) {
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
 
-  unsigned long crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, result->data(), result->size());
   LOG(INFO) << "Object is retrieved using " << duration.count()
-            << " seconds. CRC32 = " << crc;
+            << " seconds. CRC32 = " << checksum_crc32(result);
 }
 
 std::thread timed_exit(int seconds) {
