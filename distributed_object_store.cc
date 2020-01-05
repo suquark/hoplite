@@ -77,7 +77,6 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
                                              object_ids.end());
   std::vector<ObjectID> local_object_ids;
-  ObjectID reduction_id = random_object_id();
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
   auto pstatus =
