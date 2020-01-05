@@ -30,12 +30,12 @@ public:
 
   void Get(const std::vector<plasma::ObjectID> &object_ids,
            size_t _expected_size,
-           ObjectID *created_reduction_id,
+           plasma::ObjectID *created_reduction_id,
            std::shared_ptr<arrow::Buffer> *result);
 
   void Get(const std::vector<plasma::ObjectID> &object_ids,
            size_t _expected_size,
-           const ObjectID &reduction_id,
+           const plasma::ObjectID &reduction_id,
            std::shared_ptr<arrow::Buffer> *result);
 
   void Get(const plasma::ObjectID &object_id,
