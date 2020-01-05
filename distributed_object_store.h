@@ -29,13 +29,11 @@ public:
   plasma::ObjectID Put(const void *data, size_t size);
 
   void Get(const std::vector<plasma::ObjectID> &object_ids,
-           size_t _expected_size,
-           plasma::ObjectID *created_reduction_id,
+           size_t _expected_size, plasma::ObjectID *created_reduction_id,
            std::shared_ptr<arrow::Buffer> *result);
 
   void Get(const std::vector<plasma::ObjectID> &object_ids,
-           size_t _expected_size,
-           const plasma::ObjectID &reduction_id,
+           size_t _expected_size, const plasma::ObjectID &reduction_id,
            std::shared_ptr<arrow::Buffer> *result);
 
   void Get(const plasma::ObjectID &object_id,

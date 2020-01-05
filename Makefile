@@ -3,7 +3,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma arrow hired
 	  -lgrpc -ldl -lpthread -lz
 
 CXX = g++
-CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Iutil
+CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Iutil -I`pwd`
 CXXFLAGS += -std=c++11 -O2 -g
 
 PROTOC = protoc

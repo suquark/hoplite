@@ -2,13 +2,14 @@
 #ifndef TEST_UTILS_H
 #define TEST_UTILS_H
 
-#include <string>
 #include <random>
+#include <string>
 
 #include <plasma/common.h>
 #include <zlib.h>
-#include <logging.h>
+
 #include "distributed_object_store.h"
+#include "logging.h"
 
 using namespace plasma;
 
@@ -37,7 +38,7 @@ get_random_float_buffer(size_t size, const std::string &seed_str) {
   return retval;
 }
 
-template<typename T>
+template <typename T>
 void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id,
                        int64_t object_size) {
   DCHECK(object_size % sizeof(T) == 0);
@@ -49,18 +50,18 @@ void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id,
             << ", the chosen random value: " << (*buffer)[1];
 }
 
-template<typename T>
-void print_reduction_result(
-    const ObjectID &object_id,
-    const std::shared_ptr<Buffer> &result, T expected_sum) {
-  const T* buffer = (const T*)result->data();
+template <typename T>
+void print_reduction_result(const ObjectID &object_id,
+                            const std::shared_ptr<Buffer> &result,
+                            T expected_sum) {
+  const T *buffer = (const T *)result->data();
   int64_t num_elements = result->size() / sizeof(T);
 
-  LOG(INFO) << "ObjectID(" << object_id.hex() <<  "), "
+  LOG(INFO) << "ObjectID(" << object_id.hex() << "), "
             << "CRC32 = " << checksum_crc32(result) << "\n"
             << "Results: [" << buffer[0] << ", " << buffer[1] << ", "
-            << buffer[2] << ", " << buffer[3] << ", " << buffer[4]
-            << ", ... , " << buffer[num_elements - 1] << "] \n"
+            << buffer[2] << ", " << buffer[3] << ", " << buffer[4] << ", ... , "
+            << buffer[num_elements - 1] << "] \n"
             << "Result errors: first item = " << buffer[1] - expected_sum
             << ", last item = "
             << buffer[num_elements - 1] / (num_elements - 1) - expected_sum;

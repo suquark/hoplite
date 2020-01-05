@@ -163,7 +163,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   *result = buffer;
 }
 
-void DistributedObjectStore::Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result) {
+void DistributedObjectStore::Get(const ObjectID &object_id,
+                                 std::shared_ptr<Buffer> *result) {
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.hex());
   // get object location from redis

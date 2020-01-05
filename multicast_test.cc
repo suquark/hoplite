@@ -20,7 +20,8 @@ void test_server(DistributedObjectStore &store, int object_size) {
   }
 
   ObjectID object_id = store.Put(buffer, object_size);
-  auto arrow_buffer = std::make_shared<Buffer>((const uint8_t*)buffer, object_size);
+  auto arrow_buffer =
+      std::make_shared<Buffer>((const uint8_t *)buffer, object_size);
 
   LOG(INFO) << "Object is created! object_id = " << object_id.hex()
             << ", CRC32 = " << checksum_crc32(arrow_buffer);

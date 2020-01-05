@@ -37,8 +37,8 @@ void test_server(DistributedObjectStore &store, int64_t object_size,
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
 
-  LOG(INFO) << "ObjectID(" << reduction_id.hex()
-              << ") is reduced using " << duration.count();
+  LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
+            << duration.count();
   print_reduction_result<float>(reduction_id, reduction_result, expected_sum);
 }
 

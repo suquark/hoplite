@@ -34,8 +34,7 @@ int main(int argc, char **argv) {
 
   int64_t object_size = std::strtoll(argv[4], NULL, 10);
 
-  ObjectID reduction_id =
-        from_hex("F000000000000000000000000000000000000000");
+  ObjectID reduction_id = from_hex("F000000000000000000000000000000000000000");
 
   if (argv[3][0] == 's') {
     store.flushall();
@@ -65,8 +64,8 @@ int main(int argc, char **argv) {
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
 
-    LOG(INFO) << "ObjectID(" << reduction_id.hex()
-              << ") is reduced using " << duration.count();
+    LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
+              << duration.count();
     print_reduction_result<float>(reduction_id, reduction_result, sum);
     notification_server_thread.join();
   } else {
@@ -77,8 +76,8 @@ int main(int argc, char **argv) {
     store.Get(reduction_id, &reduction_result);
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
-    LOG(INFO) << "ObjectID(" << reduction_id.hex()
-              << ") is reduced using " << duration.count();
+    LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
+              << duration.count();
     // TODO: use a real sum
     print_reduction_result<float>(reduction_id, reduction_result, 0);
   }
