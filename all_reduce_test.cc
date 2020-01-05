@@ -44,26 +44,21 @@ void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id,
             << ", the chosen random float value: " << (*buffer)[1];
 }
 
-void test_server(DistributedObjectStore &store, int64_t object_size,
-                 const std::vector<ObjectID> &object_ids, float expected_sum) {
-  DCHECK(object_size % sizeof(float) == 0);
-  std::shared_ptr<Buffer> result;
-  ObjectID reduction_id;
-
-  auto start = std::chrono::system_clock::now();
-  store.Get(object_ids, object_size, &reduction_id, &result);
-  auto end = std::chrono::system_clock::now();
-  std::chrono::duration<double> duration = end - start;
-
+template<typename T>
+void print_reduction_result(
+    const ObjectID &object_id,
+    const std::shared_ptr<Buffer> &result, T expected_sum) {
   unsigned long crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, (const unsigned char *)buffer, size);
-  size_t num_elements = object_size / sizeof(float);
-  LOG(INFO) << "Object is reduced using " << duration.count()
-            << " seconds. CRC32 = " << crc << "; Results: [" << buffer[0]
-            << ", " << buffer[1] << ", " << buffer[2] << ", " << buffer[3]
-            << ", " << buffer[4] << ", ... , " << buffer[num_elements - 2]
-            << ", " << buffer[num_elements - 1] << "]";
-  LOG(INFO) << "Result errors: first item = " << buffer[1] - expected_sum
+  crc = crc32(crc, buffer->data(), buffer->size());
+  const T* buffer = (const T*)result->data();
+  int64_t num_elements = buffer->size() / sizeof(T);
+
+  LOG(INFO) << "ObjectID(" << object_id.hex() <<  "), "
+            << "CRC32 = " << crc << "\n"
+            << "Results: [" << buffer[0] << ", " << buffer[1] << ", "
+            << buffer[2] << ", " << buffer[3] << ", " << buffer[4]
+            << ", ... , " << buffer[num_elements - 1] << "] \n"
+            << "Result errors: first item = " << buffer[1] - expected_sum
             << ", last item = "
             << buffer[num_elements - 1] / (num_elements - 1) - expected_sum;
 }
@@ -90,11 +85,14 @@ int main(int argc, char **argv) {
 
   int64_t object_size = std::strtoll(argv[4], NULL, 10);
 
+  ObjectID reduction_id =
+        from_hex("F000000000000000000000000000000000000000");
+
   if (argv[3][0] == 's') {
     store.flushall();
-
     NotificationServer notification_server(my_address, 7777, 8888);
     std::thread notification_server_thread = notification_server.Run();
+
     ObjectID local_object_id =
         from_hex("0000000000000000000000000000000000000000");
     put_random_buffer(store, local_object_id, object_size);
@@ -110,11 +108,29 @@ int main(int argc, char **argv) {
     }
     LOG(INFO) << "expected sum: " << sum;
 
-    test_server(store, object_size, object_ids, sum);
+    DCHECK(object_size % sizeof(float) == 0);
+    std::shared_ptr<Buffer> reduction_result;
+
+    auto start = std::chrono::system_clock::now();
+    store.Get(object_ids, object_size, reduction_id, &reduction_result);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> duration = end - start;
+
+    LOG(INFO) << "ObjectID(" << reduction_result.hex()
+              << ") is reduced using " << duration.count();
+    print_reduction_result<float>(reduction_id, reduction_result, sum);
     notification_server_thread.join();
   } else {
     ObjectID object_id = from_hex(argv[5]);
     put_random_buffer(store, object_id, object_size);
+    std::shared_ptr<Buffer> reduction_result;
+    auto start = std::chrono::system_clock::now();
+    store.Get(reduction_id, &reduction_result);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    LOG(INFO) << "ObjectID(" << reduction_result.hex()
+              << ") is reduced using " << duration.count();
+    print_reduction_result<float>(reduction_id, reduction_result, sum);
   }
 
   exit_thread.join();

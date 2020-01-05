@@ -33,7 +33,7 @@ DistributedObjectStore::DistributedObjectStore(
 }
 
 void DistributedObjectStore::Put(const void *data, size_t size,
-                                 ObjectID object_id) {
+                                 const ObjectID &object_id) {
   TIMELINE(std::string("DistributedObjectStore Put single object ") +
            object_id.hex());
   // put object into Plasma
@@ -58,8 +58,18 @@ ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
 }
 
 void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
-                                 const void **data, size_t *size,
-                                 size_t _expected_size) {
+                                 size_t _expected_size,
+                                 ObjectID *created_reduction_id,
+                                 std::shared_ptr<Buffer> *result) {
+  const ObjectID reduction_id = random_object_id();
+  *created_reduction_id = reduction_id;
+  Get(object_ids, _expected_size, reduction_id, result);
+}
+
+void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
+                                 size_t _expected_size,
+                                 const ObjectID &reduction_id,
+                                 std::shared_ptr<Buffer> *result) {
   TIMELINE("DistributedObjectStore Get multiple objects");
 
   DCHECK(object_ids.size() > 0);
@@ -151,12 +161,15 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   gcs_client_.unsubscribe_object_locations(notifications);
 
   // get object from Plasma
-  *data = buffer->data();
-  *size = buffer->size();
+  *result = buffer;
 }
 
+<<<<<<< Updated upstream
 void DistributedObjectStore::Get(ObjectID object_id, const void **data,
                                  size_t *size) {
+=======
+void DistributedObjectStore::Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result) {
+>>>>>>> Stashed changes
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.hex());
   // get object location from redis
@@ -176,7 +189,5 @@ void DistributedObjectStore::Get(ObjectID object_id, const void **data,
   // get object from Plasma
   std::vector<ObjectBuffer> object_buffers;
   plasma_client_.Get({object_id}, -1, &object_buffers);
-
-  *data = object_buffers[0].data->data();
-  *size = object_buffers[0].data->size();
+  *result = object_buffers[0].data;
 }

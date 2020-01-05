@@ -34,15 +34,14 @@ void test_server(DistributedObjectStore &store, int object_size) {
 }
 
 void test_client(DistributedObjectStore &store, ObjectID object_id) {
-  const char *buffer;
-  size_t size;
+  std::shared_ptr<Buffer> result;
   auto start = std::chrono::system_clock::now();
-  store.Get(object_id, (const void **)&buffer, &size);
+  store.Get(object_id, &result);
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
 
   unsigned long crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, (const unsigned char *)buffer, size);
+  crc = crc32(crc, result->data(), result->size());
   LOG(INFO) << "Object is retrieved using " << duration.count()
             << " seconds. CRC32 = " << crc;
 }
