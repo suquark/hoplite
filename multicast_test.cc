@@ -20,7 +20,7 @@ void test_server(DistributedObjectStore &store, int object_size) {
   }
 
   ObjectID object_id = store.Put(buffer, object_size);
-  auto arrow_buffer = std::make_shared<Buffer>(buffer, object_size);
+  auto arrow_buffer = std::make_shared<Buffer>((const uint8_t*)buffer, object_size);
 
   LOG(INFO) << "Object is created! object_id = " << object_id.hex()
             << ", CRC32 = " << checksum_crc32(arrow_buffer);
@@ -44,7 +44,6 @@ std::thread timed_exit(int seconds) {
 
 int main(int argc, char **argv) {
   // signal(SIGPIPE, SIG_IGN);
-  start_time = std::chrono::high_resolution_clock::now();
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
 
