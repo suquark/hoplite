@@ -28,7 +28,7 @@ public:
 
   plasma::ObjectID Put(const void *data, size_t size);
 
-  void Get(const std::vector<ObjectID> &object_ids,
+  void Get(const std::vector<plasma::ObjectID> &object_ids,
            size_t _expected_size,
            ObjectID *created_reduction_id,
            std::shared_ptr<arrow::Buffer> *result);
