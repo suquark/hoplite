@@ -164,12 +164,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   *result = buffer;
 }
 
-<<<<<<< Updated upstream
-void DistributedObjectStore::Get(ObjectID object_id, const void **data,
-                                 size_t *size) {
-=======
 void DistributedObjectStore::Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result) {
->>>>>>> Stashed changes
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.hex());
   // get object location from redis
