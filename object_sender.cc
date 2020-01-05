@@ -28,6 +28,23 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
   DCHECK(!status) << "socket send error: message";
 }
 
+template <typename T> void stream_send(int conn_fd, T *stream) {
+  const uint8_t *data_ptr = stream->data();
+  const int64_t object_size = stream->size();
+
+  // send object
+  int64_t cursor = 0;
+  while (cursor < object_size) {
+    int64_t current_progress = stream->progress;
+    if (cursor < current_progress) {
+      int bytes_sent =
+          send(conn_fd, data_ptr + cursor, current_progress - cursor, 0);
+      DCHECK(bytes_sent > 0) << "socket send error: object content";
+      cursor += bytes_sent;
+    }
+  }
+}
+
 ObjectSender::ObjectSender(ObjectStoreState &state, PlasmaClient &plasma_client)
     : state_(state), plasma_client_(plasma_client) {
   TIMELINE("ObjectSender construction function");
@@ -65,24 +82,22 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   const uint8_t *object_buffer = NULL;
   size_t object_size = 0;
-  // TODO: support multiple object.
-  if (state_.pending_write == NULL) {
+  ObjectID object_id = ObjectID::from_binary(request->object_id());
+  auto stream = state_.get_progressive_stream(object_id);
+  if (stream) {
+    // fetch partial object in memory
+    LOG(DEBUG) << "[GrpcServer] fetching a partial object";
+    object_size = stream->size();
+  } else {
     // fetch object from Plasma
     LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
     std::vector<ObjectBuffer> object_buffers;
-    ObjectID object_id = ObjectID::from_binary(request->object_id());
     plasma_client_.Get({object_id}, -1, &object_buffers);
     LOG(DEBUG)
         << "[GrpcServer] fetched a completed object from plasma, object id = "
         << object_id.hex();
     object_buffer = object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
-    state_.progress = object_size;
-  } else {
-    // fetch partial object in memory
-    LOG(DEBUG) << "[GrpcServer] fetching a partial object";
-    object_buffer = state_.pending_write;
-    object_size = state_.pending_size;
   }
 
   ObjectWriterRequest ow_request;
@@ -90,23 +105,16 @@ void ObjectSender::send_object(const PullRequest *request) {
   ro_request->set_object_id(request->object_id());
   ro_request->set_object_size(object_size);
   ow_request.set_allocated_receive_object(ro_request);
-
   SendMessage(conn_fd, ow_request);
 
-  // send object
-  int64_t cursor = 0;
-  while (cursor < object_size) {
-    int64_t current_progress = state_.progress;
-    if (cursor < current_progress) {
-      int bytes_sent =
-          send(conn_fd, object_buffer + cursor, current_progress - cursor, 0);
-      DCHECK(bytes_sent > 0) << "socket send error: object content";
-      cursor += bytes_sent;
-    }
+  if (stream) {
+    stream_send<ProgressiveStream>(conn_fd, stream.get());
+  } else {
+    int status = send_all(conn_fd, object_buffer, object_size);
+    DCHECK(!status) << "Failed to send object";
   }
 
-  LOG(DEBUG) << "send object id = "
-             << ObjectID::from_binary(request->object_id()).hex() << " done";
+  LOG(DEBUG) << "send object id = " << object_id.hex() << " done";
 
   // receive ack
   char ack[5];
@@ -133,11 +141,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   }
   ro_request->set_is_endpoint(request->is_endpoint());
   ow_request.set_allocated_receive_and_reduce_object(ro_request);
-
   SendMessage(conn_fd, ow_request);
-
-  const uint8_t *object_buffer = NULL;
-  size_t object_size = 0;
 
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
     LOG(INFO) << "[GrpcServer] fetching a complete object from plasma";
@@ -145,34 +149,19 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
     plasma_client_.Get({src_object_id}, -1, &object_buffers);
-    object_buffer = object_buffers[0].data->data();
-    object_size = object_buffers[0].data->size();
-    int status = send_all(conn_fd, object_buffer, object_size);
+    auto &buffer_ptr = object_buffers[0].data;
+    int status = send_all(conn_fd, buffer_ptr->data(), buffer_ptr->size());
     DCHECK(!status) << "Failed to send object";
   } else {
     LOG(INFO)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
-    while (stream == nullptr) {
+    while (!stream) {
       usleep(1000);
       stream = state_.get_reduction_stream(reduction_id);
     }
-
-    object_buffer = stream->data();
-    object_size = stream->size();
-
-    // send object
-    int64_t cursor = 0;
-    while (cursor < object_size) {
-      int64_t current_progress = stream->reduce_progress;
-      if (cursor < current_progress) {
-        int bytes_sent =
-            send(conn_fd, object_buffer + cursor, current_progress - cursor, 0);
-        DCHECK(bytes_sent > 0) << "socket send error: object content";
-        cursor += bytes_sent;
-      }
-    }
+    stream_send<ReductionStream>(conn_fd, stream.get());
   }
 
   // receive ack

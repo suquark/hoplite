@@ -77,7 +77,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
                        << ", status = " << pstatus.ToString();
 
   auto reduction_endpoint =
-      state_.create_reduction_endpoint(reduction_id, buffer);
+      state_.create_progressive_stream(reduction_id, buffer);
 
   int node_index = 0;
   ObjectID tail_objectid;
