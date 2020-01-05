@@ -54,7 +54,7 @@ void print_reduction_result(
     const ObjectID &object_id,
     const std::shared_ptr<Buffer> &result, T expected_sum) {
   const T* buffer = (const T*)result->data();
-  int64_t num_elements = buffer->size() / sizeof(T);
+  int64_t num_elements = result->size() / sizeof(T);
 
   LOG(INFO) << "ObjectID(" << object_id.hex() <<  "), "
             << "CRC32 = " << checksum_crc32(result) << "\n"
