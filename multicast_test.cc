@@ -9,7 +9,7 @@
 #include "logging.h"
 #include "notification.h"
 #include "plasma_utils.h"
-#include "test_util.h"
+#include "test_utils.h"
 
 using namespace plasma;
 
