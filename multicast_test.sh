@@ -26,7 +26,7 @@ if [ "$#" -eq 2 ]; then
 	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-multicast-$1-$2
 	mkdir -p $log_dir
 
-	($working_dir/multicast $my_address $my_address $1 0 $2 2>&1 | tee $log_dir/$my_address.server.log) &
+	($working_dir/multicast_test $my_address $my_address $1 0 $2 2>&1 | tee $log_dir/$my_address.server.log) &
 	sleep 2
 
 	for index in ${!slaves[@]}
@@ -36,7 +36,7 @@ if [ "$#" -eq 2 ]; then
 else
 	# sudo fuser -km /tmp/multicast_plasma
 	echo "[Putting Object] redis_address: $1 world_size: $2 rank: $3 object_size: $4 my_address: $my_address"
-	$working_dir/multicast $1 $my_address $2 $3 $4 2>&1 | tee $5/$my_address.client.log
+	$working_dir/multicast_test $1 $my_address $2 $3 $4 2>&1 | tee $5/$my_address.client.log
 fi
 
 sleep 20
