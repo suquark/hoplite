@@ -48,10 +48,11 @@ int main(int argc, char **argv) {
   std::shared_ptr<Buffer> reduction_result;
 
   std::unique_ptr<NotificationServer> notification_server;
+  std::thread notification_server_thread;
   if (rank == 0) {
     store.flushall();
     notification_server.reset(new NotificationServer(my_address, 7777, 8888));
-    std::thread notification_server_thread = notification_server->Run();
+    notification_server_thread = notification_server->Run();
     // TODO: make notification server a standalone process
     // notification_server_thread.join();
   }
