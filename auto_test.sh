@@ -23,6 +23,3 @@ do
 		./reduce_test.sh $1 $obj_size
 	done
 done
-
-
-
