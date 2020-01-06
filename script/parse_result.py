@@ -5,23 +5,40 @@ def parse_multicast(folder_path):
     last_retrieval_time = 0
     files = os.listdir(folder_path)
     for filename in files:
+        if 'server' in filename:
+            continue
         try:
             f = open(os.path.join(folder_path, filename))
             for line in f.readlines():
-                if 'client' in filename and 'Object is retrieved' in line:
-                    retrival_time = int(line.split()[0])
+                if 'Object is retrieved' in line:
+                    tmp = line.split('Object is retrieved using')[1]
+                    tmp = tmp.split('seconds')[0]
+                    retrival_time = float(tmp)
                     if retrival_time > last_retrieval_time:
                         last_retrieval_time = retrival_time
 
-                if 'server' in filename and 'object sender is ready' in line:
-                    start_time = int(line.split()[0])
             f.close()
         except:
             print (filename)
-    return last_retrieval_time - start_time
+    return last_retrieval_time
 
 def parse_reduce(folder_path):
-    return 0
+    files = os.listdir(folder_path)
+    for filename in files:
+        if 'client' in filename:
+            continue
+        try:
+            f = open(os.path.join(folder_path, filename))
+            for line in f.readlines():
+                if 'Object is reduced' in line:
+                    tmp = line.split('Object is reduced using')[1]
+                    tmp = tmp.split('seconds')[0]
+                    reduce_time = float(tmp)
+            f.close()
+        except:
+            print (filename)
+
+    return reduce_time
 
 def parse_file(task_name, log_dir, foldername):
     path = os.path.join(log_dir, foldername)
