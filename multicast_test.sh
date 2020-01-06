@@ -22,7 +22,7 @@ if [ "$#" -eq 2 ]; then
 	for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
 	slaves=(${slaves[@]:0:$(($1-1))})
 	echo "[Putting Object] master: $my_address; slaves: ${slaves[@]}"
-	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-multicast
+	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-multicast-$1-$2
 	mkdir -p $log_dir
 
 	## multicast
