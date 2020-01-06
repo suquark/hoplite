@@ -59,10 +59,9 @@ int main(int argc, char **argv) {
 
   put_random_buffer<float>(store, rank_object_id, object_size);
 
-  auto start = std::chrono::system_clock::now();
   if (rank == 0) {
+    auto start = std::chrono::system_clock::now();
     store.Get(object_ids, object_size, reduction_id, &reduction_result);
-
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
     LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
