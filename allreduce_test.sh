@@ -33,7 +33,7 @@ if [ "$#" -eq 2 ]; then
 
 	for index in ${!slaves[@]}
 	do
-		ssh -t -t ${slaves[$index]} "$(realpath -s $0) $my_address $1 $index $2 $log_dir" &
+		ssh -t -t ${slaves[$index]} "$(realpath -s $0) $my_address $1 $((index+1)) $2 $log_dir" &
 	done
 else
 	# sudo fuser -km /tmp/multicast_plasma
