@@ -46,8 +46,6 @@ int main(int argc, char **argv) {
     // notification_server_thread.join();
   }
 
-  std::thread exit_thread(timed_exit, 20);
-
   ObjectID object_id = object_id_from_integer(0);
   std::shared_ptr<Buffer> result;
 
