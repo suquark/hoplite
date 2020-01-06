@@ -9,7 +9,6 @@
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_store.grpc.pb.h"
-#include "util/plasma_utils.h"
 
 using objectstore::ObjectCompleteReply;
 using objectstore::ObjectCompleteRequest;

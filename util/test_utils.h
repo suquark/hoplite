@@ -75,7 +75,8 @@ unsigned char _hex_to_dec(char a) {
   }
 }
 
-ObjectID object_id_from_hex(const char *hex) {
+ObjectID object_id_from_hex(const std::string &hex_str) {
+  char* hex = hex_str.c_str();
   unsigned char id[kUniqueIDSize];
   for (int i = 0; i < kUniqueIDSize; i++) {
     id[i] = _hex_to_dec(hex[2 * i]) * 16 + _hex_to_dec(hex[2 * i + 1]);

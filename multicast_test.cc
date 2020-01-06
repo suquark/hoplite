@@ -8,7 +8,6 @@
 #include "distributed_object_store.h"
 #include "logging.h"
 #include "notification.h"
-#include "plasma_utils.h"
 #include "test_utils.h"
 
 using namespace plasma;
