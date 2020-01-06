@@ -16,7 +16,7 @@ UTILS_OBJS = util/logging.o util/socket_utils.o
 OBJECT_STORE_OBJS = notification.o global_control_store.o object_store_state.o \
 	object_writer.o object_sender.o object_control.o distributed_object_store.o
 
-all: multicast_test reduce_test all_reduce_test
+all: multicast_test reduce_test allreduce_test
 
 multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
@@ -24,7 +24,7 @@ multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.
 reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-all_reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) all_reduce_test.o
+all_reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
