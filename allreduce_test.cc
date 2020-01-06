@@ -1,9 +1,7 @@
 #include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
-
-#include <plasma/common.h>
-#include <zlib.h>
 
 #include "distributed_object_store.h"
 #include "logging.h"
@@ -18,7 +16,6 @@ std::thread timed_exit(int seconds) {
 }
 
 int main(int argc, char **argv) {
-  // signal(SIGPIPE, SIG_IGN);
   // argv: *, redis_address, my_address, #nodes, current_index, object_size
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
@@ -36,6 +33,20 @@ int main(int argc, char **argv) {
 
   std::thread exit_thread(timed_exit, 20);
 
+  ObjectID reduction_id = object_id_from_suffix("ffffffff");
+  std::vector<ObjectID> object_ids;
+  float sum = 0;
+  for (int i = 0; i < world_size; i++) {
+    auto oid = object_id_from_integer(i);
+    object_ids.push_back(oid);
+    auto rnum = get_uniform_random_float(oid.hex());
+    sum += rnum;
+  }
+  DCHECK(object_size % sizeof(float) == 0);
+
+  ObjectID rank_object_id = object_ids[rank];
+  std::shared_ptr<Buffer> reduction_result;
+
   std::unique_ptr<NotificationServer> notification_server;
   std::thread notification_server_thread;
   if (rank == 0) {
@@ -46,29 +57,19 @@ int main(int argc, char **argv) {
     // notification_server_thread.join();
   }
 
-  ObjectID object_id = object_id_from_integer(0);
-  std::shared_ptr<Buffer> result;
+  put_random_buffer<float>(store, rank_object_id, object_size);
 
+  auto start = std::chrono::system_clock::now();
   if (rank == 0) {
-    char *buffer = new char[1024 * 1024 * 1024];
-    for (int i = 0; i < object_size; i++) {
-      buffer[i] = i % 256;
-    }
-    store.Put(buffer, object_size, object_id);
-    result = std::make_shared<Buffer>((const uint8_t *)buffer, object_size);
-
-    LOG(INFO) << "Object(" << object_id.hex() << ") is created!"
-              << ", CRC32 = " << checksum_crc32(result);
+    store.Get(object_ids, object_size, reduction_id, &reduction_result);
   } else {
-    auto start = std::chrono::system_clock::now();
-    store.Get(object_id, &result);
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> duration = end - start;
-
-    LOG(INFO) << "Object(" << object_id.hex() << ") is retrieved using "
-              << duration.count()
-              << " seconds. CRC32 = " << checksum_crc32(result);
+    store.Get(reduction_id, &reduction_result);
   }
+  auto end = std::chrono::system_clock::now();
+  std::chrono::duration<double> duration = end - start;
+  LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
+            << duration.count();
+  print_reduction_result<float>(reduction_id, reduction_result, sum);
 
   exit_thread.join();
   store.join_tasks();

@@ -37,6 +37,7 @@
 dump.rdb
 multicast_test
 reduce_test
+all_reduce_test
 *.pb.h
 
 # logs

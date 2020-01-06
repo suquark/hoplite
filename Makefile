@@ -3,7 +3,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma arrow hired
 	  -lgrpc -ldl -lpthread -lz
 
 CXX = g++
-CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Iutil
+CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Iutil -I`pwd`
 CXXFLAGS += -std=c++11 -O2 -g
 
 PROTOC = protoc
@@ -12,16 +12,19 @@ GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 PROTO_OBJS = object_store.pb.o object_store.grpc.pb.o
-UTILS_OBJS = util/logging.o util/socket_utils.o util/plasma_utils.o
+UTILS_OBJS = util/logging.o util/socket_utils.o
 OBJECT_STORE_OBJS = notification.o global_control_store.o object_store_state.o \
 	object_writer.o object_sender.o object_control.o distributed_object_store.o
 
-all: multicast_test reduce_test
+all: multicast_test reduce_test allreduce_test
 
 multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
+allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
@@ -31,4 +34,4 @@ reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -rf multicast_test reduce_test *.o *.pb.cc *.pb.h util/*.o
+	rm -rf multicast_test reduce_test all_reduce_test *.o *.pb.cc *.pb.h util/*.o
