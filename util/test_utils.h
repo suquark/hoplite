@@ -67,4 +67,31 @@ void print_reduction_result(const ObjectID &object_id,
             << buffer[num_elements - 1] / (num_elements - 1) - expected_sum;
 }
 
+unsigned char _hex_to_dec(char a) {
+  if (a <= '9') {
+    return a - '0';
+  } else {
+    return a - 'a' + 10;
+  }
+}
+
+ObjectID object_id_from_hex(const char *hex) {
+  unsigned char id[kUniqueIDSize];
+  for (int i = 0; i < kUniqueIDSize; i++) {
+    id[i] = _hex_to_dec(hex[2 * i]) * 16 + _hex_to_dec(hex[2 * i + 1]);
+  }
+  auto binary = std::string((char *)id, kUniqueIDSize);
+  return ObjectID::from_binary(binary);
+}
+
+ObjectID object_id_from_suffix(const std::string &s) {
+  s.insert(0, 40 - s.size(), '0');
+  return object_id_from_hex(s);
+}
+
+ObjectID object_id_from_integer(int64_t num) {
+  auto s = std::to_string(num);
+  return object_id_from_suffix(s);
+}
+
 #endif // TEST_UTILS_H

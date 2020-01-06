@@ -27,7 +27,7 @@ if [ "$#" -eq 1 ]; then
 
 	object_ids=()
 	for oid in $(seq -f "%040g" 1 ${#slaves[@]}); do object_ids+=($oid); done
-	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-reduce
+	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-allreduce
 	mkdir -p $log_dir
 
 	($working_dir/all_reduce_test $my_address $my_address s $1 ${object_ids[@]} 2>&1 | tee $log_dir/$my_address.server.log) &
