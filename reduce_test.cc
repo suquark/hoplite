@@ -59,9 +59,9 @@ int main(int argc, char **argv) {
 
   put_random_buffer<float>(store, rank_object_id, object_size);
 
+  barrier(rank, redis_address, 7777, world_size);
+
   if (rank == 0) {
-    register_group(redis_address, 7777, world_size);
-    is_ready(redis_address, 7777);
     auto start = std::chrono::system_clock::now();
     store.Get(object_ids, object_size, reduction_id, &reduction_result);
     auto end = std::chrono::system_clock::now();
@@ -69,8 +69,6 @@ int main(int argc, char **argv) {
     LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
               << duration.count();
     print_reduction_result<float>(reduction_id, reduction_result, sum);
-  } else {
-    is_ready(redis_address, 7777);
   }
 
   exit_thread.join();

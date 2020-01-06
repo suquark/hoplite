@@ -35,6 +35,7 @@ public:
   grpc::Status Register(grpc::ServerContext *context,
                         const RegisterRequest *request, RegisterReply *reply) {
     number_of_nodes_ = request->num_of_nodes();
+    number_of_participants_ = 0;
     reply->set_ok(true);
     return grpc::Status::OK;
   }

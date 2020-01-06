@@ -31,6 +31,7 @@ void register_group(const std::string &redis_address,
   RegisterReply reply;
   request.set_num_of_nodes(num_of_nodes);
   stub->Register(&context, request, &reply);
+  DCHECK(reply.ok()) << "Group registeration failure!";
 }
 
 void is_ready(const std::string &redis_address, const int notification_port) {
@@ -44,6 +45,14 @@ void is_ready(const std::string &redis_address, const int notification_port) {
   IsReadyReply reply;
   stub->IsReady(&context, request, &reply);
   DCHECK(reply.ok()) << "Synchronization failure!";
+}
+
+void barrier(const int rank, const std::string &redis_address,
+             const int notification_port, const int num_of_nodes) {
+  if (rank == 0) {
+    register_group(redis_address, notification_port, num_of_nodes);
+  }
+  is_ready(redis_address, notification_port);
 }
 
 uint32_t checksum_crc32(const std::shared_ptr<Buffer> &buffer) {
