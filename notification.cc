@@ -4,16 +4,21 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 #include <plasma/common.h>
+#include <unistd.h>
 #include <unordered_map>
 
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::IsReadyReply;
+using objectstore::IsReadyRequest;
 using objectstore::ObjectCompleteReply;
 using objectstore::ObjectCompleteRequest;
 using objectstore::ObjectIsReadyReply;
 using objectstore::ObjectIsReadyRequest;
+using objectstore::RegisterReply;
+using objectstore::RegisterRequest;
 using objectstore::SubscriptionReply;
 using objectstore::SubscriptionRequest;
 using objectstore::UnsubscriptionReply;
@@ -26,6 +31,27 @@ class NotificationServiceImpl final
 public:
   NotificationServiceImpl(const int port)
       : objectstore::NotificationServer::Service(), port_(port) {}
+
+  grpc::Status Register(grpc::ServerContext *context,
+                        const RegisterRequest *request, RegisterReply *reply) {
+    number_of_nodes_ = request->num_of_nodes();
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status IsReady(grpc::ServerContext *context,
+                       const IsReadyRequest *request, IsReadyReply *reply) {
+    number_of_participants_++;
+    while (true) {
+      if (number_of_participants_ == number_of_nodes_) {
+        break;
+      }
+      usleep(100);
+    }
+
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
 
   grpc::Status Subscribe(grpc::ServerContext *context,
                          const SubscriptionRequest *request,
@@ -93,6 +119,8 @@ private:
     return reply.ok();
   }
 
+  int number_of_nodes_;
+  std::atomic<int> number_of_participants_;
   const int port_;
   std::mutex notification_mutex_;
   std::unordered_map<ObjectID, std::vector<std::string>> pendings_;

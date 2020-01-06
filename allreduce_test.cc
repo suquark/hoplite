@@ -61,8 +61,11 @@ int main(int argc, char **argv) {
 
   auto start = std::chrono::system_clock::now();
   if (rank == 0) {
+    register_group(redis_address, 7777, world_size);
+    is_ready(redis_address, 7777);
     store.Get(object_ids, object_size, reduction_id, &reduction_result);
   } else {
+    is_ready(redis_address, 7777);
     store.Get(reduction_id, &reduction_result);
   }
   auto end = std::chrono::system_clock::now();

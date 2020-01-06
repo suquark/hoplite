@@ -88,10 +88,27 @@ message ObjectIsReadyReply {
       bool ok = 1;
 }
 
+message RegisterRequest {
+  int32 num_of_nodes = 1;
+}
+
+message RegisterReply {
+  bool ok = 1;
+}
+
+message IsReadyRequest {
+}
+
+message IsReadyReply {
+  bool ok = 1;
+}
+
 service NotificationServer {
   rpc Subscribe(SubscriptionRequest) returns (SubscriptionReply);
   rpc Unsubscribe(UnsubscriptionRequest) returns (UnsubscriptionReply);
   rpc ObjectComplete(ObjectCompleteRequest) returns (ObjectCompleteReply);
+  rpc Register(RegisterRequest) returns (RegisterReply);
+  rpc IsReady(IsReadyRequest) returns (IsReadyReply);
 }
 
 service NotificationListener {

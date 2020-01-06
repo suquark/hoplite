@@ -59,7 +59,12 @@ int main(int argc, char **argv) {
 
     LOG(INFO) << "Object(" << object_id.hex() << ") is created!"
               << ", CRC32 = " << checksum_crc32(result);
+
+    register_group(redis_address, 7777, world_size);
+    is_ready(redis_address, 7777);
+
   } else {
+    is_ready(redis_address, 7777);
     auto start = std::chrono::system_clock::now();
     store.Get(object_id, &result);
     auto end = std::chrono::system_clock::now();
