@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
-  std::thread exit_thread(timed_exit, 30);
+  std::thread exit_thread(timed_exit, 20);
 
   ObjectID reduction_id = object_id_from_suffix("ffffffff");
   std::vector<ObjectID> object_ids;
