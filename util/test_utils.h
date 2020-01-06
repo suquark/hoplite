@@ -2,16 +2,58 @@
 #ifndef TEST_UTILS_H
 #define TEST_UTILS_H
 
+#include <grpc/grpc.h>
+#include <grpcpp/grpcpp.h>
+#include <plasma/common.h>
 #include <random>
 #include <string>
-
-#include <plasma/common.h>
 #include <zlib.h>
 
 #include "distributed_object_store.h"
 #include "logging.h"
+#include "object_store.grpc.pb.h"
 
+using objectstore::IsReadyReply;
+using objectstore::IsReadyRequest;
+using objectstore::RegisterReply;
+using objectstore::RegisterRequest;
 using namespace plasma;
+
+void register_group(const std::string &redis_address,
+                    const int notification_port, const int num_of_nodes) {
+  auto remote_address = redis_address + ":" + std::to_string(notification_port);
+  auto channel =
+      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
+      objectstore::NotificationServer::NewStub(channel));
+  grpc::ClientContext context;
+  RegisterRequest request;
+  RegisterReply reply;
+  request.set_num_of_nodes(num_of_nodes);
+  stub->Register(&context, request, &reply);
+  DCHECK(reply.ok()) << "Group registeration failure!";
+}
+
+void is_ready(const std::string &redis_address, const int notification_port) {
+  auto remote_address = redis_address + ":" + std::to_string(notification_port);
+  auto channel =
+      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
+      objectstore::NotificationServer::NewStub(channel));
+  grpc::ClientContext context;
+  IsReadyRequest request;
+  IsReadyReply reply;
+  stub->IsReady(&context, request, &reply);
+  DCHECK(reply.ok()) << "Synchronization failure!";
+}
+
+void barrier(const int rank, const std::string &redis_address,
+             const int notification_port, const int num_of_nodes) {
+  if (rank == 0) {
+    register_group(redis_address, notification_port, num_of_nodes);
+  }
+  is_ready(redis_address, notification_port);
+}
 
 uint32_t checksum_crc32(const std::shared_ptr<Buffer> &buffer) {
   unsigned long crc = crc32(0L, Z_NULL, 0);

@@ -59,7 +59,13 @@ int main(int argc, char **argv) {
 
     LOG(INFO) << "Object(" << object_id.hex() << ") is created!"
               << ", CRC32 = " << checksum_crc32(result);
+
+    LOG(INFO) << "entering barrier";
+    barrier(rank, redis_address, 7777, world_size);
   } else {
+
+    LOG(INFO) << "entering barrier";
+    barrier(rank, redis_address, 7777, world_size);
     auto start = std::chrono::system_clock::now();
     store.Get(object_id, &result);
     auto end = std::chrono::system_clock::now();
