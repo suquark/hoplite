@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 
   std::thread exit_thread(timed_exit, 30);
 
-  ObjectID reduction_id = object_id_from_suffix("FFFFFFFF");
+  ObjectID reduction_id = object_id_from_suffix("ffffffff");
   std::vector<ObjectID> object_ids;
   float sum = 0;
   for (int i = 0; i < world_size; i++) {
