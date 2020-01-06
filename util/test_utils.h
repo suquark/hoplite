@@ -86,7 +86,7 @@ ObjectID object_id_from_hex(const std::string &hex_str) {
 }
 
 ObjectID object_id_from_suffix(const std::string &s) {
-  s.insert(0, 40 - s.size(), '0');
+  s.insert(0, "0", 40 - s.size());
   return object_id_from_hex(s);
 }
 
