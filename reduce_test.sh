@@ -6,12 +6,11 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
 sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
-# sudo apt install valgrind
 
 ## setup
 my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
-# export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
 
@@ -41,4 +40,4 @@ else
 	$working_dir/reduce_test $3 $my_address $1 $2 $4 2>&1 | tee $5/$my_address.client.log
 fi
 
-sleep 30
+sleep 20

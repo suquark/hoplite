@@ -16,7 +16,7 @@ std::thread timed_exit(int seconds) {
 }
 
 int main(int argc, char **argv) {
-  // argv: *, redis_address, my_address, #nodes, current_index, object_size, 
+  // argv: *, redis_address, my_address, #nodes, current_index, object_size
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
   int64_t world_size = std::strtoll(argv[3], NULL, 10);
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
   auto start = std::chrono::system_clock::now();
   if (rank == 0) {
     store.Get(object_ids, object_size, reduction_id, &reduction_result);
-  
+
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
     LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "

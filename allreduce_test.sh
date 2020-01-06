@@ -6,12 +6,11 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
 sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
-# sudo apt install valgrind
 
 ## setup
 my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
-# export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
 
@@ -23,7 +22,7 @@ if [ "$#" -eq 2 ]; then
 	slaves=()
 	for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
     slaves=(${slaves[@]:0:$(($1-1))})
-	echo "[Reducing Object] master: $my_address; slaves: ${slaves[@]}"
+	echo "[Allreducing Object] master: $my_address; slaves: ${slaves[@]}"
 
 	log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-allreduce-$1-$2
 	mkdir -p $log_dir
@@ -41,4 +40,4 @@ else
 	$working_dir/allreduce_test $1 $my_address $2 $3 $4 2>&1 | tee $5/$my_address.client.log
 fi
 
-sleep 30
+sleep 20

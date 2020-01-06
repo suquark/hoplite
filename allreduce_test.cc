@@ -16,7 +16,7 @@ std::thread timed_exit(int seconds) {
 }
 
 int main(int argc, char **argv) {
-  // argv: *, redis_address, my_address, #nodes, current_index, object_size, 
+  // argv: *, redis_address, my_address, #nodes, current_index, object_size
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
   int64_t world_size = std::strtoll(argv[3], NULL, 10);

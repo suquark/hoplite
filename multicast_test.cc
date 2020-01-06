@@ -12,31 +12,6 @@
 
 using namespace plasma;
 
-void test_server(DistributedObjectStore &store, int object_size) {
-  char *buffer = new char[1024 * 1024 * 1024];
-  for (int i = 0; i < object_size; i++) {
-    buffer[i] = i % 256;
-  }
-
-  ObjectID object_id = store.Put(buffer, object_size);
-  auto arrow_buffer =
-      std::make_shared<Buffer>((const uint8_t *)buffer, object_size);
-
-  LOG(INFO) << "Object is created! object_id = " << object_id.hex()
-            << ", CRC32 = " << checksum_crc32(arrow_buffer);
-}
-
-void test_client(DistributedObjectStore &store, ObjectID object_id) {
-  std::shared_ptr<Buffer> result;
-  auto start = std::chrono::system_clock::now();
-  store.Get(object_id, &result);
-  auto end = std::chrono::system_clock::now();
-  std::chrono::duration<double> duration = end - start;
-
-  LOG(INFO) << "Object is retrieved using " << duration.count()
-            << " seconds. CRC32 = " << checksum_crc32(result);
-}
-
 std::thread timed_exit(int seconds) {
   usleep(seconds * 1000000);
   exit(0);
@@ -44,8 +19,12 @@ std::thread timed_exit(int seconds) {
 
 int main(int argc, char **argv) {
   // signal(SIGPIPE, SIG_IGN);
+  // argv: *, redis_address, my_address, #nodes, current_index, object_size
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
+  int64_t world_size = std::strtoll(argv[3], NULL, 10);
+  int64_t rank = std::strtoll(argv[4], NULL, 10);
+  int64_t object_size = std::strtoll(argv[5], NULL, 10);
 
   ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
 
@@ -57,14 +36,40 @@ int main(int argc, char **argv) {
 
   std::thread exit_thread(timed_exit, 20);
 
-  if (argv[3][0] == 's') {
-    NotificationServer notification_server(my_address, 7777, 8888);
-    std::thread notification_server_thread = notification_server.Run();
+  std::unique_ptr<NotificationServer> notification_server;
+  std::thread notification_server_thread;
+  if (rank == 0) {
     store.flushall();
-    test_server(store, atoi(argv[4]));
-    notification_server_thread.join();
+    notification_server.reset(new NotificationServer(my_address, 7777, 8888));
+    notification_server_thread = notification_server->Run();
+    // TODO: make notification server a standalone process
+    // notification_server_thread.join();
+  }
+
+  std::thread exit_thread(timed_exit, 20);
+
+  ObjectID object_id = object_id_from_integer(0);
+  std::shared_ptr<Buffer> result;
+
+  if (rank == 0) {
+    char *buffer = new char[1024 * 1024 * 1024];
+    for (int i = 0; i < object_size; i++) {
+      buffer[i] = i % 256;
+    }
+    store.Put(buffer, object_size, object_id);
+    result = std::make_shared<Buffer>((const uint8_t *)buffer, object_size);
+
+    LOG(INFO) << "Object(" << object_id.hex() << ") is created!"
+              << ", CRC32 = " << checksum_crc32(result);
   } else {
-    test_client(store, from_hex(argv[4]));
+    auto start = std::chrono::system_clock::now();
+    store.Get(object_id, &result);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> duration = end - start;
+
+    LOG(INFO) << "Object(" << object_id.hex() << ") is retrieved using "
+              << duration.count()
+              << " seconds. CRC32 = " << checksum_crc32(result);
   }
 
   exit_thread.join();
