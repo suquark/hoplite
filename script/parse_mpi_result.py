@@ -10,7 +10,11 @@ def parse_multicast(folder_path):
                 retrieval_time = float(tmp)
         f.close()
     except:
-        print (filename)
+        print (folder_path)
+    try:
+        a = retrieval_time
+    except:
+        print (folder_path)
     return retrieval_time
 
 def parse_reduce(folder_path):
@@ -22,7 +26,11 @@ def parse_reduce(folder_path):
                 retrieval_time = float(tmp)
         f.close()
     except:
-        print (filename)
+        print (folder_path)
+    try:
+        a = retrieval_time
+    except:
+        print (folder_path)
     return retrieval_time
 
 def parse_allreduce(folder_path):
@@ -34,7 +42,11 @@ def parse_allreduce(folder_path):
                 retrieval_time = float(tmp)
         f.close()
     except:
-        print (filename)
+        print (folder_path)
+    try:
+        a = retrieval_time
+    except:
+        print (folder_path)
     return retrieval_time
 
 def parse_file(task_name, log_dir, foldername):
