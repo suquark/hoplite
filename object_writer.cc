@@ -47,6 +47,7 @@ void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
 }
 
 template <typename T> void stream_write(int conn_fd, T *stream) {
+  TIMELINE("stream_write");
   const int64_t object_size = stream->size();
   uint8_t *data_ptr = stream->mutable_data();
   while (stream->receive_progress < object_size) {
@@ -59,6 +60,7 @@ template <typename T> void stream_write(int conn_fd, T *stream) {
 template <typename T, typename DT>
 void stream_reduce_add(int conn_fd, T *stream,
                        std::vector<uint8_t *> reduce_buffers) {
+  TIMELINE("stream_reduce_add");
   const size_t element_size = sizeof(DT);
   uint8_t *data_ptr = stream->mutable_data();
   const int64_t object_size = stream->size();

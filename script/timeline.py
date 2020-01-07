@@ -32,7 +32,6 @@ def main(log_dir):
                     timeline_id = elements[6]
                     timeline_tag = elements[7]
                     message = " ".join(elements[8:])
-                    print(timestamp)
                     event = {
                         "name": function_name + "_" + timeline_id,
                         "cat": "event",
