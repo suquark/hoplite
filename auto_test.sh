@@ -9,6 +9,9 @@ do
 	do
 		obj_size=$((8**$i))
 		./multicast_test.sh $1 $obj_size
+		pushd mpi
+		./mpi_broadcast.sh $1 $obj_size > ../mpi_log/multicast-$1-$obj_size-$test_index
+		popd
 	done
 done
 
@@ -19,5 +22,21 @@ do
 	do
 		obj_size=$((8**$i))
 		./reduce_test.sh $1 $obj_size
+		pushd mpi
+		./mpi_broadcast.sh $1 $obj_size > ../mpi_log/reduce-$1-$obj_size-$test_index
+		popd
+	done
+done
+
+# allreduce
+for i in `seq 6 10`;
+do
+	for test_index in `seq 1 $2`;
+	do
+		obj_size=$((8**$i))
+		./allreduce_test.sh $1 $obj_size
+		pushd mpi
+		./mpi_broadcast.sh $1 $obj_size > ../mpi_log/allreduce-$1-$obj_size-$test_index
+		popd
 	done
 done

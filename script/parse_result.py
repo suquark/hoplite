@@ -10,8 +10,8 @@ def parse_multicast(folder_path):
         try:
             f = open(os.path.join(folder_path, filename))
             for line in f.readlines():
-                if 'Object is retrieved' in line:
-                    tmp = line.split('Object is retrieved using')[1]
+                if 'is retrieved using' in line:
+                    tmp = line.split('is retrieved using')[1]
                     tmp = tmp.split('seconds')[0]
                     retrival_time = float(tmp)
                     if retrival_time > last_retrieval_time:
@@ -30,15 +30,35 @@ def parse_reduce(folder_path):
         try:
             f = open(os.path.join(folder_path, filename))
             for line in f.readlines():
-                if 'Object is reduced' in line:
-                    tmp = line.split('Object is reduced using')[1]
-                    tmp = tmp.split('seconds')[0]
+                if 'is reduced using' in line:
+                    tmp = line.split('is reduced using')[1]
+                    tmp = tmp.split()[0]
                     reduce_time = float(tmp)
             f.close()
         except:
             print (filename)
 
     return reduce_time
+
+def parse_allreduce(folder_path):
+    allreduce_time = 0
+    files = os.listdir(folder_path)
+    for filename in files:
+        try:
+            f = open(os.path.join(folder_path, filename))
+            for line in f.readlines():
+                if 'is reduced using' in line:
+                    tmp = line.split('is reduced using')[1]
+                    tmp = tmp.split()[0]
+                    reduce_time = float(tmp)
+                    if reduce_time > allreduce_time:
+                        allreduce_time = reduce_time
+            f.close()
+        except:
+            print (filename)
+
+    return allreduce_time
+
 
 def parse_file(task_name, log_dir, foldername):
     path = os.path.join(log_dir, foldername)
@@ -48,6 +68,9 @@ def parse_file(task_name, log_dir, foldername):
 
     if task_name == 'reduce':
         return parse_reduce(path)
+
+    if task_name == 'allreduce':
+        return parse_allreduce(path)
 
     assert (False)
 
