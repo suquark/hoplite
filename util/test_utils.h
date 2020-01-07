@@ -49,6 +49,7 @@ void is_ready(const std::string &redis_address, const int notification_port) {
 
 void barrier(const int rank, const std::string &redis_address,
              const int notification_port, const int num_of_nodes) {
+  TIMELINE("barrier");
   if (rank == 0) {
     register_group(redis_address, notification_port, num_of_nodes);
   }

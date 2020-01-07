@@ -23,7 +23,7 @@ do
 		obj_size=$((8**$i))
 		./reduce_test.sh $1 $obj_size
 		pushd mpi
-		./mpi_broadcast.sh $1 $obj_size > ../mpi_log/reduce-$1-$obj_size-$test_index
+		./mpi_reduce.sh $1 $obj_size > ../mpi_log/reduce-$1-$obj_size-$test_index
 		popd
 	done
 done
@@ -36,7 +36,7 @@ do
 		obj_size=$((8**$i))
 		./allreduce_test.sh $1 $obj_size
 		pushd mpi
-		./mpi_broadcast.sh $1 $obj_size > ../mpi_log/allreduce-$1-$obj_size-$test_index
+		./mpi_allreduce.sh $1 $obj_size > ../mpi_log/allreduce-$1-$obj_size-$test_index
 		popd
 	done
 done
