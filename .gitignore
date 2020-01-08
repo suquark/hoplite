@@ -42,3 +42,4 @@ allreduce_test
 
 # logs
 log/
+python/*.cpp
