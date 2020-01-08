@@ -34,7 +34,8 @@ void register_group(const std::string &redis_address,
   DCHECK(reply.ok()) << "Group registeration failure!";
 }
 
-void is_ready(const std::string &redis_address, const int notification_port) {
+void is_ready(const std::string &redis_address, const int notification_port,
+              const std::string &my_address) {
   auto remote_address = redis_address + ":" + std::to_string(notification_port);
   auto channel =
       grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
@@ -43,17 +44,19 @@ void is_ready(const std::string &redis_address, const int notification_port) {
   grpc::ClientContext context;
   IsReadyRequest request;
   IsReadyReply reply;
+  request.set_ip(my_address);
   stub->IsReady(&context, request, &reply);
   DCHECK(reply.ok()) << "Synchronization failure!";
 }
 
 void barrier(const int rank, const std::string &redis_address,
-             const int notification_port, const int num_of_nodes) {
+             const int notification_port, const int num_of_nodes,
+             const std::string &my_address) {
   TIMELINE("barrier");
   if (rank == 0) {
     register_group(redis_address, notification_port, num_of_nodes);
   }
-  is_ready(redis_address, notification_port);
+  is_ready(redis_address, notification_port, my_address);
 }
 
 uint32_t checksum_crc32(const std::shared_ptr<Buffer> &buffer) {

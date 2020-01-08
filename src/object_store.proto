@@ -97,6 +97,7 @@ message RegisterReply {
 }
 
 message IsReadyRequest {
+  bytes ip = 1;
 }
 
 message IsReadyReply {
