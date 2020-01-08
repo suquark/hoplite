@@ -46,6 +46,10 @@ public:
     {
       std::lock_guard<std::mutex> guard(barrier_mutex_);
       participants_.insert(request->ip());
+      LOG(INFO) << "Number of participants = " << participants_.size();
+      for (auto &node : participants_) {
+        LOG(INFO) << "participants " << node;
+      }
     }
     while (true) {
       {
