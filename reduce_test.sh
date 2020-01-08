@@ -11,7 +11,7 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
 # TODO: we should sleep here, but the master node will wait others then
-# sleep 2
+sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
 
@@ -30,16 +30,15 @@ if [ "$#" -eq 2 ]; then
     mkdir -p $log_dir
 
     ($working_dir/reduce_test $my_address $my_address $1 0 $2 2>&1 | tee $log_dir/$my_address.server.log) &
-    # sleep 2
+    sleep 2
 
     for index in ${!slaves[@]}
     do
         ssh -t -t ${slaves[$index]} "$(realpath -s $0) $1 $((index+1)) $my_address $2 $log_dir" &
     done
+    sleep 40
 else
     # sudo fuser -km /tmp/multicast_plasma
     echo "[Putting Object] world_size: $1 rank: $2 redis_address: $3 object_size: $4 my_address: $my_address"
     $working_dir/reduce_test $3 $my_address $1 $2 $4 2>&1 | tee $5/$my_address.client.log
 fi
-
-sleep 40
