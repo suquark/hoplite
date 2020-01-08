@@ -9,7 +9,7 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 
 ## setup
 my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
-plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
+#plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
 sleep 2
 
 working_dir=$(dirname $(realpath -s $0))
