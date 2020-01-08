@@ -34,4 +34,4 @@ allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean:
-	rm -rf multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o
+	rm -rf multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o *.o
