@@ -36,6 +36,7 @@ public:
                         const RegisterRequest *request, RegisterReply *reply) {
     std::lock_guard<std::mutex> guard(barrier_mutex_);
     number_of_nodes_ = request->num_of_nodes();
+    participants_.clear();
     reply->set_ok(true);
     return grpc::Status::OK;
   }
