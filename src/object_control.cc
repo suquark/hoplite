@@ -22,9 +22,10 @@ using namespace plasma;
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
   ObjectStoreServiceImpl(ObjectSender &object_sender,
-                         PlasmaClient &plasma_client, ObjectStoreState &state)
+                         LocalStoreClient &local_store_client,
+                         ObjectStoreState &state)
       : ObjectStore::Service(), object_sender_(object_sender),
-        plasma_client_(plasma_client), state_(state) {}
+        local_store_client_(local_store_client), state_(state) {}
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
@@ -59,15 +60,16 @@ public:
 private:
   ObjectSender &object_sender_;
   ObjectStoreState &state_;
-  PlasmaClient &plasma_client_;
+  LocalStoreClient &local_store_client_;
 };
 
-GrpcServer::GrpcServer(ObjectSender &object_sender, PlasmaClient &plasma_client,
+GrpcServer::GrpcServer(ObjectSender &object_sender,
+                       LocalStoreClient &local_store_client,
                        ObjectStoreState &state, const std::string &my_address,
                        int port)
     : my_address_(my_address), grpc_port_(port), state_(state),
-      service_(std::make_shared<ObjectStoreServiceImpl>(object_sender,
-                                                        plasma_client, state)) {
+      service_(std::make_shared<ObjectStoreServiceImpl>(
+          object_sender, local_store_client, state)) {
   TIMELINE("GrpcServer construction function");
   std::string grpc_address = my_address + ":" + std::to_string(port);
   grpc::ServerBuilder builder;

@@ -4,14 +4,13 @@
 #include <list>
 #include <thread>
 
-#include <plasma/client.h>
-
+#include "local_store_client.h"
 #include "object_store.pb.h"
 #include "object_store_state.h"
 
 class ObjectSender {
 public:
-  ObjectSender(ObjectStoreState &state, plasma::PlasmaClient &plasma_client);
+  ObjectSender(ObjectStoreState &state, LocalStoreClient &local_store_client);
 
   void AppendTask(const objectstore::ReduceToRequest *request);
 
@@ -29,7 +28,7 @@ private:
 
   std::list<objectstore::ReduceToRequest *> pending_tasks_;
 
-  plasma::PlasmaClient &plasma_client_;
+  LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
 };
 

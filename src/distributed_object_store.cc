@@ -3,6 +3,7 @@
 
 #include "distributed_object_store.h"
 #include "logging.h"
+#include <plasma/common.h>
 #include <plasma/test_util.h>
 
 using namespace plasma;
@@ -14,14 +15,13 @@ DistributedObjectStore::DistributedObjectStore(
     : my_address_(my_address), gcs_client_{redis_address, redis_port,
                                            my_address, notification_port,
                                            notification_listening_port},
-      object_control_{object_sender_, plasma_client_, state_, my_address,
+      object_control_{object_sender_, local_store_client_, state_, my_address,
                       grpc_port},
-      object_writer_{state_, gcs_client_, plasma_client_, my_address,
+      object_writer_{state_, gcs_client_, local_store_client_, my_address,
                      object_writer_port},
-      object_sender_{state_, plasma_client_} {
+      object_sender_{state_, local_store_client_}, local_store_client_{
+                                                       plasma_socket} {
   TIMELINE("DistributedObjectStore construction function");
-  // connect to the plasma store
-  plasma_client_.Connect(plasma_socket, "");
   // create a thread to receive remote object
   object_writer_thread_ = object_writer_.Run();
   // create a thread to send object
@@ -38,13 +38,13 @@ void DistributedObjectStore::Put(const void *data, size_t size,
            object_id.hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
-  auto pstatus = plasma_client_.Create(object_id, size, NULL, 0, &ptr);
+  auto pstatus = local_store_client_.Create(object_id, size, &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
                        << object_id.hex() << " size = " << size
                        << ", status = " << pstatus.ToString();
 
   memcpy(ptr->mutable_data(), data, size);
-  plasma_client_.Seal(object_id);
+  local_store_client_.Seal(object_id);
   gcs_client_.write_object_location(object_id, my_address_);
   gcs_client_.PublishObjectCompletionEvent(object_id);
 }
@@ -80,7 +80,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
   auto pstatus =
-      plasma_client_.Create(reduction_id, _expected_size, NULL, 0, &buffer);
+      local_store_client_.Create(reduction_id, _expected_size, &buffer);
   DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
                        << reduction_id.hex() << " size = " << _expected_size
                        << ", status = " << pstatus.ToString();
@@ -156,7 +156,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   reduction_endpoint->wait();
 
   // reduce remaining objects.
-  plasma_client_.Seal(reduction_id);
+  local_store_client_.Seal(reduction_id);
   gcs_client_.unsubscribe_object_locations(notifications);
 
   // get object from Plasma
@@ -183,6 +183,6 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
 
   // get object from Plasma
   std::vector<ObjectBuffer> object_buffers;
-  plasma_client_.Get({object_id}, -1, &object_buffers);
+  local_store_client_.Get({object_id}, &object_buffers);
   *result = object_buffers[0].data;
 }

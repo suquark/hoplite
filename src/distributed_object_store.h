@@ -7,10 +7,8 @@
 #include <thread>
 #include <vector>
 
-#include <plasma/client.h>
-#include <plasma/common.h>
-
 #include "global_control_store.h"
+#include "local_store_client.h"
 #include "object_control.h"
 #include "object_sender.h"
 #include "object_store_state.h"
@@ -51,7 +49,7 @@ private:
   const std::string my_address_;
   ObjectStoreState state_;
   GlobalControlStoreClient gcs_client_;
-  plasma::PlasmaClient plasma_client_;
+  LocalStoreClient local_store_client_;
   TCPServer object_writer_;
   ObjectSender object_sender_;
   GrpcServer object_control_;
