@@ -14,13 +14,19 @@ from _client cimport CDistributedObjectStore, CBuffer, CObjectID
 from enum import Enum
 
 cdef class Buffer:
-    cdef CBuffer *buf
+    cdef shared_ptr[CBuffer] buf
 
     def __cinit__(self, data_ptr, int64_t size):
         cdef uint8_t *_data_ptr
 
         _data_ptr = <uint8_t *>data_ptr
-        self.buf = new CBuffer(_data_ptr, size)
+        self.buf.reset(new CBuffer(_data_ptr, size))
+
+    @classmethod
+    cdef from_native(cls, const shared_ptr[CBuffer] &buf):
+        _self = cls.__new__(cls)
+        _self.buf = buf
+        return _self
 
     def data_ptr(self):
         return self.buf.data()
@@ -29,7 +35,7 @@ cdef class Buffer:
         return self.buf.size()
 
     def __dealloc__(self):
-        del self.buf
+        self.buf.reset()
 
 
 cdef class ObjectID:
@@ -58,8 +64,31 @@ cdef class DistributedObjectStore:
             notification_port, notification_listening_port, plasma_socket,
             my_address, object_writer_port, grpc_port)
 
-    def get(self, object_id, reduce_op=None):
-        pass
+    def get(self, ObjectID object_id, expected_size=None, reduce_op=None, reduction_id=None):
+        cdef:
+            shared_ptr[CBuffer] buf
+            CObjectID _created_reduction_id
+            c_vector[CObjectID] raw_object_ids
+
+        if reduce_op is None:
+            self.store.Get(object_id.data, &buf)
+        elif reduce_op == ReduceOp.SUM:
+            assert isinstance(expected_size, int) and expected_size > 0
+            for oid in object_id:
+                raw_object_ids.push_back((<ObjectID>oid).data)
+            if reduction_id is None:
+                self.store.Get(raw_object_ids, expected_size, <ObjectID>reduction_id, &buf)
+            else:
+                self.store.Get(raw_object_ids, expected_size, &_created_reduction_id, &buf)
+        else:
+            raise NotImplementedError("Unsupported reduce_op")
+        return Buffer.from_native(buf)
 
     def put(self, Buffer buf, object_id=None):
-        pass
+        cdef CObjectID created_object_id
+        if object_id is None:
+            created_object_id = self.store.Put(buf.data(), buf.size())
+            return ObjectID(created_object_id.binary())
+        else:
+            self.store.Put(buf.data(), buf.size(), (<ObjectID>object_id).data)
+            return object_id
