@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
   std::shared_ptr<Buffer> result;
 
   if (rank == 0) {
-    char *buffer = new char[1024 * 1024 * 1024];
+    char *buffer = new char[object_size];
     for (int i = 0; i < object_size; i++) {
       buffer[i] = i % 256;
     }
