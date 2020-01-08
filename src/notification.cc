@@ -144,3 +144,12 @@ void NotificationServer::worker_loop() {
 
   grpc_server_->Wait();
 }
+
+int main(int argc, char **argv) {
+  std::unique_ptr<NotificationServer> notification_server;
+  std::thread notification_server_thread;
+  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
+
+  notification_server.reset(new NotificationServer(my_address, 7777, 8888));
+  notification_server_thread = notification_server->Run();
+}

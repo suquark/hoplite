@@ -5,7 +5,6 @@
 
 #include "distributed_object_store.h"
 #include "logging.h"
-#include "notification.h"
 #include "test_utils.h"
 
 using namespace plasma;
@@ -47,14 +46,8 @@ int main(int argc, char **argv) {
   ObjectID rank_object_id = object_ids[rank];
   std::shared_ptr<Buffer> reduction_result;
 
-  std::unique_ptr<NotificationServer> notification_server;
-  std::thread notification_server_thread;
   if (rank == 0) {
     store.flushall();
-    notification_server.reset(new NotificationServer(my_address, 7777, 8888));
-    notification_server_thread = notification_server->Run();
-    // TODO: make notification server a standalone process
-    // notification_server_thread.join();
   }
 
   put_random_buffer<float>(store, rank_object_id, object_size);
