@@ -5,9 +5,9 @@
 #include <plasma/common.h>
 #include <thread>
 
+#include "local_store_client.h"
 #include "object_sender.h"
 #include "object_store_state.h"
-#include "local_store_client.h"
 
 class ObjectStoreServiceImpl;
 

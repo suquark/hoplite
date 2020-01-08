@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "global_control_store.h"
+#include "local_store_client.h"
 #include "object_control.h"
 #include "object_sender.h"
 #include "object_store_state.h"
 #include "object_writer.h"
-#include "local_store_client.h"
 
 class DistributedObjectStore {
 public:

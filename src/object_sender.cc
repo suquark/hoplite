@@ -45,7 +45,8 @@ template <typename T> void stream_send(int conn_fd, T *stream) {
   }
 }
 
-ObjectSender::ObjectSender(ObjectStoreState &state, LocalStoreClient &local_store_client)
+ObjectSender::ObjectSender(ObjectStoreState &state,
+                           LocalStoreClient &local_store_client)
     : state_(state), local_store_client_(local_store_client) {
   TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
@@ -93,9 +94,9 @@ void ObjectSender::send_object(const PullRequest *request) {
     LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
     std::vector<ObjectBuffer> object_buffers;
     local_store_client_.Get({object_id}, &object_buffers);
-    LOG(DEBUG)
-        << "[GrpcServer] fetched a completed object from local store, object id = "
-        << object_id.hex();
+    LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store, "
+                  "object id = "
+               << object_id.hex();
     object_buffer = object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
   }

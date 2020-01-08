@@ -3,14 +3,14 @@
 
 #include <atomic>
 #include <iostream>
-#include <thread>
 #include <netinet/in.h> // struct sockaddr_in
 #include <plasma/common.h>
+#include <thread>
 
 #include "global_control_store.h"
+#include "local_store_client.h"
 #include "object_store.grpc.pb.h"
 #include "object_store_state.h"
-#include "local_store_client.h"
 
 class TCPServer {
 public:
