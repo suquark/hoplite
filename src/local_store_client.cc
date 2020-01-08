@@ -14,14 +14,16 @@ LocalStoreClient::LocalStoreClient(const bool use_plasma,
 
 arrow::Status LocalStoreClient::Create(const plasma::ObjectID &object_id,
                                        int64_t data_size,
-                                       std::shared_ptr<Buffer> *data) {
+                                       std::shared_ptr<arrow::Buffer> *data) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   if (use_plasma_) {
     return plasma_client_.Create(object_id, data_size, NULL, 0, data);
   }
 
   uint8_t *b = new uint8_t[data_size];
-  buffers_[object_id] = std::make_shared<arrow::Buffer>(b, data_size);
+  buffers_[object_id] = std::make_shared<arrow::MutableBuffer>(b, data_size);
+
+  *data = buffers_[object_id];
 
   return arrow::Status::OK();
 }

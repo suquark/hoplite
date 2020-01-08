@@ -37,7 +37,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
   TIMELINE(std::string("DistributedObjectStore Put single object ") +
            object_id.hex());
   // put object into Plasma
-  std::shared_ptr<Buffer> ptr;
+  std::shared_ptr<arrow::Buffer> ptr;
   auto pstatus = local_store_client_.Create(object_id, size, &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
                        << object_id.hex() << " size = " << size
