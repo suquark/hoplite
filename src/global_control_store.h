@@ -64,6 +64,8 @@ private:
   const std::string &my_address_;
   const int notification_port_;
   const int notification_listen_port_;
+  std::shared_ptr<grpc::Channel> notification_channel_;
+  std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
 
   redisContext *redis_client_;
   std::unordered_set<ObjectNotifications *> notifications_;

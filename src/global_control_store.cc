@@ -87,6 +87,11 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&*service_);
   grpc_server_ = builder.BuildAndStart();
+  auto remote_notification_server_address =
+      redis_address_ + ":" + std::to_string(notification_port_);
+  notification_channel_ =
+      grpc::CreateChannel(remote_notification_server_address, grpc::InsecureChannelCredentials());
+  notification_stub_ = objectstore::NotificationServer::NewStub(channel);
 }
 
 void GlobalControlStoreClient::write_object_location(
@@ -130,18 +135,12 @@ ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
   }
 
   for (auto object_id : object_ids) {
-    auto remote_address =
-        redis_address_ + ":" + std::to_string(notification_port_);
-    auto channel =
-        grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-    std::unique_ptr<objectstore::NotificationServer::Stub> stub(
-        objectstore::NotificationServer::NewStub(channel));
     grpc::ClientContext context;
     SubscriptionRequest request;
     SubscriptionReply reply;
     request.set_subscriber_ip(my_address_);
     request.set_object_id(object_id.binary());
-    stub->Subscribe(&context, request, &reply);
+    notification_stub_->Subscribe(&context, request, &reply);
 
     DCHECK(reply.ok()) << "Subscribing object " << object_id.hex()
                        << " failed.";
