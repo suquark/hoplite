@@ -54,11 +54,11 @@ int main(int argc, char **argv) {
               << ", CRC32 = " << checksum_crc32(result);
 
     LOG(INFO) << "entering barrier";
-    barrier(rank, redis_address, 7777, world_size);
+    barrier(rank, redis_address, 7777, world_size, my_address);
   } else {
 
     LOG(INFO) << "entering barrier";
-    barrier(rank, redis_address, 7777, world_size);
+    barrier(rank, redis_address, 7777, world_size, my_address);
     auto start = std::chrono::system_clock::now();
     store.Get(object_id, &result);
     auto end = std::chrono::system_clock::now();

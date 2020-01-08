@@ -15,6 +15,8 @@ sleep 2
 working_dir=$(dirname $(realpath -s $0))
 
 if [ "$#" -eq 2 ]; then
+    pkill notification
+    sleep 2
     redis-server redis.conf &> /dev/null &  # port = 6380
     ./notification $my_address &
     sleep 2

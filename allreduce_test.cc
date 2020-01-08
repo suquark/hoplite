@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   }
 
   put_random_buffer<float>(store, rank_object_id, object_size);
-  barrier(rank, redis_address, 7777, world_size);
+  barrier(rank, redis_address, 7777, world_size, my_address);
 
   auto start = std::chrono::system_clock::now();
   if (rank == 0) {

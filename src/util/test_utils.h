@@ -21,6 +21,7 @@ using namespace plasma;
 
 void register_group(const std::string &redis_address,
                     const int notification_port, const int num_of_nodes) {
+  TIMELINE("register_group");
   auto remote_address = redis_address + ":" + std::to_string(notification_port);
   auto channel =
       grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
@@ -30,11 +31,14 @@ void register_group(const std::string &redis_address,
   RegisterRequest request;
   RegisterReply reply;
   request.set_num_of_nodes(num_of_nodes);
-  stub->Register(&context, request, &reply);
+  auto status = stub->Register(&context, request, &reply);
+  DCHECK(status.ok()) << "Group registeration gRPC failure!";
   DCHECK(reply.ok()) << "Group registeration failure!";
 }
 
-void is_ready(const std::string &redis_address, const int notification_port) {
+void is_ready(const std::string &redis_address, const int notification_port,
+              const std::string &my_address) {
+  TIMELINE("is_ready");
   auto remote_address = redis_address + ":" + std::to_string(notification_port);
   auto channel =
       grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
@@ -43,17 +47,20 @@ void is_ready(const std::string &redis_address, const int notification_port) {
   grpc::ClientContext context;
   IsReadyRequest request;
   IsReadyReply reply;
-  stub->IsReady(&context, request, &reply);
+  request.set_ip(my_address);
+  auto status = stub->IsReady(&context, request, &reply);
+  DCHECK(status.ok()) << "IsReady gRPC failure!";
   DCHECK(reply.ok()) << "Synchronization failure!";
 }
 
 void barrier(const int rank, const std::string &redis_address,
-             const int notification_port, const int num_of_nodes) {
+             const int notification_port, const int num_of_nodes,
+             const std::string &my_address) {
   TIMELINE("barrier");
   if (rank == 0) {
     register_group(redis_address, notification_port, num_of_nodes);
   }
-  is_ready(redis_address, notification_port);
+  is_ready(redis_address, notification_port, my_address);
 }
 
 uint32_t checksum_crc32(const std::shared_ptr<Buffer> &buffer) {

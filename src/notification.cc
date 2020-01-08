@@ -34,18 +34,25 @@ public:
 
   grpc::Status Register(grpc::ServerContext *context,
                         const RegisterRequest *request, RegisterReply *reply) {
+    std::lock_guard<std::mutex> guard(barrier_mutex_);
     number_of_nodes_ = request->num_of_nodes();
-    number_of_participants_ = 0;
+    participants_.clear();
     reply->set_ok(true);
     return grpc::Status::OK;
   }
 
   grpc::Status IsReady(grpc::ServerContext *context,
                        const IsReadyRequest *request, IsReadyReply *reply) {
-    number_of_participants_++;
+    {
+      std::lock_guard<std::mutex> guard(barrier_mutex_);
+      participants_.insert(request->ip());
+    }
     while (true) {
-      if (number_of_participants_ == number_of_nodes_) {
-        break;
+      {
+        std::lock_guard<std::mutex> guard(barrier_mutex_);
+        if (participants_.size() == number_of_nodes_) {
+          break;
+        }
       }
       usleep(100);
     }
@@ -120,8 +127,9 @@ private:
     return reply.ok();
   }
 
+  std::mutex barrier_mutex_;
   int number_of_nodes_;
-  std::atomic<int> number_of_participants_;
+  std::unordered_set<std::string> participants_;
   const int port_;
   std::mutex notification_mutex_;
   std::unordered_map<ObjectID, std::vector<std::string>> pendings_;
