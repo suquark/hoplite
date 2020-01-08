@@ -4,19 +4,18 @@
 #include <atomic>
 #include <iostream>
 #include <thread>
-
 #include <netinet/in.h> // struct sockaddr_in
-
-#include <plasma/client.h>
+#include <plasma/common.h>
 
 #include "global_control_store.h"
 #include "object_store.grpc.pb.h"
 #include "object_store_state.h"
+#include "local_store_client.h"
 
 class TCPServer {
 public:
   TCPServer(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
-            plasma::PlasmaClient &plasma_client,
+            LocalStoreClient &local_store_client,
             const std::string &server_ipaddr, int port);
 
   inline std::thread Run() {
@@ -36,7 +35,7 @@ private:
                             bool is_endpoint);
 
   GlobalControlStoreClient &gcs_client_;
-  plasma::PlasmaClient &plasma_client_;
+  LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
 
   int server_fd_;

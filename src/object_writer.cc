@@ -6,9 +6,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <plasma/client.h>
-#include <plasma/common.h>
-
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_writer.h"
@@ -83,10 +80,10 @@ void stream_reduce_add(int conn_fd, T *stream,
 
 TCPServer::TCPServer(ObjectStoreState &state,
                      GlobalControlStoreClient &gcs_client,
-                     PlasmaClient &plasma_client,
+                     LocalStoreClient &local_store_client,
                      const std::string &server_ipaddr, int port)
     : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr),
-      plasma_client_(plasma_client) {
+      local_store_client_(local_store_client) {
   TIMELINE(std::string("TCPServer construction function ") + server_ipaddr +
            ":" + std::to_string(port));
   tcp_bind_and_listen(port, &address_, &server_fd_);
@@ -149,7 +146,7 @@ void TCPServer::receive_and_reduce_object(
 
   // Get object buffers from Plasma Store
   std::vector<ObjectBuffer> object_buffers;
-  auto pstatus = plasma_client_.Get(object_ids, -1, &object_buffers);
+  auto pstatus = local_store_client_.Get(object_ids, &object_buffers);
   DCHECK(pstatus.ok()) << "Plasma failed to get objects";
 
   int64_t object_size;
@@ -196,7 +193,7 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
 
   // receive object buffer
   std::shared_ptr<Buffer> ptr;
-  auto pstatus = plasma_client_.Create(object_id, object_size, NULL, 0, &ptr);
+  auto pstatus = local_store_client_.Create(object_id, object_size, &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to allocate object id = "
                        << object_id.hex() << " size = " << object_size
                        << ", status = " << pstatus.ToString();
@@ -205,7 +202,7 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   // notify other nodes that our stream is on progress
   gcs_client_.write_object_location(object_id, server_ipaddr_);
   stream_write<ProgressiveStream>(conn_fd, stream.get());
-  plasma_client_.Seal(object_id);
+  local_store_client_.Seal(object_id);
   gcs_client_.PublishObjectCompletionEvent(object_id);
 
   // reply message

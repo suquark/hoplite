@@ -45,8 +45,8 @@ template <typename T> void stream_send(int conn_fd, T *stream) {
   }
 }
 
-ObjectSender::ObjectSender(ObjectStoreState &state, PlasmaClient &plasma_client)
-    : state_(state), plasma_client_(plasma_client) {
+ObjectSender::ObjectSender(ObjectStoreState &state, LocalStoreClient &local_store_client)
+    : state_(state), local_store_client_(local_store_client) {
   TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
 }
@@ -90,11 +90,11 @@ void ObjectSender::send_object(const PullRequest *request) {
     object_size = stream->size();
   } else {
     // fetch object from Plasma
-    LOG(DEBUG) << "[GrpcServer] fetching a complete object from plasma";
+    LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
     std::vector<ObjectBuffer> object_buffers;
-    plasma_client_.Get({object_id}, -1, &object_buffers);
+    local_store_client_.Get({object_id}, &object_buffers);
     LOG(DEBUG)
-        << "[GrpcServer] fetched a completed object from plasma, object id = "
+        << "[GrpcServer] fetched a completed object from local store, object id = "
         << object_id.hex();
     object_buffer = object_buffers[0].data->data();
     object_size = object_buffers[0].data->size();
@@ -144,11 +144,11 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   SendMessage(conn_fd, ow_request);
 
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
-    LOG(INFO) << "[GrpcServer] fetching a complete object from plasma";
+    LOG(INFO) << "[GrpcServer] fetching a complete object from local store";
     // TODO: there could be multiple source objects.
     ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
-    plasma_client_.Get({src_object_id}, -1, &object_buffers);
+    local_store_client_.Get({src_object_id}, &object_buffers);
     auto &buffer_ptr = object_buffers[0].data;
     int status = send_all(conn_fd, buffer_ptr->data(), buffer_ptr->size());
     DCHECK(!status) << "Failed to send object";

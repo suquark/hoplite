@@ -2,18 +2,18 @@
 #define OBJECT_CONTROL_H
 
 #include <grpcpp/server.h>
-#include <plasma/client.h>
 #include <plasma/common.h>
 #include <thread>
 
 #include "object_sender.h"
 #include "object_store_state.h"
+#include "local_store_client.h"
 
 class ObjectStoreServiceImpl;
 
 class GrpcServer {
 public:
-  GrpcServer(ObjectSender &object_sender, plasma::PlasmaClient &plasma_client,
+  GrpcServer(ObjectSender &object_sender, LocalStoreClient &local_store_client,
              ObjectStoreState &state, const std::string &ip, int port);
 
   inline std::thread Run() {
