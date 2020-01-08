@@ -39,6 +39,7 @@ multicast_test
 reduce_test
 allreduce_test
 *.pb.h
+notification
 
 # logs
 log/

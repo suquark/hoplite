@@ -4,7 +4,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma arrow hired
 
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Isrc/util -Isrc
-CXXFLAGS += -std=c++11 -O2 -g
+CXXFLAGS += -std=c++11 -O2 -g -fPIC
 
 PROTOC = protoc
 PROTOS_PATH = src/
@@ -16,10 +16,13 @@ UTILS_OBJS = src/util/logging.o src/util/socket_utils.o
 OBJECT_STORE_OBJS = src/local_store_client.o src/global_control_store.o src/object_store_state.o \
 	src/object_writer.o src/object_sender.o src/object_control.o src/distributed_object_store.o
 
-all: notification multicast_test reduce_test allreduce_test
+all: notification distributed_object_store multicast_test reduce_test allreduce_test
 
 notification: $(PROTO_OBJS) $(UTILS_OBJS) src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
+
+distributed_object_store: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS)
+	$(CXX) $^ $(LDFLAGS) -shared -o lib$@.so
 
 multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
@@ -37,4 +40,4 @@ allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean:
-	rm -rf multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o *.o
+	rm -rf multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp *.o *.so

@@ -1,3 +1,5 @@
+# cython: language_level = 3
+
 from libcpp cimport bool as c_bool
 from libcpp.memory cimport shared_ptr, unique_ptr
 from libcpp.string cimport string as c_string
@@ -7,16 +9,11 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector as c_vector
 
 
-#cdef extern from "<plasma/common.h>" namespace "plasma" nogil:
-#    cdef cppclass CUniqueID "plasma::UniqueID":
-#        @staticmethod
-#        CUniqueID from_binary(const c_string& binary)
-
-
 cdef extern from "<plasma/common.h>" namespace "plasma" nogil:
     cdef cppclass CObjectID "plasma::ObjectID":
         @staticmethod
         CObjectID from_binary(const c_string& binary)
+        c_string binary() const
 
 
 cdef extern from "<arrow/buffer.h>" namespace "arrow" nogil:

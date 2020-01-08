@@ -1,5 +1,6 @@
-# cython: language_level=3
 # distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
 
 from libcpp cimport bool as c_bool
 from libcpp.memory cimport shared_ptr, unique_ptr
@@ -22,17 +23,17 @@ cdef class Buffer:
         _data_ptr = <uint8_t *>data_ptr
         self.buf.reset(new CBuffer(_data_ptr, size))
 
-    @classmethod
-    cdef from_native(cls, const shared_ptr[CBuffer] &buf):
-        _self = cls.__new__(cls)
+    @staticmethod
+    cdef from_native(const shared_ptr[CBuffer] &buf):
+        _self = <Buffer>Buffer.__new__(Buffer)
         _self.buf = buf
         return _self
 
     def data_ptr(self):
-        return self.buf.data()
+        return self.buf.get().data()
 
     def size(self):
-        return self.buf.size()
+        return self.buf.get().size()
 
     def __dealloc__(self):
         self.buf.reset()
@@ -53,16 +54,16 @@ class ReduceOp(Enum):
 
 
 cdef class DistributedObjectStore:
-    cdef DistributedObjectStore store
+    cdef unique_ptr[CDistributedObjectStore] store
 
     def __cinit__(self, const c_string &redis_address, int redis_port,
                   int notification_port, int notification_listening_port,
                   const c_string &plasma_socket,
                   const c_string &my_address, int object_writer_port,
                   int grpc_port):
-        self.store = DistributedObjectStore(redis_address, redis_port,
+        self.store.reset(new CDistributedObjectStore(redis_address, redis_port,
             notification_port, notification_listening_port, plasma_socket,
-            my_address, object_writer_port, grpc_port)
+            my_address, object_writer_port, grpc_port))
 
     def get(self, ObjectID object_id, expected_size=None, reduce_op=None, reduction_id=None):
         cdef:
@@ -71,15 +72,17 @@ cdef class DistributedObjectStore:
             c_vector[CObjectID] raw_object_ids
 
         if reduce_op is None:
-            self.store.Get(object_id.data, &buf)
+            self.store.get().Get(object_id.data, &buf)
         elif reduce_op == ReduceOp.SUM:
             assert isinstance(expected_size, int) and expected_size > 0
             for oid in object_id:
                 raw_object_ids.push_back((<ObjectID>oid).data)
             if reduction_id is None:
-                self.store.Get(raw_object_ids, expected_size, <ObjectID>reduction_id, &buf)
+                self.store.get().Get(
+                    raw_object_ids, <int64_t>expected_size, (<ObjectID>reduction_id).data, &buf)
             else:
-                self.store.Get(raw_object_ids, expected_size, &_created_reduction_id, &buf)
+                self.store.get().Get(
+                    raw_object_ids, <int64_t>expected_size, &_created_reduction_id, &buf)
         else:
             raise NotImplementedError("Unsupported reduce_op")
         return Buffer.from_native(buf)
@@ -87,8 +90,11 @@ cdef class DistributedObjectStore:
     def put(self, Buffer buf, object_id=None):
         cdef CObjectID created_object_id
         if object_id is None:
-            created_object_id = self.store.Put(buf.data(), buf.size())
+            created_object_id = self.store.get().Put(buf.buf.get().data(), buf.buf.get().size())
             return ObjectID(created_object_id.binary())
         else:
-            self.store.Put(buf.data(), buf.size(), (<ObjectID>object_id).data)
+            self.store.get().Put(buf.buf.get().data(), buf.buf.get().size(), (<ObjectID>object_id).data)
             return object_id
+
+    def __dealloc__(self):
+        self.store.reset()
