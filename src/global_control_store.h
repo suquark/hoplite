@@ -8,6 +8,7 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
+#include "object_store.grpc.pb.h"
 
 struct redisContext;
 

@@ -8,7 +8,6 @@
 
 #include "global_control_store.h"
 #include "logging.h"
-#include "object_store.grpc.pb.h"
 
 using objectstore::ObjectCompleteReply;
 using objectstore::ObjectCompleteRequest;
@@ -169,17 +168,11 @@ void GlobalControlStoreClient::unsubscribe_object_locations(
 void GlobalControlStoreClient::PublishObjectCompletionEvent(
     const ObjectID &object_id) {
 
-  auto remote_address =
-      redis_address_ + ":" + std::to_string(notification_port_);
-  auto channel =
-      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
-      objectstore::NotificationServer::NewStub(channel));
   grpc::ClientContext context;
   ObjectCompleteRequest request;
   ObjectCompleteReply reply;
   request.set_object_id(object_id.binary());
-  auto status = stub->ObjectComplete(&context, request, &reply);
+  auto status = notification_stub_->ObjectComplete(&context, request, &reply);
   DCHECK(status.ok()) << "ObjectComplete gRPC failure, message: "
                       << status.error_message();
   DCHECK(reply.ok()) << "Object completes " << object_id.hex() << " failed.";
