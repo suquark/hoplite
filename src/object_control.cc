@@ -131,7 +131,7 @@ void GrpcServer::create_stub(const std::string &remote_grpc_address) {
   if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
     channel_pool_[remote_grpc_address] = grpc::CreateChannel(remote_grpc_address, grpc::InsecureChannelCredentials());
   }
-  if (object_store_stub_pool_.find(remote_grpc_address) == object_store_stub_.end()) {
+  if (object_store_stub_pool_.find(remote_grpc_address) == object_store_stub_pool_.end()) {
     object_store_stub_pool_[remote_grpc_address] = ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
   }
 }
