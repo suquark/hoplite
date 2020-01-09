@@ -8,7 +8,6 @@
 
 #include "logging.h"
 #include "object_control.h"
-#include "object_store.grpc.pb.h"
 #include "socket_utils.h"
 
 using objectstore::ObjectStore;
@@ -82,15 +81,13 @@ bool GrpcServer::PullObject(const std::string &remote_address,
                             const plasma::ObjectID &object_id) {
   TIMELINE("GrpcServer::PullObject");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  auto channel = grpc::CreateChannel(remote_grpc_address,
-                                     grpc::InsecureChannelCredentials());
-  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+  create_stub(remote_grpc_address);
   grpc::ClientContext context;
   PullRequest request;
   PullReply reply;
   request.set_object_id(object_id.binary());
   request.set_puller_ip(my_address_);
-  stub->Pull(&context, request, &reply);
+  object_store_stub_pool_[remote_grpc_address]->Pull(&context, request, &reply);
   return reply.ok();
 }
 
@@ -101,9 +98,7 @@ bool GrpcServer::InvokeReduceTo(
     const ObjectID *src_object_id) {
   TIMELINE("GrpcServer::InvokeReduceTo");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  auto channel = grpc::CreateChannel(remote_grpc_address,
-                                     grpc::InsecureChannelCredentials());
-  std::unique_ptr<ObjectStore::Stub> stub(ObjectStore::NewStub(channel));
+  create_stub(remote_grpc_address);
   grpc::ClientContext context;
   ReduceToRequest request;
   ReduceToReply reply;
@@ -117,7 +112,8 @@ bool GrpcServer::InvokeReduceTo(
   if (src_object_id != nullptr) {
     request.set_src_object_id(src_object_id->binary());
   }
-  auto status = stub->ReduceTo(&context, request, &reply);
+  auto status = object_store_stub_pool_[remote_grpc_address]->ReduceTo(
+      &context, request, &reply);
   DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
                       << remote_grpc_address
                       << ", message: " << status.error_message()
@@ -130,4 +126,16 @@ void GrpcServer::worker_loop() {
   LOG(INFO) << "[GprcServer] grpc server " << my_address_ << " started";
 
   grpc_server_->Wait();
+}
+
+void GrpcServer::create_stub(const std::string &remote_grpc_address) {
+  if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
+    channel_pool_[remote_grpc_address] = grpc::CreateChannel(
+        remote_grpc_address, grpc::InsecureChannelCredentials());
+  }
+  if (object_store_stub_pool_.find(remote_grpc_address) ==
+      object_store_stub_pool_.end()) {
+    object_store_stub_pool_[remote_grpc_address] =
+        ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
+  }
 }

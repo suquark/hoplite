@@ -119,15 +119,13 @@ public:
 private:
   bool send_notification(const std::string &ip, ObjectID object_id) {
     auto remote_address = ip + ":" + std::to_string(port_);
-    auto channel =
-        grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-    std::unique_ptr<objectstore::NotificationListener::Stub> stub(
-        objectstore::NotificationListener::NewStub(channel));
+    create_stub(remote_address);
     grpc::ClientContext context;
     ObjectIsReadyRequest request;
     ObjectIsReadyReply reply;
     request.set_object_id(object_id.binary());
-    stub->ObjectIsReady(&context, request, &reply);
+    notification_listener_stub_pool_[remote_address]->ObjectIsReady(
+        &context, request, &reply);
     return reply.ok();
   }
 
@@ -137,6 +135,22 @@ private:
   const int port_;
   std::mutex notification_mutex_;
   std::unordered_map<ObjectID, std::vector<std::string>> pendings_;
+  std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
+  std::unordered_map<std::string,
+                     std::unique_ptr<objectstore::NotificationListener::Stub>>
+      notification_listener_stub_pool_;
+  void create_stub(const std::string &remote_grpc_address) {
+    if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
+      channel_pool_[remote_grpc_address] = grpc::CreateChannel(
+          remote_grpc_address, grpc::InsecureChannelCredentials());
+    }
+    if (notification_listener_stub_pool_.find(remote_grpc_address) ==
+        notification_listener_stub_pool_.end()) {
+      notification_listener_stub_pool_[remote_grpc_address] =
+          objectstore::NotificationListener::NewStub(
+              channel_pool_[remote_grpc_address]);
+    }
+  }
 };
 
 NotificationServer::NotificationServer(const std::string &my_address,
