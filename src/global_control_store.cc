@@ -90,7 +90,7 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       redis_address_ + ":" + std::to_string(notification_port_);
   notification_channel_ =
       grpc::CreateChannel(remote_notification_server_address, grpc::InsecureChannelCredentials());
-  notification_stub_ = objectstore::NotificationServer::NewStub(channel);
+  notification_stub_ = objectstore::NotificationServer::NewStub(notification_channel_);
 }
 
 void GlobalControlStoreClient::write_object_location(
