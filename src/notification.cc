@@ -136,7 +136,7 @@ private:
     if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
       channel_pool_[remote_grpc_address] = grpc::CreateChannel(remote_grpc_address, grpc::InsecureChannelCredentials());
     }
-    if (object_store_stub_pool_.find(remote_grpc_address) == object_store_stub_pool_.end()) {
+    if (object_store_stub_pool_.find(remote_grpc_address) == notification_listener_stub_pool_.end()) {
       notification_listener_stub_pool_[remote_grpc_address] = objectstore::NotificationListener::NewStub(channel_pool_[remote_grpc_address]);
     }
   }
