@@ -11,6 +11,7 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector as c_vector
 
 from _client cimport CDistributedObjectStore, CBuffer, CObjectID
+from cpython cimport Py_buffer
 
 from enum import Enum
 
@@ -28,6 +29,13 @@ cdef class Buffer:
         _self = <Buffer>Buffer.__new__(Buffer)
         _self.buf = buf
         return _self
+
+    @classmethod
+    def from_numpy(cls, obj):
+        interface = obj.__array_interface__
+        data_ptr, readonly = interface['data']
+        nbytes = obj.nbytes
+        return cls(data_ptr, nbytes)
 
     def data_ptr(self):
         return self.buf.get().data()
