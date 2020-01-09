@@ -120,7 +120,8 @@ private:
     ObjectIsReadyRequest request;
     ObjectIsReadyReply reply;
     request.set_object_id(object_id.binary());
-    notification_listener_stub_pool_[remote_address]->ObjectIsReady(&context, request, &reply);
+    notification_listener_stub_pool_[remote_address]->ObjectIsReady(
+        &context, request, &reply);
     return reply.ok();
   }
 
@@ -131,13 +132,19 @@ private:
   std::mutex notification_mutex_;
   std::unordered_map<ObjectID, std::vector<std::string>> pendings_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
-  std::unordered_map<std::string, std::unique_ptr<objectstore::NotificationListener::Stub>> notification_listener_stub_pool_;
+  std::unordered_map<std::string,
+                     std::unique_ptr<objectstore::NotificationListener::Stub>>
+      notification_listener_stub_pool_;
   void create_stub(const std::string &remote_grpc_address) {
     if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
-      channel_pool_[remote_grpc_address] = grpc::CreateChannel(remote_grpc_address, grpc::InsecureChannelCredentials());
+      channel_pool_[remote_grpc_address] = grpc::CreateChannel(
+          remote_grpc_address, grpc::InsecureChannelCredentials());
     }
-    if (notification_listener_stub_pool_.find(remote_grpc_address) == notification_listener_stub_pool_.end()) {
-      notification_listener_stub_pool_[remote_grpc_address] = objectstore::NotificationListener::NewStub(channel_pool_[remote_grpc_address]);
+    if (notification_listener_stub_pool_.find(remote_grpc_address) ==
+        notification_listener_stub_pool_.end()) {
+      notification_listener_stub_pool_[remote_grpc_address] =
+          objectstore::NotificationListener::NewStub(
+              channel_pool_[remote_grpc_address]);
     }
   }
 };

@@ -8,8 +8,8 @@
 
 #include "local_store_client.h"
 #include "object_sender.h"
-#include "object_store_state.h"
 #include "object_store.grpc.pb.h"
+#include "object_store_state.h"
 
 class ObjectStoreServiceImpl;
 
@@ -39,7 +39,9 @@ private:
   std::unique_ptr<grpc::Server> grpc_server_;
   std::shared_ptr<ObjectStoreServiceImpl> service_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
-  std::unordered_map<std::string, std::unique_ptr<objectstore::ObjectStore::Stub>> object_store_stub_pool_;
+  std::unordered_map<std::string,
+                     std::unique_ptr<objectstore::ObjectStore::Stub>>
+      object_store_stub_pool_;
   void create_stub(const std::string &remote_grpc_address);
 };
 

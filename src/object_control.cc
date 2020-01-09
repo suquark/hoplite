@@ -112,7 +112,8 @@ bool GrpcServer::InvokeReduceTo(
   if (src_object_id != nullptr) {
     request.set_src_object_id(src_object_id->binary());
   }
-  auto status = object_store_stub_pool_[remote_grpc_address]->ReduceTo(&context, request, &reply);
+  auto status = object_store_stub_pool_[remote_grpc_address]->ReduceTo(
+      &context, request, &reply);
   DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
                       << remote_grpc_address
                       << ", message: " << status.error_message()
@@ -129,9 +130,12 @@ void GrpcServer::worker_loop() {
 
 void GrpcServer::create_stub(const std::string &remote_grpc_address) {
   if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
-    channel_pool_[remote_grpc_address] = grpc::CreateChannel(remote_grpc_address, grpc::InsecureChannelCredentials());
+    channel_pool_[remote_grpc_address] = grpc::CreateChannel(
+        remote_grpc_address, grpc::InsecureChannelCredentials());
   }
-  if (object_store_stub_pool_.find(remote_grpc_address) == object_store_stub_pool_.end()) {
-    object_store_stub_pool_[remote_grpc_address] = ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
+  if (object_store_stub_pool_.find(remote_grpc_address) ==
+      object_store_stub_pool_.end()) {
+    object_store_stub_pool_[remote_grpc_address] =
+        ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
   }
 }
