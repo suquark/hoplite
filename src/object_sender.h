@@ -3,6 +3,8 @@
 
 #include <list>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "local_store_client.h"
 #include "object_store.pb.h"
@@ -26,8 +28,9 @@ private:
 
   void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
-  std::list<objectstore::ReduceToRequest *> pending_tasks_;
-
+  std::queue<objectstore::ReduceToRequest *> pending_tasks_;
+  std::mutex queue_mutex;
+  std::condition_variable queue_cv;
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
 };
