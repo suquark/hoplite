@@ -9,6 +9,7 @@
 #include "local_store_client.h"
 #include "object_sender.h"
 #include "object_store_state.h"
+#include "object_store.grpc.pb.h"
 
 class ObjectStoreServiceImpl;
 

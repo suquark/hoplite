@@ -8,7 +8,6 @@
 
 #include "logging.h"
 #include "object_control.h"
-#include "object_store.grpc.pb.h"
 #include "socket_utils.h"
 
 using objectstore::ObjectStore;
