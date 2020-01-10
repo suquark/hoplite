@@ -54,10 +54,11 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
 
 void ObjectSender::worker_loop() {
   while (true) {
+    objectstore::ReduceToRequest * request;
     {
       std::unique_lock<std::mutex> l(queue_mutex_);
       queue_cv_.wait(l, [this](){return !pending_tasks_.empty();})
-      auto request = pending_tasks_.front();
+      request = pending_tasks_.front();
       pending_tasks_.pop();
     }
     send_object_for_reduce(request);

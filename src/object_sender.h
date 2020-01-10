@@ -1,7 +1,7 @@
 #ifndef OBJECT_SENDER_H
 #define OBJECT_SENDER_H
 
-#include <list>
+#include <queue>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -29,8 +29,8 @@ private:
   void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
   std::queue<objectstore::ReduceToRequest *> pending_tasks_;
-  std::mutex queue_mutex;
-  std::condition_variable queue_cv;
+  std::mutex queue_mutex_;
+  std::condition_variable queue_cv_;
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
 };
