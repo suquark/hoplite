@@ -3,7 +3,6 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <hiredis.h>
 #include <string.h>
 
 #include "global_control_store.h"
@@ -17,6 +16,10 @@ using objectstore::SubscriptionReply;
 using objectstore::SubscriptionRequest;
 using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
+using objectstore::WriteObjectLocationReply;
+using objectstore::WriteObjectLocationRequest;
+using objectstore::GetObjectLocationReply;
+using objectstore::GetObjectLocationRequest;
 
 using namespace plasma;
 
