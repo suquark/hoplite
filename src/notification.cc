@@ -29,7 +29,6 @@ using objectstore::WriteObjectLocationRequest;
 using objectstore::GetObjectLocationReply;
 using objectstore::GetObjectLocationRequest;
 
-
 using namespace plasma;
 
 class NotificationServiceImpl final
@@ -142,11 +141,11 @@ public:
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     if (object_location_store_.find(object_id) == object_location_store_.end()) {
-      reply.set_ip("");
+      reply->set_ip("");
     }
     else {
-      num_of_copies = object_location_store_.size();
-      reply.set_ip(object_location_store_[rand() % num_of_copies]);
+      size_t num_of_copies = object_location_store_.size();
+      reply->set_ip(object_location_store_[rand() % num_of_copies]);
     }
     return grpc::Status::OK;
   }
