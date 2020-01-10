@@ -6,6 +6,7 @@
 #include <plasma/common.h>
 #include <unistd.h>
 #include <unordered_map>
+#include <cstdlib>
 
 #include "logging.h"
 #include "notification.h"
@@ -23,6 +24,11 @@ using objectstore::SubscriptionReply;
 using objectstore::SubscriptionRequest;
 using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
+using objectstore::WriteObjectLocationReply;
+using objectstore::WriteObjectLocationRequest;
+using objectstore::GetObjectLocationReply;
+using objectstore::GetObjectLocationRequest;
+
 
 using namespace plasma;
 
@@ -116,6 +122,35 @@ public:
     return grpc::Status::OK;
   }
 
+  grpc::Status WriteObjectLocation(grpc::ServerContext *context,
+                                    const WriteObjectLocationRequest *request,
+                                    WriteObjectLocationReply *reply) {
+    std::lock_guard<std::mutex> guard(object_location_mutex_);
+    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    std::string ip_address = request->ip();
+    if (object_location_store_.find(object_id) == object_location_store_.end()) {
+      object_location_store_[object_id] = std::vector<std::string>();
+    }
+    object_location_store_[object_id].push_back(ip_address);
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status GetObjectLocation(grpc::ServerContext *context,
+                                    const GetObjectLocationRequest *request,
+                                    GetObjectLocationReply *reply) {
+    std::lock_guard<std::mutex> guard(object_location_mutex_);
+    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    if (object_location_store_.find(object_id) == object_location_store_.end()) {
+      reply.set_ip("");
+    }
+    else {
+      num_of_copies = object_location_store_.size();
+      reply.set_ip(object_location_store_[rand() % num_of_copies]);
+    }
+    return grpc::Status::OK;
+  }
+
 private:
   bool send_notification(const std::string &ip, ObjectID object_id) {
     auto remote_address = ip + ":" + std::to_string(port_);
@@ -139,6 +174,8 @@ private:
   std::unordered_map<std::string,
                      std::unique_ptr<objectstore::NotificationListener::Stub>>
       notification_listener_stub_pool_;
+  std::mutex object_location_mutex_;
+  std::unordered_map<ObjectID, std::vector<std::string>> object_location_store_;
   void create_stub(const std::string &remote_grpc_address) {
     if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
       channel_pool_[remote_grpc_address] = grpc::CreateChannel(
