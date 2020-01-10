@@ -9,6 +9,7 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
+#include <condition_variable>
 
 struct redisContext;
 
@@ -23,6 +24,7 @@ public:
 
 private:
   std::mutex notification_mutex_;
+  std::condition_variable notification_cv_;
   std::unordered_set<plasma::ObjectID> pending_;
   std::unordered_set<plasma::ObjectID> ready_;
 };
