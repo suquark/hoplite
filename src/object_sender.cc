@@ -57,7 +57,7 @@ void ObjectSender::worker_loop() {
     objectstore::ReduceToRequest * request;
     {
       std::unique_lock<std::mutex> l(queue_mutex_);
-      queue_cv_.wait(l, [this](){LOG(INFO) << "!!!!!!!!!!!!!!!!!!!!" << "check queue" << pending_tasks_.empty();return !pending_tasks_.empty();});
+      queue_cv_.wait(l, [this](){return !pending_tasks_.empty();});
       request = pending_tasks_.front();
       pending_tasks_.pop();
     }
@@ -70,7 +70,6 @@ void ObjectSender::worker_loop() {
 void ObjectSender::AppendTask(const ReduceToRequest *request) {
   auto new_request = new ReduceToRequest(*request);
   std::unique_lock<std::mutex> l(queue_mutex_);
-  LOG(INFO) << "!!!!!!!!!!!!!!!!!!!!" << "AppendTask";
   pending_tasks_.push(new_request);
   l.unlock();
   queue_cv_.notify_one();
