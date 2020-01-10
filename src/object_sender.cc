@@ -54,15 +54,13 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
 
 void ObjectSender::worker_loop() {
   while (true) {
-    // TODO: This should not be busy-waiting
-    if (pending_tasks_.empty()) {
-      usleep(1000);
-      continue;
+    objectstore::ReduceToRequest *request;
+    {
+      std::unique_lock<std::mutex> l(queue_mutex_);
+      queue_cv_.wait(l, [this]() { return !pending_tasks_.empty(); });
+      request = pending_tasks_.front();
+      pending_tasks_.pop();
     }
-
-    auto request = pending_tasks_.front();
-    pending_tasks_.pop_front();
-
     send_object_for_reduce(request);
 
     delete request;
@@ -71,7 +69,10 @@ void ObjectSender::worker_loop() {
 
 void ObjectSender::AppendTask(const ReduceToRequest *request) {
   auto new_request = new ReduceToRequest(*request);
-  pending_tasks_.push_back(new_request);
+  std::unique_lock<std::mutex> l(queue_mutex_);
+  pending_tasks_.push(new_request);
+  l.unlock();
+  queue_cv_.notify_one();
 }
 
 void ObjectSender::send_object(const PullRequest *request) {
@@ -158,10 +159,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
-    while (!stream) {
-      usleep(1000);
-      stream = state_.get_reduction_stream(reduction_id);
-    }
+    DCHECK(stream != nullptr) << "Stream should not be stream";
     stream_send<ReductionStream>(conn_fd, stream.get());
   }
 

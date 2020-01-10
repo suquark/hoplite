@@ -2,6 +2,7 @@
 #define GLOBAL_CONTROL_STORE_H
 
 #include "object_store.grpc.pb.h"
+#include <condition_variable>
 #include <grpcpp/server.h>
 #include <mutex>
 #include <plasma/common.h>
@@ -23,6 +24,7 @@ public:
 
 private:
   std::mutex notification_mutex_;
+  std::condition_variable notification_cv_;
   std::unordered_set<plasma::ObjectID> pending_;
   std::unordered_set<plasma::ObjectID> ready_;
 };

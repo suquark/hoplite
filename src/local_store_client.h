@@ -24,7 +24,8 @@ private:
   const bool use_plasma_;
   std::mutex local_store_mutex_;
   plasma::PlasmaClient plasma_client_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::MutableBuffer>> buffers_;
+  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::MutableBuffer>>
+      buffers_;
 };
 
 #endif // NOTIFICATION_H

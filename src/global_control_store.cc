@@ -50,8 +50,10 @@ ObjectNotifications::ObjectNotifications(std::vector<ObjectID> object_ids) {
 }
 
 std::vector<ObjectID> ObjectNotifications::GetNotifications() {
-  std::lock_guard<std::mutex> guard(notification_mutex_);
+  std::unique_lock<std::mutex> l(notification_mutex_);
+
   std::vector<ObjectID> notifications;
+  notification_cv_.wait(l, [this]() { return !ready_.empty(); });
   for (auto &object_id : ready_) {
     notifications.push_back(object_id);
   }
@@ -60,12 +62,14 @@ std::vector<ObjectID> ObjectNotifications::GetNotifications() {
 }
 
 void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id) {
-  std::lock_guard<std::mutex> guard(notification_mutex_);
+  std::unique_lock<std::mutex> l(notification_mutex_);
   if (pending_.find(object_id) == pending_.end()) {
     return;
   }
   pending_.erase(object_id);
   ready_.insert(object_id);
+  l.unlock();
+  notification_cv_.notify_one();
 }
 
 GlobalControlStoreClient::GlobalControlStoreClient(
