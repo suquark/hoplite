@@ -4,6 +4,7 @@
 #include <arrow/buffer.h>
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 #include <plasma/common.h>
 
 #include <unordered_map>
@@ -83,6 +84,8 @@ public:
 private:
   std::mutex transfer_mutex_;
   std::unordered_map<std::string, int> current_transfer_;
+  std::mutex reduction_stream_mutex_;
+  std::condition_variable reduction_stream_cv_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ReductionStream>>
       reduction_stream_;
   std::unordered_map<plasma::ObjectID, std::shared_ptr<ProgressiveStream>>

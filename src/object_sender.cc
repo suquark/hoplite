@@ -159,10 +159,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
-    while (!stream) {
-      usleep(1000);
-      stream = state_.get_reduction_stream(reduction_id);
-    }
+    DCHECK(stream != nullptr) << "Stream should not be stream";
     stream_send<ReductionStream>(conn_fd, stream.get());
   }
 

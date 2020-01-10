@@ -24,19 +24,20 @@ void ObjectStoreState::transfer_complete(const plasma::ObjectID &object_id) {
 std::shared_ptr<ReductionStream>
 ObjectStoreState::create_reduction_stream(const plasma::ObjectID &reduction_id,
                                           size_t size) {
+  std::unique_lock<std::mutex> l(reduction_stream_mutex_);
   DCHECK(reduction_stream_.find(reduction_id) == reduction_stream_.end());
   auto stream = std::make_shared<ReductionStream>(size);
   reduction_stream_[reduction_id] = stream;
+  l.unlock();
+  reduction_stream_cv_.notify_all();
   return stream;
 }
 
 std::shared_ptr<ReductionStream>
 ObjectStoreState::get_reduction_stream(const plasma::ObjectID &reduction_id) {
-  if (reduction_stream_.find(reduction_id) == reduction_stream_.end()) {
-    return nullptr;
-  } else {
-    return reduction_stream_[reduction_id];
-  }
+  std::unique_lock<std::mutex> l(reduction_stream_mutex_);
+  reduction_stream_cv_.wait(l, [this](){return reduction_stream_.find(reduction_id) != reduction_stream_.end();});
+  return reduction_stream_[reduction_id];
 }
 
 std::shared_ptr<ProgressiveStream> ObjectStoreState::create_progressive_stream(
