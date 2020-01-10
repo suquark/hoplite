@@ -145,7 +145,7 @@ public:
     }
     else {
       size_t num_of_copies = object_location_store_.size();
-      reply->set_ip(object_location_store_[rand() % num_of_copies]);
+      reply->set_ip(object_location_store_[object_id][rand() % num_of_copies]);
     }
     return grpc::Status::OK;
   }
