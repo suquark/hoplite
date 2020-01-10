@@ -57,7 +57,7 @@ void ObjectSender::worker_loop() {
     objectstore::ReduceToRequest * request;
     {
       std::unique_lock<std::mutex> l(queue_mutex_);
-      queue_cv_.wait(l, [this](){return !pending_tasks_.empty();});
+      queue_cv_.wait(l, [this](){rLOG(INFO) << "!!!!!!!!!!!!!!!!!!!!" << "check queue" << pending_tasks_.empty();eturn !pending_tasks_.empty();});
       request = pending_tasks_.front();
       pending_tasks_.pop();
     }
