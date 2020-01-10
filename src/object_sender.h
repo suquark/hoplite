@@ -1,10 +1,10 @@
 #ifndef OBJECT_SENDER_H
 #define OBJECT_SENDER_H
 
+#include <condition_variable>
+#include <mutex>
 #include <queue>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
 
 #include "local_store_client.h"
 #include "object_store.pb.h"

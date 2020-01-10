@@ -2,6 +2,7 @@
 #define GLOBAL_CONTROL_STORE_H
 
 #include "object_store.grpc.pb.h"
+#include <condition_variable>
 #include <grpcpp/server.h>
 #include <mutex>
 #include <plasma/common.h>
@@ -9,7 +10,6 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
-#include <condition_variable>
 
 struct redisContext;
 

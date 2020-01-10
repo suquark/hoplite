@@ -3,8 +3,8 @@
 
 #include <arrow/buffer.h>
 #include <atomic>
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
 #include <plasma/common.h>
 
 #include <unordered_map>

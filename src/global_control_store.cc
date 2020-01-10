@@ -53,7 +53,7 @@ std::vector<ObjectID> ObjectNotifications::GetNotifications() {
   std::unique_lock<std::mutex> l(notification_mutex_);
 
   std::vector<ObjectID> notifications;
-  notification_cv_.wait(l, [this](){return !ready_.empty();});
+  notification_cv_.wait(l, [this]() { return !ready_.empty(); });
   for (auto &object_id : ready_) {
     notifications.push_back(object_id);
   }
