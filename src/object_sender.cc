@@ -70,6 +70,7 @@ void ObjectSender::worker_loop() {
 void ObjectSender::AppendTask(const ReduceToRequest *request) {
   auto new_request = new ReduceToRequest(*request);
   std::unique_lock<std::mutex> l(queue_mutex_);
+  LOG(INFO) << "!!!!!!!!!!!!!!!!!!!!" << "AppendTask";
   pending_tasks_.push(new_request);
   l.unlock();
   queue_cv_.notify_one();
