@@ -18,8 +18,6 @@ using objectstore::SubscriptionRequest;
 using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
 
-using namespace plasma;
-
 class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
 public:
@@ -33,7 +31,7 @@ public:
                              ObjectIsReadyReply *reply) {
     for (auto notifications : object_notifications_) {
       notifications->ReceiveObjectNotification(
-          ObjectID::from_binary(request->object_id()));
+          ObjectID::FromBinary(request->object_id()));
     }
     reply->set_ok(true);
     return grpc::Status::OK;
@@ -100,11 +98,11 @@ GlobalControlStoreClient::GlobalControlStoreClient(
 
 void GlobalControlStoreClient::write_object_location(
     const ObjectID &object_id, const std::string &my_address) {
-  LOG(INFO) << "[RedisClient] Adding object " << object_id.hex()
+  LOG(INFO) << "[RedisClient] Adding object " << object_id.Hex()
             << " to Redis with address = " << my_address << ".";
   redisReply *redis_reply =
       (redisReply *)redisCommand(redis_client_, "LPUSH %s %s",
-                                 object_id.hex().c_str(), my_address.c_str());
+                                 object_id.Hex().c_str(), my_address.c_str());
   freeReplyObject(redis_reply);
 }
 
@@ -116,7 +114,7 @@ void GlobalControlStoreClient::flushall() {
 std::string
 GlobalControlStoreClient::get_object_location(const ObjectID &object_id) {
   redisReply *redis_reply = (redisReply *)redisCommand(
-      redis_client_, "LRANGE %s 0 -1", object_id.hex().c_str());
+      redis_client_, "LRANGE %s 0 -1", object_id.Hex().c_str());
 
   int num_of_copies = redis_reply->elements;
   if (num_of_copies == 0) {
@@ -143,10 +141,10 @@ ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(
     SubscriptionRequest request;
     SubscriptionReply reply;
     request.set_subscriber_ip(my_address_);
-    request.set_object_id(object_id.binary());
+    request.set_object_id(object_id.Binary());
     notification_stub_->Subscribe(&context, request, &reply);
 
-    DCHECK(reply.ok()) << "Subscribing object " << object_id.hex()
+    DCHECK(reply.ok()) << "Subscribing object " << object_id.Hex()
                        << " failed.";
   }
 
@@ -176,11 +174,11 @@ void GlobalControlStoreClient::PublishObjectCompletionEvent(
   grpc::ClientContext context;
   ObjectCompleteRequest request;
   ObjectCompleteReply reply;
-  request.set_object_id(object_id.binary());
+  request.set_object_id(object_id.Binary());
   auto status = notification_stub_->ObjectComplete(&context, request, &reply);
   DCHECK(status.ok()) << "ObjectComplete gRPC failure, message: "
                       << status.error_message();
-  DCHECK(reply.ok()) << "Object completes " << object_id.hex() << " failed.";
+  DCHECK(reply.ok()) << "Object completes " << object_id.Hex() << " failed.";
 }
 
 void GlobalControlStoreClient::worker_loop() {

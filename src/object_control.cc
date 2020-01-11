@@ -16,8 +16,6 @@ using objectstore::PullRequest;
 using objectstore::ReduceToReply;
 using objectstore::ReduceToRequest;
 
-using namespace plasma;
-
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
   ObjectStoreServiceImpl(ObjectSender &object_sender,
@@ -29,7 +27,7 @@ public:
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
     TIMELINE("ObjectStoreServiceImpl::Pull()");
-    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    ObjectID object_id = ObjectID::FromBinary(request->object_id());
     bool transfer_available = state_.transfer_available(object_id);
     if (!transfer_available) {
       reply->set_ok(false);
@@ -37,11 +35,11 @@ public:
     }
 
     LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
-               << " for object " << object_id.hex();
+               << " for object " << object_id.ToString();
 
     object_sender_.send_object(request);
     LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
-               << " for object " << object_id.hex();
+               << " for object " << object_id.ToString();
 
     state_.transfer_complete(object_id);
     reply->set_ok(true);
@@ -78,24 +76,25 @@ GrpcServer::GrpcServer(ObjectSender &object_sender,
 }
 
 bool GrpcServer::PullObject(const std::string &remote_address,
-                            const plasma::ObjectID &object_id) {
+                            const ObjectID &object_id) {
   TIMELINE("GrpcServer::PullObject");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
   grpc::ClientContext context;
   PullRequest request;
   PullReply reply;
-  request.set_object_id(object_id.binary());
+  request.set_object_id(object_id.Binary());
   request.set_puller_ip(my_address_);
   object_store_stub_pool_[remote_grpc_address]->Pull(&context, request, &reply);
   return reply.ok();
 }
 
-bool GrpcServer::InvokeReduceTo(
-    const std::string &remote_address, const ObjectID &reduction_id,
-    const std::vector<plasma::ObjectID> &dst_object_ids,
-    const std::string &dst_address, bool is_endpoint,
-    const ObjectID *src_object_id) {
+bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
+                                const ObjectID &reduction_id,
+                                const std::vector<ObjectID> &dst_object_ids,
+                                const std::string &dst_address,
+                                bool is_endpoint,
+                                const ObjectID *src_object_id) {
   TIMELINE("GrpcServer::InvokeReduceTo");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
@@ -103,14 +102,14 @@ bool GrpcServer::InvokeReduceTo(
   ReduceToRequest request;
   ReduceToReply reply;
 
-  request.set_reduction_id(reduction_id.binary());
+  request.set_reduction_id(reduction_id.Binary());
   for (auto &object_id : dst_object_ids) {
-    request.add_dst_object_ids(object_id.binary());
+    request.add_dst_object_ids(object_id.Binary());
   }
   request.set_dst_address(dst_address);
   request.set_is_endpoint(is_endpoint);
   if (src_object_id != nullptr) {
-    request.set_src_object_id(src_object_id->binary());
+    request.set_src_object_id(src_object_id->Binary());
   }
   auto status = object_store_stub_pool_[remote_grpc_address]->ReduceTo(
       &context, request, &reply);

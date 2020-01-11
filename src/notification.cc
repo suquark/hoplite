@@ -3,7 +3,6 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <plasma/common.h>
 #include <unistd.h>
 #include <unordered_map>
 
@@ -23,8 +22,6 @@ using objectstore::SubscriptionReply;
 using objectstore::SubscriptionRequest;
 using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
-
-using namespace plasma;
 
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
@@ -69,7 +66,7 @@ public:
                          const SubscriptionRequest *request,
                          SubscriptionReply *reply) {
     std::lock_guard<std::mutex> guard(notification_mutex_);
-    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string ip = request->subscriber_ip();
 
     auto v = pendings_.find(object_id);
@@ -100,7 +97,7 @@ public:
                               const ObjectCompleteRequest *request,
                               ObjectCompleteReply *reply) {
     std::lock_guard<std::mutex> guard(notification_mutex_);
-    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    ObjectID object_id = ObjectID::FromBinary(request->object_id());
 
     auto v = pendings_.find(object_id);
     if (v != pendings_.end()) {
@@ -123,7 +120,7 @@ private:
     grpc::ClientContext context;
     ObjectIsReadyRequest request;
     ObjectIsReadyReply reply;
-    request.set_object_id(object_id.binary());
+    request.set_object_id(object_id.Binary());
     notification_listener_stub_pool_[remote_address]->ObjectIsReady(
         &context, request, &reply);
     return reply.ok();

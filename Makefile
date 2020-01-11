@@ -13,24 +13,25 @@ GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 PROTO_OBJS = src/object_store.pb.o src/object_store.grpc.pb.o
 UTILS_OBJS = src/util/logging.o src/util/socket_utils.o
+COMMON_OBJS = src/common/id.o src/common/buffer.o src/common/status.o 
 OBJECT_STORE_OBJS = src/local_store_client.o src/global_control_store.o src/object_store_state.o \
 	src/object_writer.o src/object_sender.o src/object_control.o src/distributed_object_store.o
 
 all: notification distributed_object_store multicast_test reduce_test allreduce_test
 
-notification: $(PROTO_OBJS) $(UTILS_OBJS) src/notification.o
+notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-distributed_object_store: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS)
+distributed_object_store: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS)
 	$(CXX) $^ $(LDFLAGS) -shared -o lib$@.so
 
-multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
+multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
+reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.o
+allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto

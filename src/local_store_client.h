@@ -1,31 +1,30 @@
-#ifndef STORE_H
-#define STORE_H
+#ifndef LOCAL_STORE_H
+#define LOCAL_STORE_H
 
+#include "common/buffer.h"
+#include "common/id.h"
+#include "common/status.h"
 #include <mutex>
-#include <plasma/client.h>
-#include <plasma/common.h>
 #include <unordered_map>
 
 class LocalStoreClient {
 public:
   LocalStoreClient(const bool use_plasma, const std::string &plasma_socket);
 
-  arrow::Status Create(const plasma::ObjectID &object_id, int64_t data_size,
-                       std::shared_ptr<arrow::Buffer> *data);
+  Status Create(const ObjectID &object_id, int64_t data_size,
+                std::shared_ptr<Buffer> *data);
 
-  arrow::Status Seal(const plasma::ObjectID &object_id);
+  Status Seal(const ObjectID &object_id);
 
-  arrow::Status Get(const std::vector<plasma::ObjectID> &object_ids,
-                    std::vector<plasma::ObjectBuffer> *object_buffers);
+  Status Get(const std::vector<ObjectID> &object_ids,
+             std::vector<ObjectBuffer> *object_buffers);
 
-  arrow::Status Delete(const plasma::ObjectID &object_id);
+  Status Delete(const ObjectID &object_id);
 
 private:
   const bool use_plasma_;
   std::mutex local_store_mutex_;
-  plasma::PlasmaClient plasma_client_;
-  std::unordered_map<plasma::ObjectID, std::shared_ptr<arrow::MutableBuffer>>
-      buffers_;
+  std::unordered_map<ObjectID, std::shared_ptr<Buffer>> buffers_;
 };
 
-#endif // NOTIFICATION_H
+#endif // LOCAL_STORE_H

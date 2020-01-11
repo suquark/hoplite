@@ -1,12 +1,10 @@
 #include <unistd.h> // usleep
 #include <unordered_set>
 
+#include "common/buffer.h"
+#include "common/id.h"
 #include "distributed_object_store.h"
 #include "logging.h"
-#include <plasma/common.h>
-#include <plasma/test_util.h>
-
-using namespace plasma;
 
 DistributedObjectStore::DistributedObjectStore(
     const std::string &redis_address, int redis_port, int notification_port,
@@ -35,15 +33,14 @@ DistributedObjectStore::DistributedObjectStore(
 void DistributedObjectStore::Put(const void *data, size_t size,
                                  const ObjectID &object_id) {
   TIMELINE(std::string("DistributedObjectStore Put single object ") +
-           object_id.hex());
+           object_id.Hex());
   // put object into Plasma
-  std::shared_ptr<arrow::Buffer> ptr;
+  std::shared_ptr<Buffer> ptr;
   auto pstatus = local_store_client_.Create(object_id, size, &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
-                       << object_id.hex() << " size = " << size
+                       << object_id.Hex() << " size = " << size
                        << ", status = " << pstatus.ToString();
-
-  memcpy(ptr->mutable_data(), data, size);
+  ptr->CopyFrom((const uint8_t *)data, size);
   local_store_client_.Seal(object_id);
   gcs_client_.write_object_location(object_id, my_address_);
   gcs_client_.PublishObjectCompletionEvent(object_id);
@@ -52,7 +49,7 @@ void DistributedObjectStore::Put(const void *data, size_t size,
 ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
   TIMELINE("DistributedObjectStore Put without object_id");
   // generate a random object id
-  ObjectID object_id = random_object_id();
+  auto object_id = ObjectID::FromRandom();
   Put(data, size, object_id);
   return object_id;
 }
@@ -61,7 +58,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
                                  size_t _expected_size,
                                  ObjectID *created_reduction_id,
                                  std::shared_ptr<Buffer> *result) {
-  const ObjectID reduction_id = random_object_id();
+  const auto reduction_id = ObjectID::FromRandom();
   *created_reduction_id = reduction_id;
   Get(object_ids, _expected_size, reduction_id, result);
 }
@@ -82,7 +79,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   auto pstatus =
       local_store_client_.Create(reduction_id, _expected_size, &buffer);
   DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
-                       << reduction_id.hex() << " size = " << _expected_size
+                       << reduction_id.Hex() << " size = " << _expected_size
                        << ", status = " << pstatus.ToString();
 
   auto reduction_endpoint =
@@ -101,10 +98,10 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
       // FIXME: Somehow the location of the object is not written to Redis.
       std::string address = gcs_client_.get_object_location(ready_id);
       DCHECK(address != "")
-          << "object (" << ready_id.hex()
-          << ") location is not ready, but notification is received!";
+          << ready_id.ToString()
+          << " location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
-                << ", object_id = " << ready_id.hex();
+                << ready_id.ToString();
       if (address == my_address_) {
         // move local objects to another address, because there's no
         // necessary to transfer them through the network.
@@ -166,7 +163,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 void DistributedObjectStore::Get(const ObjectID &object_id,
                                  std::shared_ptr<Buffer> *result) {
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
-           object_id.hex());
+           object_id.ToString());
   // get object location from redis
   while (true) {
     std::string address = gcs_client_.get_object_location(object_id);

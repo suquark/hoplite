@@ -9,18 +9,18 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector as c_vector
 
 
-cdef extern from "<plasma/common.h>" namespace "plasma" nogil:
-    cdef cppclass CObjectID "plasma::ObjectID":
+cdef extern from "../src/common/id.h" namespace "" nogil:
+    cdef cppclass CObjectID "ObjectID":
         @staticmethod
-        CObjectID from_binary(const c_string& binary)
-        c_string binary() const
+        CObjectID FromBinary(const c_string& binary)
+        c_string Binary() const
 
 
-cdef extern from "<arrow/buffer.h>" namespace "arrow" nogil:
-    cdef cppclass CBuffer "arrow::Buffer":
+cdef extern from "../src/common/buffer.h" namespace "" nogil:
+    cdef cppclass CBuffer "Buffer":
         CBuffer(uint8_t* data, int64_t size)
         const uint8_t* data()
-        int64_t size()
+        int64_t szie()
 
 
 cdef extern from "../src/distributed_object_store.h" namespace "" nogil:

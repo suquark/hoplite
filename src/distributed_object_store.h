@@ -7,6 +7,9 @@
 #include <thread>
 #include <vector>
 
+#include "common/buffer.h"
+#include "common/id.h"
+
 #include "global_control_store.h"
 #include "local_store_client.h"
 #include "object_control.h"
@@ -22,20 +25,17 @@ public:
                          const std::string &my_address, int object_writer_port,
                          int grpc_port);
 
-  void Put(const void *data, size_t size, const plasma::ObjectID &object_id);
+  void Put(const void *data, size_t size, const ObjectID &object_id);
 
-  plasma::ObjectID Put(const void *data, size_t size);
+  ObjectID Put(const void *data, size_t size);
 
-  void Get(const std::vector<plasma::ObjectID> &object_ids,
-           size_t _expected_size, plasma::ObjectID *created_reduction_id,
-           std::shared_ptr<arrow::Buffer> *result);
+  void Get(const std::vector<ObjectID> &object_ids, size_t _expected_size,
+           ObjectID *created_reduction_id, std::shared_ptr<Buffer> *result);
 
-  void Get(const std::vector<plasma::ObjectID> &object_ids,
-           size_t _expected_size, const plasma::ObjectID &reduction_id,
-           std::shared_ptr<arrow::Buffer> *result);
+  void Get(const std::vector<ObjectID> &object_ids, size_t _expected_size,
+           const ObjectID &reduction_id, std::shared_ptr<Buffer> *result);
 
-  void Get(const plasma::ObjectID &object_id,
-           std::shared_ptr<arrow::Buffer> *result);
+  void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
   inline void join_tasks() {
     object_writer_thread_.join();

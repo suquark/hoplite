@@ -5,11 +5,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <plasma/common.h>
-
 #include "object_sender.h"
 
-using namespace plasma;
 using objectstore::ObjectWriterRequest;
 using objectstore::PullRequest;
 using objectstore::ReceiveAndReduceObjectRequest;
@@ -84,7 +81,7 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   const uint8_t *object_buffer = NULL;
   size_t object_size = 0;
-  ObjectID object_id = ObjectID::from_binary(request->object_id());
+  ObjectID object_id = ObjectID::FromBinary(request->object_id());
   auto stream = state_.get_progressive_stream(object_id);
   if (stream) {
     // fetch partial object in memory
@@ -96,10 +93,9 @@ void ObjectSender::send_object(const PullRequest *request) {
     std::vector<ObjectBuffer> object_buffers;
     local_store_client_.Get({object_id}, &object_buffers);
     LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store, "
-                  "object id = "
-               << object_id.hex();
-    object_buffer = object_buffers[0].data->data();
-    object_size = object_buffers[0].data->size();
+               << object_id.ToString();
+    object_buffer = object_buffers[0].data->Data();
+    object_size = object_buffers[0].data->Size();
   }
 
   ObjectWriterRequest ow_request;
@@ -116,7 +112,7 @@ void ObjectSender::send_object(const PullRequest *request) {
     DCHECK(!status) << "Failed to send object";
   }
 
-  LOG(DEBUG) << "send object id = " << object_id.hex() << " done";
+  LOG(DEBUG) << "send " << object_id.ToString() << " done";
 
   // receive ack
   char ack[5];
@@ -148,16 +144,16 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
     LOG(INFO) << "[GrpcServer] fetching a complete object from local store";
     // TODO: there could be multiple source objects.
-    ObjectID src_object_id = ObjectID::from_binary(request->src_object_id());
+    ObjectID src_object_id = ObjectID::FromBinary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
     local_store_client_.Get({src_object_id}, &object_buffers);
     auto &buffer_ptr = object_buffers[0].data;
-    int status = send_all(conn_fd, buffer_ptr->data(), buffer_ptr->size());
+    int status = send_all(conn_fd, buffer_ptr->Data(), buffer_ptr->Size());
     DCHECK(!status) << "Failed to send object";
   } else {
     LOG(INFO)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
-    ObjectID reduction_id = ObjectID::from_binary(request->reduction_id());
+    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
     DCHECK(stream != nullptr) << "Stream should not be stream";
     stream_send<ReductionStream>(conn_fd, stream.get());
