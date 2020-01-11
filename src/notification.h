@@ -1,6 +1,7 @@
 #ifndef NOTIFICATION_H
 #define NOTIFICATION_H
 
+#include "common/id.h"
 #include <grpcpp/server.h>
 #include <string>
 #include <thread>

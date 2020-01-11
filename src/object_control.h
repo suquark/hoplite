@@ -2,7 +2,6 @@
 #define OBJECT_CONTROL_H
 
 #include <grpcpp/server.h>
-#include <plasma/common.h>
 #include <thread>
 #include <unordered_map>
 
@@ -23,13 +22,13 @@ public:
   }
 
   bool PullObject(const std::string &remote_grpc_address,
-                  const plasma::ObjectID &object_id);
+                  const ObjectID &object_id);
 
   bool InvokeReduceTo(const std::string &remote_address,
-                      const plasma::ObjectID &reduction_id,
-                      const std::vector<plasma::ObjectID> &dst_object_ids,
+                      const ObjectID &reduction_id,
+                      const std::vector<ObjectID> &dst_object_ids,
                       const std::string &dst_address, bool is_endpoint,
-                      const plasma::ObjectID *src_object_id = nullptr);
+                      const ObjectID *src_object_id = nullptr);
 
 private:
   void worker_loop();

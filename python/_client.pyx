@@ -43,7 +43,7 @@ cdef class ObjectID:
     cdef CObjectID data
 
     def __cinit__(self, const c_string& binary):
-        self.data = CObjectID.from_binary(binary)
+        self.data = CObjectID.FromBinary(binary)
 
 
 class ReduceOp(Enum):
@@ -91,7 +91,7 @@ cdef class DistributedObjectStore:
         cdef CObjectID created_object_id
         if object_id is None:
             created_object_id = self.store.get().Put(buf.buf.get().data(), buf.buf.get().size())
-            return ObjectID(created_object_id.binary())
+            return ObjectID(created_object_id.Binary())
         else:
             self.store.get().Put(buf.buf.get().data(), buf.buf.get().size(), (<ObjectID>object_id).data)
             return object_id

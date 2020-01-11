@@ -4,8 +4,10 @@
 #include <atomic>
 #include <iostream>
 #include <netinet/in.h> // struct sockaddr_in
-#include <plasma/common.h>
 #include <thread>
+
+#include "common/buffer.h"
+#include "common/id.h"
 
 #include "global_control_store.h"
 #include "local_store_client.h"
@@ -26,13 +28,12 @@ public:
 private:
   void worker_loop();
 
-  void receive_object(int conn_fd, const plasma::ObjectID &object_id,
+  void receive_object(int conn_fd, const ObjectID &object_id,
                       int64_t object_size);
 
-  void
-  receive_and_reduce_object(int conn_fd, const plasma::ObjectID &reduction_id,
-                            const std::vector<plasma::ObjectID> &object_ids,
-                            bool is_endpoint);
+  void receive_and_reduce_object(int conn_fd, const ObjectID &reduction_id,
+                                 const std::vector<ObjectID> &object_ids,
+                                 bool is_endpoint);
 
   GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;

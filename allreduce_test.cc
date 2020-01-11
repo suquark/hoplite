@@ -1,18 +1,14 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
+#include "common/buffer.h"
+#include "common/id.h"
 #include "distributed_object_store.h"
 #include "logging.h"
 #include "test_utils.h"
-
-using namespace plasma;
-
-std::thread timed_exit(int seconds) {
-  usleep(seconds * 1000000);
-  exit(0);
-}
 
 int main(int argc, char **argv) {
   // argv: *, redis_address, my_address, #nodes, current_index, object_size
@@ -38,7 +34,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < world_size; i++) {
     auto oid = object_id_from_integer(i);
     object_ids.push_back(oid);
-    auto rnum = get_uniform_random_float(oid.hex());
+    auto rnum = get_uniform_random_float(oid.Hex());
     sum += rnum;
   }
   DCHECK(object_size % sizeof(float) == 0);
@@ -57,7 +53,7 @@ int main(int argc, char **argv) {
   }
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
-  LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
+  LOG(INFO) << reduction_id.ToString() << " is reduced using "
             << duration.count();
   print_reduction_result<float>(reduction_id, reduction_result, sum);
 

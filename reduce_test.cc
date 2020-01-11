@@ -7,13 +7,6 @@
 #include "logging.h"
 #include "test_utils.h"
 
-using namespace plasma;
-
-std::thread timed_exit(int seconds) {
-  usleep(seconds * 1000000);
-  exit(0);
-}
-
 int main(int argc, char **argv) {
   // argv: *, redis_address, my_address, #nodes, current_index, object_size
   std::string redis_address = std::string(argv[1]);
@@ -38,7 +31,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < world_size; i++) {
     auto oid = object_id_from_integer(i);
     object_ids.push_back(oid);
-    auto rnum = get_uniform_random_float(oid.hex());
+    auto rnum = get_uniform_random_float(oid.Hex());
     sum += rnum;
   }
   DCHECK(object_size % sizeof(float) == 0);
@@ -55,7 +48,7 @@ int main(int argc, char **argv) {
     store.Get(object_ids, object_size, reduction_id, &reduction_result);
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
-    LOG(INFO) << "ObjectID(" << reduction_id.hex() << ") is reduced using "
+    LOG(INFO) << reduction_id.ToString() << " is reduced using "
               << duration.count();
     print_reduction_result<float>(reduction_id, reduction_result, sum);
   }

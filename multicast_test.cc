@@ -2,19 +2,11 @@
 #include <string>
 #include <vector>
 
-#include <plasma/common.h>
-#include <zlib.h>
-
+#include "common/buffer.h"
+#include "common/id.h"
 #include "distributed_object_store.h"
 #include "logging.h"
 #include "test_utils.h"
-
-using namespace plasma;
-
-std::thread timed_exit(int seconds) {
-  usleep(seconds * 1000000);
-  exit(0);
-}
 
 int main(int argc, char **argv) {
   // signal(SIGPIPE, SIG_IGN);
@@ -39,15 +31,15 @@ int main(int argc, char **argv) {
   std::shared_ptr<Buffer> result;
 
   if (rank == 0) {
-    char *buffer = new char[object_size];
-    for (int i = 0; i < object_size; i++) {
-      buffer[i] = i % 256;
+    result = std::make_shared<Buffer>(object_size);
+    uint8_t *buf = result->MutableData();
+    for (int64_t i = 0; i < object_size; i++) {
+      buf[i] = i % 256;
     }
-    store.Put(buffer, object_size, object_id);
-    result = std::make_shared<Buffer>((const uint8_t *)buffer, object_size);
+    store.Put(buf, object_size, object_id);
 
-    LOG(INFO) << "Object(" << object_id.hex() << ") is created!"
-              << ", CRC32 = " << checksum_crc32(result);
+    LOG(INFO) << object_id.ToString() << " is created!"
+              << " CRC32 = " << result->CRC32();
 
     LOG(INFO) << "entering barrier";
     barrier(rank, redis_address, 7777, world_size, my_address);
@@ -60,9 +52,8 @@ int main(int argc, char **argv) {
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
 
-    LOG(INFO) << "Object(" << object_id.hex() << ") is retrieved using "
-              << duration.count()
-              << " seconds. CRC32 = " << checksum_crc32(result);
+    LOG(INFO) << "Object(" << object_id.Hex() << ") is retrieved using "
+              << duration.count() << " seconds. CRC32 = " << result->CRC32();
   }
 
   exit_thread.join();

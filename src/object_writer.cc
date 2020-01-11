@@ -11,7 +11,6 @@
 #include "object_writer.h"
 #include "socket_utils.h"
 
-using namespace plasma;
 constexpr int64_t STREAM_MAX_BLOCK_SIZE = 4 * (2 << 20); // 4MB
 
 using objectstore::ObjectWriterRequest;
@@ -106,21 +105,21 @@ void TCPServer::worker_loop() {
     switch (message.message_type_case()) {
     case ObjectWriterRequest::kReceiveObject: {
       auto request = message.receive_object();
-      ObjectID object_id = ObjectID::from_binary(request.object_id());
+      ObjectID object_id = ObjectID::FromBinary(request.object_id());
       int64_t object_size = request.object_size();
       receive_object(conn_fd, object_id, object_size);
       break;
     }
     case ObjectWriterRequest::kReceiveAndReduceObject: {
       auto request = message.receive_and_reduce_object();
-      ObjectID reduction_id = ObjectID::from_binary(request.reduction_id());
-      LOG(DEBUG) << "reduction id = " << reduction_id.hex();
+      ObjectID reduction_id = ObjectID::FromBinary(request.reduction_id());
+      LOG(DEBUG) << "reduction id = " << reduction_id.ToString();
 
       std::vector<ObjectID> object_ids;
       for (auto &object_id_str : request.object_ids()) {
-        ObjectID object_id = ObjectID::from_binary(object_id_str);
+        ObjectID object_id = ObjectID::FromBinary(object_id_str);
         object_ids.push_back(object_id);
-        LOG(DEBUG) << "targeted object id = " << object_id.hex();
+        LOG(DEBUG) << "targeted object id = " << object_id.ToString();
       }
       bool is_endpoint = request.is_endpoint();
       receive_and_reduce_object(conn_fd, reduction_id, object_ids, is_endpoint);
@@ -138,7 +137,7 @@ void TCPServer::receive_and_reduce_object(
     int conn_fd, const ObjectID &reduction_id,
     const std::vector<ObjectID> &object_ids, bool is_endpoint) {
   TIMELINE(std::string("TCPServer::receive_and_reduce_object() ") +
-           reduction_id.hex() + " " + std::to_string(is_endpoint));
+           reduction_id.ToString() + " " + std::to_string(is_endpoint));
 
   // The endpoint can have no objects to reduce.
   DCHECK(object_ids.size() > 0 || is_endpoint)
@@ -154,15 +153,15 @@ void TCPServer::receive_and_reduce_object(
   if (is_endpoint) {
     object_size = state_.get_progressive_stream(reduction_id)->size();
   } else {
-    object_size = object_buffers[0].data->size();
+    object_size = object_buffers[0].data->Size();
   }
 
   std::vector<uint8_t *> buffers;
   for (auto &buf_info : object_buffers) {
-    auto buf_ptr = (uint8_t *)buf_info.data->data();
+    uint8_t *buf_ptr = buf_info.data->MutableData();
     DCHECK(buf_ptr) << "object buffer is nullptr";
     buffers.push_back(buf_ptr);
-    DCHECK(buf_info.data->size() == object_size)
+    DCHECK(buf_info.data->Size() == object_size)
         << "reduction object size mismatch";
   }
 
@@ -186,16 +185,16 @@ void TCPServer::receive_and_reduce_object(
 
 void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
                                int64_t object_size) {
-  TIMELINE(std::string("TCPServer::receive_object() ") + object_id.hex() + " " +
-           std::to_string(object_size));
-  LOG(DEBUG) << "start receiving object " << object_id.hex()
+  TIMELINE(std::string("TCPServer::receive_object() ") + object_id.ToString() +
+           " " + std::to_string(object_size));
+  LOG(DEBUG) << "start receiving object " << object_id.ToString()
              << ", size = " << object_size;
 
   // receive object buffer
   std::shared_ptr<Buffer> ptr;
   auto pstatus = local_store_client_.Create(object_id, object_size, &ptr);
-  DCHECK(pstatus.ok()) << "Plasma failed to allocate object id = "
-                       << object_id.hex() << " size = " << object_size
+  DCHECK(pstatus.ok()) << "Plasma failed to allocate " << object_id.ToString()
+                       << " size = " << object_size
                        << ", status = " << pstatus.ToString();
 
   auto stream = state_.create_progressive_stream(object_id, ptr);
@@ -208,5 +207,5 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   // reply message
   auto status = send_all(conn_fd, "OK", 3);
   DCHECK(!status) << "socket send error: object ack";
-  LOG(DEBUG) << "object " << object_id.hex() << " received";
+  LOG(DEBUG) << object_id.ToString() << " received";
 }
