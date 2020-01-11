@@ -17,7 +17,6 @@ working_dir=$(dirname $(realpath -s $0))
 if [ "$#" -eq 2 ]; then
     pkill notification
     sleep 2
-    redis-server redis.conf &> /dev/null &  # port = 6380
     ./notification $my_address &
     sleep 2
     worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
