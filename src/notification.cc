@@ -127,7 +127,7 @@ public:
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     std::string ip_address = request->ip();
-    LOG(INFO) << "[Notification] " << "WriteObjectLocation " << object_id << " " << ip_address;
+    LOG(INFO) << "[Notification] " << "WriteObjectLocation " << object_id.hex() << " " << ip_address;
     if (object_location_store_.find(object_id) == object_location_store_.end()) {
       object_location_store_[object_id] = std::vector<std::string>();
     }
