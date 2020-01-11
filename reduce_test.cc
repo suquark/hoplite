@@ -39,10 +39,6 @@ int main(int argc, char **argv) {
   ObjectID rank_object_id = object_ids[rank];
   std::shared_ptr<Buffer> reduction_result;
 
-  if (rank == 0) {
-    store.flushall();
-  }
-
   put_random_buffer<float>(store, rank_object_id, object_size);
 
   barrier(rank, redis_address, 7777, world_size, my_address);

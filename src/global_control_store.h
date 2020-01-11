@@ -42,9 +42,6 @@ public:
   // Get object location from Redis server.
   std::string get_object_location(const ObjectID &object_id);
 
-  // Clean up Redis store
-  void flushall();
-
   ObjectNotifications *
   subscribe_object_locations(const std::vector<ObjectID> &object_ids,
                              bool include_completed_objects = false);
@@ -70,7 +67,6 @@ private:
   std::shared_ptr<grpc::Channel> notification_channel_;
   std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
 
-  redisContext *redis_client_;
   std::unordered_set<ObjectNotifications *> notifications_;
 
   std::unique_ptr<grpc::Server> grpc_server_;

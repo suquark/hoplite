@@ -3,12 +3,13 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <hiredis.h>
 #include <string.h>
 
 #include "global_control_store.h"
 #include "logging.h"
 
+using objectstore::GetObjectLocationReply;
+using objectstore::GetObjectLocationRequest;
 using objectstore::ObjectCompleteReply;
 using objectstore::ObjectCompleteRequest;
 using objectstore::ObjectIsReadyReply;
@@ -17,6 +18,8 @@ using objectstore::SubscriptionReply;
 using objectstore::SubscriptionRequest;
 using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
+using objectstore::WriteObjectLocationReply;
+using objectstore::WriteObjectLocationRequest;
 
 class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
@@ -77,11 +80,6 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       notification_port_(notification_port),
       notification_listen_port_(notification_listen_port),
       service_(std::make_shared<NotificationListenerImpl>(notifications_)) {
-  // create a redis client
-  redis_client_ = redisConnect(redis_address.c_str(), port);
-  LOG(DEBUG) << "[RedisClient] Connected to Redis server running at "
-             << redis_address << ":" << port << ".";
-
   std::string grpc_address =
       my_address + ":" + std::to_string(notification_listen_port);
   grpc::ServerBuilder builder;
@@ -100,32 +98,24 @@ void GlobalControlStoreClient::write_object_location(
     const ObjectID &object_id, const std::string &my_address) {
   LOG(INFO) << "[RedisClient] Adding object " << object_id.Hex()
             << " to Redis with address = " << my_address << ".";
-  redisReply *redis_reply =
-      (redisReply *)redisCommand(redis_client_, "LPUSH %s %s",
-                                 object_id.Hex().c_str(), my_address.c_str());
-  freeReplyObject(redis_reply);
-}
-
-void GlobalControlStoreClient::flushall() {
-  redisReply *reply = (redisReply *)redisCommand(redis_client_, "FLUSHALL");
-  freeReplyObject(reply);
+  grpc::ClientContext context;
+  WriteObjectLocationRequest request;
+  WriteObjectLocationReply reply;
+  request.set_object_id(object_id.Binary());
+  request.set_ip(my_address);
+  notification_stub_->WriteObjectLocation(&context, request, &reply);
+  DCHECK(reply.ok()) << "WriteWriteObjectLocation for " << object_id.ToString()
+                     << " failed.";
 }
 
 std::string
 GlobalControlStoreClient::get_object_location(const ObjectID &object_id) {
-  redisReply *redis_reply = (redisReply *)redisCommand(
-      redis_client_, "LRANGE %s 0 -1", object_id.Hex().c_str());
-
-  int num_of_copies = redis_reply->elements;
-  if (num_of_copies == 0) {
-    return "";
-  }
-
-  std::string address =
-      std::string(redis_reply->element[rand() % num_of_copies]->str);
-
-  freeReplyObject(redis_reply);
-  return address;
+  grpc::ClientContext context;
+  GetObjectLocationRequest request;
+  GetObjectLocationReply reply;
+  request.set_object_id(object_id.Binary());
+  notification_stub_->GetObjectLocation(&context, request, &reply);
+  return std::string(reply.ip());
 }
 
 ObjectNotifications *GlobalControlStoreClient::subscribe_object_locations(

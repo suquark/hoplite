@@ -43,8 +43,6 @@ public:
     object_control_thread_.join();
   }
 
-  inline void flushall() { gcs_client_.flushall(); }
-
 private:
   const std::string my_address_;
   ObjectStoreState state_;
