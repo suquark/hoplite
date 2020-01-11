@@ -122,7 +122,7 @@ public:
                                    const WriteObjectLocationRequest *request,
                                    WriteObjectLocationReply *reply) {
     std::lock_guard<std::mutex> guard(object_location_mutex_);
-    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string ip_address = request->ip();
     if (object_location_store_.find(object_id) ==
         object_location_store_.end()) {
@@ -138,7 +138,7 @@ public:
                                  const GetObjectLocationRequest *request,
                                  GetObjectLocationReply *reply) {
     std::lock_guard<std::mutex> guard(object_location_mutex_);
-    ObjectID object_id = ObjectID::from_binary(request->object_id());
+    ObjectID object_id = ObjectID::FromBinary(request->object_id());
     if (object_location_store_.find(object_id) ==
         object_location_store_.end()) {
       reply->set_ip("");
