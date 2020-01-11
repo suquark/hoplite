@@ -141,6 +141,7 @@ public:
                                     GetObjectLocationReply *reply) {
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     ObjectID object_id = ObjectID::from_binary(request->object_id());
+    LOG(INFO) << "[Notification] " << "GetObjectLocation " << object_id.hex();
     if (object_location_store_.find(object_id) == object_location_store_.end()) {
       reply->set_ip("");
     }
