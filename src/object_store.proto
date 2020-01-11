@@ -73,19 +73,19 @@ message UnsubscriptionReply {
 }
 
 message ObjectCompleteRequest{
-    bytes object_id = 1;
+  bytes object_id = 1;
 }
 
 message ObjectCompleteReply {
-    bool ok = 1;
+  bool ok = 1;
 }
 
 message ObjectIsReadyRequest{
-      bytes object_id = 1;
+  bytes object_id = 1;
 }
 
 message ObjectIsReadyReply {
-      bool ok = 1;
+  bool ok = 1;
 }
 
 message RegisterRequest {
@@ -104,12 +104,32 @@ message IsReadyReply {
   bool ok = 1;
 }
 
+message WriteObjectLocationRequest {
+  bytes object_id = 1;
+  bytes ip = 2;
+}
+
+message WriteObjectLocationReply {
+  bool ok = 1;
+}
+
+message GetObjectLocationRequest {
+  bytes object_id = 1;
+}
+
+message GetObjectLocationReply {
+  bytes ip = 1;
+}
+
+
 service NotificationServer {
   rpc Subscribe(SubscriptionRequest) returns (SubscriptionReply);
   rpc Unsubscribe(UnsubscriptionRequest) returns (UnsubscriptionReply);
   rpc ObjectComplete(ObjectCompleteRequest) returns (ObjectCompleteReply);
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc IsReady(IsReadyRequest) returns (IsReadyReply);
+  rpc WriteObjectLocation(WriteObjectLocationRequest) returns (WriteObjectLocationReply);
+  rpc GetObjectLocation(GetObjectLocationRequest) returns (GetObjectLocationReply);
 }
 
 service NotificationListener {

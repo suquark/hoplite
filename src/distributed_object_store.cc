@@ -131,7 +131,6 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
       // mark it as done
       remaining_ids.erase(ready_id);
     }
-    usleep(10);
   }
 
   // send the reduced object back to the master node.

@@ -35,10 +35,6 @@ int main(int argc, char **argv) {
 
   std::thread exit_thread(timed_exit, 20);
 
-  if (rank == 0) {
-    store.flushall();
-  }
-
   ObjectID object_id = object_id_from_integer(0);
   std::shared_ptr<Buffer> result;
 
