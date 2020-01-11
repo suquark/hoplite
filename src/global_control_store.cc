@@ -8,6 +8,8 @@
 #include "global_control_store.h"
 #include "logging.h"
 
+using objectstore::GetObjectLocationReply;
+using objectstore::GetObjectLocationRequest;
 using objectstore::ObjectCompleteReply;
 using objectstore::ObjectCompleteRequest;
 using objectstore::ObjectIsReadyReply;
@@ -18,8 +20,6 @@ using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
 using objectstore::WriteObjectLocationReply;
 using objectstore::WriteObjectLocationRequest;
-using objectstore::GetObjectLocationReply;
-using objectstore::GetObjectLocationRequest;
 
 using namespace plasma;
 
@@ -106,7 +106,8 @@ void GlobalControlStoreClient::write_object_location(
   request.set_object_id(object_id.binary());
   request.set_ip(my_address);
   notification_stub_->WriteObjectLocation(&context, request, &reply);
-  DCHECK(reply.ok()) << "WriteWriteObjectLocation for " << object_id.binary() << " failed.";
+  DCHECK(reply.ok()) << "WriteWriteObjectLocation for " << object_id.binary()
+                     << " failed.";
 }
 
 std::string

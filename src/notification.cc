@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/server.h>
@@ -6,12 +7,13 @@
 #include <plasma/common.h>
 #include <unistd.h>
 #include <unordered_map>
-#include <cstdlib>
 
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::GetObjectLocationReply;
+using objectstore::GetObjectLocationRequest;
 using objectstore::IsReadyReply;
 using objectstore::IsReadyRequest;
 using objectstore::ObjectCompleteReply;
@@ -26,8 +28,6 @@ using objectstore::UnsubscriptionReply;
 using objectstore::UnsubscriptionRequest;
 using objectstore::WriteObjectLocationReply;
 using objectstore::WriteObjectLocationRequest;
-using objectstore::GetObjectLocationReply;
-using objectstore::GetObjectLocationRequest;
 
 using namespace plasma;
 
@@ -122,15 +122,15 @@ public:
   }
 
   grpc::Status WriteObjectLocation(grpc::ServerContext *context,
-                                    const WriteObjectLocationRequest *request,
-                                    WriteObjectLocationReply *reply) {
+                                   const WriteObjectLocationRequest *request,
+                                   WriteObjectLocationReply *reply) {
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     std::string ip_address = request->ip();
-    if (object_location_store_.find(object_id) == object_location_store_.end()) {
+    if (object_location_store_.find(object_id) ==
+        object_location_store_.end()) {
       object_location_store_[object_id] = {ip_address};
-    }
-    else {
+    } else {
       object_location_store_[object_id].push_back(ip_address);
     }
     reply->set_ok(true);
@@ -138,14 +138,14 @@ public:
   }
 
   grpc::Status GetObjectLocation(grpc::ServerContext *context,
-                                    const GetObjectLocationRequest *request,
-                                    GetObjectLocationReply *reply) {
+                                 const GetObjectLocationRequest *request,
+                                 GetObjectLocationReply *reply) {
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     ObjectID object_id = ObjectID::from_binary(request->object_id());
-    if (object_location_store_.find(object_id) == object_location_store_.end()) {
+    if (object_location_store_.find(object_id) ==
+        object_location_store_.end()) {
       reply->set_ip("");
-    }
-    else {
+    } else {
       size_t num_of_copies = object_location_store_[object_id].size();
       reply->set_ip(object_location_store_[object_id][rand() % num_of_copies]);
     }
