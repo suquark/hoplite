@@ -17,7 +17,7 @@ COMMON_OBJS = src/common/id.o src/common/buffer.o src/common/status.o
 OBJECT_STORE_OBJS = src/local_store_client.o src/global_control_store.o src/object_store_state.o \
 	src/object_writer.o src/object_sender.o src/object_control.o src/distributed_object_store.o
 
-all: notification distributed_object_store multicast_test reduce_test allreduce_test py_distributed_object_store
+all: notification multicast_test reduce_test allreduce_test py_distributed_object_store
 
 notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
@@ -25,8 +25,8 @@ notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
 py_distributed_object_store: libdistributed_object_store.so
 	python setup.py build_ext --inplace && cp *.so python/
 
-distributed_object_store: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS)
-	$(CXX) $^ $(LDFLAGS) -shared -o lib$@.so
+libdistributed_object_store.so: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS)
+	$(CXX) $^ $(LDFLAGS) -shared -o $@
 
 multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
