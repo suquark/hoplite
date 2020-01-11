@@ -129,9 +129,11 @@ public:
     std::string ip_address = request->ip();
     LOG(INFO) << "[Notification] " << "WriteObjectLocation " << object_id.hex() << " " << ip_address;
     if (object_location_store_.find(object_id) == object_location_store_.end()) {
-      object_location_store_[object_id] = std::vector<std::string>();
+      object_location_store_[object_id] = {ip_address};
     }
-    object_location_store_[object_id].push_back(ip_address);
+    else {
+      object_location_store_[object_id].push_back(ip_address);
+    }
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -143,10 +145,12 @@ public:
     ObjectID object_id = ObjectID::from_binary(request->object_id());
     LOG(INFO) << "[Notification] " << "GetObjectLocation " << object_id.hex();
     if (object_location_store_.find(object_id) == object_location_store_.end()) {
+      LOG(INFO) << "[Notification] " << "GetObjectLocation " << "does not find";
       reply->set_ip("");
     }
     else {
       size_t num_of_copies = object_location_store_.size();
+      LOG(INFO) << "[Notification] " << "GetObjectLocation " << num_of_copies;
       reply->set_ip(object_location_store_[object_id][rand() % num_of_copies]);
     }
     return grpc::Status::OK;
