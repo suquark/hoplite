@@ -149,7 +149,7 @@ public:
       reply->set_ip("");
     }
     else {
-      size_t num_of_copies = object_location_store_.size();
+      size_t num_of_copies = object_location_store_[object_id].size();
       LOG(INFO) << "[Notification] " << "GetObjectLocation " << num_of_copies;
       reply->set_ip(object_location_store_[object_id][rand() % num_of_copies]);
     }
