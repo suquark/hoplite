@@ -26,6 +26,6 @@ def create_store_using_args(args):
         args.redis_address.encode(), args.redis_port,
         args.notification_port, args.notification_listening_port,
         args.plasma_socket.encode(),
-        get_my_address(), args.object_writer_port,
+        get_my_address().encode(), args.object_writer_port,
         args.grpc_port)
     return store
