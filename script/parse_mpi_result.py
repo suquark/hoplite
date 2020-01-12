@@ -100,7 +100,7 @@ def main(log_dir):
     task_list = sorted(task_list, reverse=True)
 
     for task in task_list:
-        print (task, results[task])
+        print (task.replace('-',','),',', results[task])
 
 
 if __name__ == "__main__":
