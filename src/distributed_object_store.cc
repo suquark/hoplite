@@ -38,7 +38,7 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
   std::shared_ptr<Buffer> ptr;
   auto pstatus = local_store_client_.Create(object_id, buffer->Size(), &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
-                       << object_id.Hex() << " size = " << size
+                       << object_id.Hex() << " size = " << buffer->Size()
                        << ", status = " << pstatus.ToString();
   ptr->CopyFrom(*buffer);
   local_store_client_.Seal(object_id);
