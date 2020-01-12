@@ -72,9 +72,11 @@ cdef class DistributedObjectStore:
                   bytes plasma_socket,
                   bytes my_address, int object_writer_port,
                   int grpc_port):
-        self.store.reset(new CDistributedObjectStore(redis_address, redis_port,
+        self.redis_address = redis_address
+        self.my_address = my_address
+        self.store.reset(new CDistributedObjectStore(self.redis_address, redis_port,
             notification_port, notification_listening_port, plasma_socket,
-            my_address, object_writer_port, grpc_port))
+            self.my_address, object_writer_port, grpc_port))
 
     def get(self, ObjectID object_id, expected_size=None, reduce_op=None, reduction_id=None):
         cdef:
