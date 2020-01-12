@@ -38,10 +38,10 @@ cdef class Buffer:
         return cls(data_ptr, nbytes)
 
     def data_ptr(self):
-        return self.buf.get().data()
+        return self.buf.get().Data()
 
     def size(self):
-        return self.buf.get().size()
+        return self.buf.get().Size()
 
     def __dealloc__(self):
         self.buf.reset()
