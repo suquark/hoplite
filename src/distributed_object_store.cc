@@ -174,7 +174,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
       break;
     }
     // if the sender is busy, wait for 1 millisecond and try again
-    usleep(1000);
+    usleep(1);
   }
 
   // get object from Plasma

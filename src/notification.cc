@@ -60,10 +60,11 @@ public:
           break;
         }
       }
-      usleep(100);
+      usleep(1);
     }
 
     reply->set_ok(true);
+    LOG(ERROR) << "barrier exits";
     return grpc::Status::OK;
   }
 
