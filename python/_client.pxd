@@ -9,7 +9,7 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector as c_vector
 
 
-cdef extern from "../src/common/id.h" namespace "" nogil:
+cdef extern from "common/id.h" namespace "" nogil:
     cdef cppclass CObjectID "ObjectID":
         @staticmethod
         CObjectID FromBinary(const c_string& binary)
@@ -18,7 +18,7 @@ cdef extern from "../src/common/id.h" namespace "" nogil:
         c_string Binary() const
 
 
-cdef extern from "../src/common/buffer.h" namespace "" nogil:
+cdef extern from "common/buffer.h" namespace "" nogil:
     cdef cppclass CBuffer "Buffer":
         CBuffer(int64_t size)
         CBuffer(uint8_t* data, int64_t size)
