@@ -53,6 +53,9 @@ cdef class ObjectID:
     def __cinit__(self, const c_string& binary):
         self.data = CObjectID.FromBinary(binary)
 
+    def __reduce__(self):
+        return type(self), (self.data.Binary(),)
+
 
 class ReduceOp(Enum):
      MAX = 1
