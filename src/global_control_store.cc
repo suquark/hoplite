@@ -96,6 +96,7 @@ GlobalControlStoreClient::GlobalControlStoreClient(
 
 void GlobalControlStoreClient::write_object_location(
     const ObjectID &object_id, const std::string &my_address) {
+  TIMELINE("write_object_location");
   LOG(INFO) << "[RedisClient] Adding object " << object_id.Hex()
             << " to Redis with address = " << my_address << ".";
   grpc::ClientContext context;
@@ -110,6 +111,7 @@ void GlobalControlStoreClient::write_object_location(
 
 std::string
 GlobalControlStoreClient::get_object_location(const ObjectID &object_id) {
+  TIMELINE("get_object_location");
   grpc::ClientContext context;
   GetObjectLocationRequest request;
   GetObjectLocationReply reply;
