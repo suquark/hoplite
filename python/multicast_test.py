@@ -30,8 +30,7 @@ def multicast(world_rank, object_size):
         buffer = store.get(buffer, object_id)
 
 
-redis_p = subprocess.Popen(['redis-server', 'redis.conf'])
-notification_p = subprocess.Popen(['notification', get_my_address()])
+notification_p = subprocess.Popen(['../src/notification', get_my_address()])
 
 tasks = []
 
@@ -41,5 +40,4 @@ for rank in range(args.world_size):
 
 ray.get(tasks)
 
-redis_p.terminate()
 notification_p.terminate()
