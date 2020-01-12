@@ -9,9 +9,10 @@ from utils import add_arguments, get_my_address, create_store_using_args
 
 parser = argparse.ArgumentParser(description='The basic test example')
 add_arguments(parser)
-parser.add_argument('--world-size', type=int,
+parser.add_argument('--world-size', type=int, required=True,
                     help='Size of the collective processing group')
-parser.add_argument('--object-size', type=int, help='The size of the object')
+parser.add_argument('--object-size', type=int, required=True,
+                    help='The size of the object')
 
 args = parser.parse_args()
 
