@@ -13,14 +13,18 @@ cdef extern from "../src/common/id.h" namespace "" nogil:
     cdef cppclass CObjectID "ObjectID":
         @staticmethod
         CObjectID FromBinary(const c_string& binary)
+        @staticmethod
+        CObjectID FromHex(const c_string& binary)
         c_string Binary() const
 
 
 cdef extern from "../src/common/buffer.h" namespace "" nogil:
     cdef cppclass CBuffer "Buffer":
+        CBuffer(int64_t size)
         CBuffer(uint8_t* data, int64_t size)
-        const uint8_t* data()
-        int64_t szie()
+        const uint8_t* Data()
+        uint8_t* MutableData()
+        int64_t Size()
 
 
 cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
@@ -31,17 +35,17 @@ cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
                                 const c_string &my_address, int object_writer_port,
                                 int grpc_port)
 
-        void Put(const void *data, size_t size, const CObjectID &object_id)
+        void Put(const shared_ptr[CBuffer] &buffer, const CObjectID &object_id)
 
-        CObjectID Put(const void *data, size_t size)
-
-        void Get(const c_vector[CObjectID] &object_ids,
-                size_t _expected_size, CObjectID *created_reduction_id,
-                shared_ptr[CBuffer] *result)
+        CObjectID Put(const shared_ptr[CBuffer] &buffer)
 
         void Get(const c_vector[CObjectID] &object_ids,
-                size_t _expected_size, const CObjectID &reduction_id,
-                shared_ptr[CBuffer] *result)
+                 size_t _expected_size, CObjectID *created_reduction_id,
+                 shared_ptr[CBuffer] *result)
+
+        void Get(const c_vector[CObjectID] &object_ids,
+                 size_t _expected_size, const CObjectID &reduction_id,
+                 shared_ptr[CBuffer] *result)
 
         void Get(const CObjectID &object_id,
-                shared_ptr[CBuffer] *result)
+                 shared_ptr[CBuffer] *result)

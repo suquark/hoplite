@@ -30,27 +30,27 @@ DistributedObjectStore::DistributedObjectStore(
   notification_thread_ = gcs_client_.Run();
 }
 
-void DistributedObjectStore::Put(const void *data, size_t size,
+void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                                  const ObjectID &object_id) {
   TIMELINE(std::string("DistributedObjectStore Put single object ") +
            object_id.Hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
-  auto pstatus = local_store_client_.Create(object_id, size, &ptr);
+  auto pstatus = local_store_client_.Create(object_id, buffer->Size(), &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
                        << object_id.Hex() << " size = " << size
                        << ", status = " << pstatus.ToString();
-  ptr->CopyFrom((const uint8_t *)data, size);
+  ptr->CopyFrom(*buffer);
   local_store_client_.Seal(object_id);
   gcs_client_.write_object_location(object_id, my_address_);
   gcs_client_.PublishObjectCompletionEvent(object_id);
 }
 
-ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
+ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
   TIMELINE("DistributedObjectStore Put without object_id");
   // generate a random object id
   auto object_id = ObjectID::FromRandom();
-  Put(data, size, object_id);
+  Put(buffer, object_id);
   return object_id;
 }
 

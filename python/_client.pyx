@@ -98,10 +98,10 @@ cdef class DistributedObjectStore:
     def put(self, Buffer buf, object_id=None):
         cdef CObjectID created_object_id
         if object_id is None:
-            created_object_id = self.store.get().Put(buf.buf.get().data(), buf.buf.get().size())
+            created_object_id = self.store.get().Put(buf.buf)
             return ObjectID(created_object_id.Binary())
         else:
-            self.store.get().Put(buf.buf.get().data(), buf.buf.get().size(), (<ObjectID>object_id).data)
+            self.store.get().Put(buf.buf, (<ObjectID>object_id).data)
             return object_id
 
     def __dealloc__(self):
