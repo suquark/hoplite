@@ -64,10 +64,10 @@ class ReduceOp(Enum):
 cdef class DistributedObjectStore:
     cdef unique_ptr[CDistributedObjectStore] store
 
-    def __cinit__(self, const c_string &redis_address, int redis_port,
+    def __cinit__(self, bytes redis_address, int redis_port,
                   int notification_port, int notification_listening_port,
-                  const c_string &plasma_socket,
-                  const c_string &my_address, int object_writer_port,
+                  bytes plasma_socket,
+                  bytes my_address, int object_writer_port,
                   int grpc_port):
         self.store.reset(new CDistributedObjectStore(redis_address, redis_port,
             notification_port, notification_listening_port, plasma_socket,

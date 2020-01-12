@@ -30,7 +30,9 @@ def multicast(world_rank, object_size):
         buffer = store.get(buffer, object_id)
 
 
-notification_p = subprocess.Popen(['../src/notification', get_my_address()])
+notification_p = subprocess.Popen(['../notification', get_my_address()])
+
+ray.init(address='auto')
 
 tasks = []
 
