@@ -159,7 +159,7 @@ public:
       reply->set_ip("");
     } else {
       if (object_location_store_cv_.find(object_id) == object_location_store_cv_.end()) {
-        object_location_store_cv_.emplace(object_id, std::piecewise_construct,
+        object_location_store_cv_.emplace(std::piecewise_construct,
               std::forward_as_tuple(object_id),
               std::forward_as_tuple());
       }
