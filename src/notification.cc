@@ -142,11 +142,9 @@ public:
     }
     reply->set_ok(true);
     l.unlock();
-    /*
     if (object_location_store_cv_.find(object_id) != object_location_store_cv_.end()) {
-      object_location_store_cv_[object_id].notify_all();
-    }*/
-    object_location_store_cv_.notify_all();
+      object_location_store_cv_[object_id].notify_one();
+    }
     return grpc::Status::OK;
   }
 
@@ -160,13 +158,12 @@ public:
       // This should never happen.
       reply->set_ip("");
     } else {
-      /* The
       if (object_location_store_cv_.find(object_id) == object_location_store_cv_.end()) {
         object_location_store_cv_.emplace(std::piecewise_construct,
               std::forward_as_tuple(object_id),
               std::forward_as_tuple());
-      }*/
-      object_location_store_cv_.wait(l, 
+      }
+      object_location_store_cv_[object_id].wait(l, 
           [this, &object_id](){return object_location_store_ready_[object_id].size() > 0;});
       auto it = object_location_store_ready_[object_id].begin();
       reply->set_ip(*it);
@@ -201,8 +198,8 @@ private:
   std::mutex object_location_mutex_;
   std::unordered_map<ObjectID, std::unordered_set<std::string>> 
       object_location_store_ready_;
-  // std::unordered_map<ObjectID, std::condition_variable> 
-  std::condition_variable object_location_store_cv_;
+  std::unordered_map<ObjectID, std::condition_variable> 
+      object_location_store_cv_;
   std::unordered_map<ObjectID, std::unordered_set<std::string>> 
       object_location_store_;
   void create_stub(const std::string &remote_grpc_address) {
