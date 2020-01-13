@@ -158,10 +158,10 @@ public:
       reply->set_ip("");
     } else {
       if (object_location_store_cv_.find(object_id) == object_location_store_cv_.end()) {
-        object_location_store_cv_[object_id] = std::condition_variable();
+        object_location_store_cv_.emplace(object_id, std::condition_variable());
       }
       object_location_store_cv_[object_id].wait(l, 
-          [this](){return object_location_store_ready_[object_id].size() > 0;});
+          [this, &object_id](){return object_location_store_ready_[object_id].size() > 0;});
       auto it = object_location_store_ready_[object_id].begin();
       reply->set_ip(*it);
       object_location_store_ready_[object_id].erase(it);
