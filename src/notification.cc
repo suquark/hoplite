@@ -143,7 +143,7 @@ public:
     reply->set_ok(true);
     l.unlock();
     if (object_location_store_cv_.find(object_id) != object_location_store_cv_.end()) {
-      object_location_store_cv_[object_id].notify_one();
+      object_location_store_cv_[object_id].notify_all();
     }
     return grpc::Status::OK;
   }
