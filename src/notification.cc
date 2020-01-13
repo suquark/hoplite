@@ -5,6 +5,7 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 #include <unistd.h>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 #include <condition_variable>
@@ -158,7 +159,9 @@ public:
       reply->set_ip("");
     } else {
       if (object_location_store_cv_.find(object_id) == object_location_store_cv_.end()) {
-        object_location_store_cv_.emplace(object_id, std::condition_variable());
+        object_location_store_cv_.emplace(object_id, std::piecewise_construct,
+              std::forward_as_tuple(object_id),
+              std::forward_as_tuple());
       }
       object_location_store_cv_[object_id].wait(l, 
           [this, &object_id](){return object_location_store_ready_[object_id].size() > 0;});
