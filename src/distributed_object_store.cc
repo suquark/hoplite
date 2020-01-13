@@ -17,8 +17,8 @@ DistributedObjectStore::DistributedObjectStore(
                       grpc_port},
       object_writer_{state_, gcs_client_, local_store_client_, my_address,
                      object_writer_port},
-      object_sender_{state_, local_store_client_}, local_store_client_{
-                                                       false, plasma_socket} {
+      object_sender_{state_, gcs_client_, local_store_client_, my_address}, 
+      local_store_client_{false, plasma_socket} {
   TIMELINE("DistributedObjectStore construction function");
   // create a thread to receive remote object
   object_writer_thread_ = object_writer_.Run();

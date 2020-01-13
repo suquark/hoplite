@@ -43,8 +43,10 @@ template <typename T> void stream_send(int conn_fd, T *stream) {
 }
 
 ObjectSender::ObjectSender(ObjectStoreState &state,
-                           LocalStoreClient &local_store_client)
-    : state_(state), local_store_client_(local_store_client) {
+                           GlobalControlStoreClient &gcs_client,
+                           LocalStoreClient &local_store_client, 
+                           const std::string &my_address)
+    : state_(state), gcs_client_(gcs_client), local_store_client_(local_store_client), my_address_(my_address) {
   TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
 }
@@ -122,6 +124,7 @@ void ObjectSender::send_object(const PullRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   close(conn_fd);
+  gcs_client_.write_object_location(object_id, my_address_);
   LOG(DEBUG) << "function returned";
 }
 
@@ -167,4 +170,5 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   close(conn_fd);
+  gcs_client_.write_object_location(object_id, my_address_);
 }
