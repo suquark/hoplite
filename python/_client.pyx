@@ -18,7 +18,7 @@ from enum import Enum
 cdef class Buffer:
     cdef shared_ptr[CBuffer] buf
 
-    def __cinit__(self, data_ptr, int64_t size):
+    def __cinit__(self, size_t data_ptr, int64_t size):
         cdef uint8_t *_data_ptr
 
         _data_ptr = <uint8_t *>data_ptr
