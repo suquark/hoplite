@@ -6,6 +6,8 @@
 #include <grpcpp/server_context.h>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
+#include <condition_variable>
 
 #include "logging.h"
 #include "notification.h"
@@ -122,30 +124,47 @@ public:
   grpc::Status WriteObjectLocation(grpc::ServerContext *context,
                                    const WriteObjectLocationRequest *request,
                                    WriteObjectLocationReply *reply) {
-    std::lock_guard<std::mutex> guard(object_location_mutex_);
+    std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string ip_address = request->ip();
     if (object_location_store_.find(object_id) ==
         object_location_store_.end()) {
       object_location_store_[object_id] = {ip_address};
     } else {
-      object_location_store_[object_id].push_back(ip_address);
+      object_location_store_[object_id].insert(ip_address);
+    }
+    if (object_location_store_ready_.find(object_id) ==
+        object_location_store_ready_.end()) {
+      object_location_store_ready_[object_id] = {ip_address};
+    } else {
+      object_location_store_ready_[object_id].insert(ip_address);
     }
     reply->set_ok(true);
+    l.unlock();
+    if (object_location_store_cv_.find(object_id) != object_location_store_cv_.end()) {
+      object_location_store_cv_[object_id].notify_one();
+    }
     return grpc::Status::OK;
   }
 
   grpc::Status GetObjectLocation(grpc::ServerContext *context,
                                  const GetObjectLocationRequest *request,
                                  GetObjectLocationReply *reply) {
-    std::lock_guard<std::mutex> guard(object_location_mutex_);
+    std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     if (object_location_store_.find(object_id) ==
-        object_location_store_.end()) {
+        object_location_store_.end())  {
+      // This should never happen.
       reply->set_ip("");
     } else {
-      size_t num_of_copies = object_location_store_[object_id].size();
-      reply->set_ip(object_location_store_[object_id][rand() % num_of_copies]);
+      if (object_location_store_cv_.find(object_id) == object_location_store_cv_.end()) {
+        object_location_store_cv_[object_id] = std::condition_variable();
+      }
+      object_location_store_cv_[object_id].wait(l, 
+          [this](){return object_location_store_ready_[object_id].size() > 0;});
+      auto it = object_location_store_ready_[object_id].begin();
+      reply->set_ip(*it);
+      object_location_store_ready_[object_id].erase(it);
     }
     return grpc::Status::OK;
   }
@@ -174,7 +193,12 @@ private:
                      std::unique_ptr<objectstore::NotificationListener::Stub>>
       notification_listener_stub_pool_;
   std::mutex object_location_mutex_;
-  std::unordered_map<ObjectID, std::vector<std::string>> object_location_store_;
+  std::unordered_map<ObjectID, std::unordered_set<std::string>> 
+      object_location_store_ready_;
+  std::unordered_map<ObjectID, std::condition_variable> 
+      object_location_store_cv_;
+  std::unordered_map<ObjectID, std::unordered_set<std::string>> 
+      object_location_store_;
   void create_stub(const std::string &remote_grpc_address) {
     if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
       channel_pool_[remote_grpc_address] = grpc::CreateChannel(
