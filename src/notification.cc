@@ -105,7 +105,7 @@ public:
   grpc::Status ObjectComplete(grpc::ServerContext *context,
                               const ObjectCompleteRequest *request,
                               ObjectCompleteReply *reply) {
-    TIMELINE("notification ObjectComplete")
+    TIMELINE("notification ObjectComplete");
     std::lock_guard<std::mutex> guard(notification_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
 
@@ -126,7 +126,7 @@ public:
   grpc::Status WriteObjectLocation(grpc::ServerContext *context,
                                    const WriteObjectLocationRequest *request,
                                    WriteObjectLocationReply *reply) {
-    TIMELINE("notification WriteObjectLocation")
+    TIMELINE("notification WriteObjectLocation");
     std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string ip_address = request->ip();
@@ -153,7 +153,7 @@ public:
   grpc::Status GetObjectLocation(grpc::ServerContext *context,
                                  const GetObjectLocationRequest *request,
                                  GetObjectLocationReply *reply) {
-    TIMELINE("notification GetObjectLocation")
+    TIMELINE("notification GetObjectLocation");
     std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     if (object_location_store_.find(object_id) ==
