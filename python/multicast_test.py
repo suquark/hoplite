@@ -18,11 +18,6 @@ parser.add_argument('--object-size', type=int, required=True,
 args = parser.parse_args()
 args_dict = utils.extract_dict_from_args(args)
 
-LD_LIBRARY_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-def init_library_path(worker):
-    os.environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH + ':' + os.environ.get('LD_LIBRARY_PATH', '')
-
 
 @ray.remote(resources={'node': 1}, max_calls=1)
 def multicast(world_rank, object_size):
@@ -40,9 +35,6 @@ notification_p = subprocess.Popen(['../notification', utils.get_my_address()])
 utils.register_cleanup([notification_p])
 
 ray.init(address='auto')
-ray.run_function_on_all_workers(init_library_path)
-import time
-time.sleep(10)
 
 tasks = []
 

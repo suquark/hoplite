@@ -10,6 +10,9 @@ ext_modules = [
         include_dirs=[os.path.abspath("src/")],
         library_dirs=[os.path.abspath(".")],
         libraries=["distributed_object_store"],
+        # this is necessary for the dynamic linking of Linux to
+        # be working in a distributed environment
+        extra_link_args=['-Wl,-rpath='+os.path.abspath(".")],
     )
 ]
 
