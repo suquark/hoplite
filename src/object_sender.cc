@@ -170,5 +170,4 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   close(conn_fd);
-  gcs_client_.write_object_location(object_id, my_address_);
 }

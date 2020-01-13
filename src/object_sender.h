@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "local_store_client.h"
+#include "global_control_store.h"
 #include "object_store.pb.h"
 #include "object_store_state.h"
 
