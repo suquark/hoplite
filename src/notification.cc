@@ -118,7 +118,7 @@ public:
     std::string receiver_ip = request->receiver_ip();
     // TODO: pass in repeated object ids will send twice.
     for (auto object_id_it: request->object_ids()) {
-      ObjectID object_id = ObjectID::FromBinary(*object_id_it);
+      ObjectID object_id = ObjectID::FromBinary(object_id_it);
       pending_receiver_ips_[object_id].push({false, nullptr, nullptr, receiver_ip});
       try_send_notification(object_id);
     }
