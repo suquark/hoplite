@@ -54,40 +54,6 @@ message ObjectWriterRequest {
 
 // Notification Protocol
 
-message SubscriptionRequest {
-  bytes subscriber_ip = 1;
-  bytes object_id = 2;
-}
-
-message SubscriptionReply {
-  bool ok = 1;
-}
-
-message UnsubscriptionRequest {
-  bytes unsubscriber_ip = 1;
-  bytes object_id = 2;
-}
-
-message UnsubscriptionReply {
-  bool ok = 1;
-}
-
-message ObjectCompleteRequest{
-  bytes object_id = 1;
-}
-
-message ObjectCompleteReply {
-  bool ok = 1;
-}
-
-message ObjectIsReadyRequest{
-  bytes object_id = 1;
-}
-
-message ObjectIsReadyReply {
-  bool ok = 1;
-}
-
 message RegisterRequest {
   int32 num_of_nodes = 1;
 }
@@ -104,36 +70,52 @@ message IsReadyReply {
   bool ok = 1;
 }
 
-message WriteObjectLocationRequest {
+message WriteLocationRequest {
   bytes object_id = 1;
-  bytes ip = 2;
+  bytes sender_ip = 2;
+  bool finished = 3;
 }
 
-message WriteObjectLocationReply {
+message WriteLocationReply {
   bool ok = 1;
 }
 
-message GetObjectLocationRequest {
+message GetLocationSyncRequest {
   bytes object_id = 1;
 }
 
-message GetObjectLocationReply {
-  bytes ip = 1;
+message GetLocationSyncReply {
+  bytes sender_ip = 1;
 }
 
+message GetLocationAsyncRequest {
+  repeated bytes object_ids = 1;
+  bytes receiver_ip = 2;
+}
+
+message GetLocationAsyncReply {
+  bool ok = 1;
+}
+
+message GetLocationAsyncAnswerRequest {
+  bytes object_id = 1;
+  bytes sender_ip = 2;
+}
+
+message GetLocationAsyncAnswerReply {
+  bool ok = 1;
+}
 
 service NotificationServer {
-  rpc Subscribe(SubscriptionRequest) returns (SubscriptionReply);
-  rpc Unsubscribe(UnsubscriptionRequest) returns (UnsubscriptionReply);
-  rpc ObjectComplete(ObjectCompleteRequest) returns (ObjectCompleteReply);
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc IsReady(IsReadyRequest) returns (IsReadyReply);
-  rpc WriteObjectLocation(WriteObjectLocationRequest) returns (WriteObjectLocationReply);
-  rpc GetObjectLocation(GetObjectLocationRequest) returns (GetObjectLocationReply);
+  rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
+  rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
+  rpc GetLocationAsync(GetLocationAsyncRequest) returns (GetLocationAsyncReply);
 }
 
 service NotificationListener {
-  rpc ObjectIsReady(ObjectIsReadyRequest) returns (ObjectIsReadyReply);
+  rpc GetLocationAsyncAnswer(GetLocationAsyncAnswerRequest) returns (GetLocationAsyncAnswerReply);
 }
 
 

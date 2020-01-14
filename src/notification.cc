@@ -9,27 +9,25 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <condition_variable>
+#include <queue>
+#include <atomic>
 
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 
-using objectstore::GetObjectLocationReply;
-using objectstore::GetObjectLocationRequest;
-using objectstore::IsReadyReply;
-using objectstore::IsReadyRequest;
-using objectstore::ObjectCompleteReply;
-using objectstore::ObjectCompleteRequest;
-using objectstore::ObjectIsReadyReply;
-using objectstore::ObjectIsReadyRequest;
 using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
-using objectstore::SubscriptionReply;
-using objectstore::SubscriptionRequest;
-using objectstore::UnsubscriptionReply;
-using objectstore::UnsubscriptionRequest;
-using objectstore::WriteObjectLocationReply;
-using objectstore::WriteObjectLocationRequest;
+using objectstore::IsReadyReply;
+using objectstore::IsReadyRequest;
+using objectstore::WriteLocationReplyt;
+using objectstore::WriteLocationRequest;
+using objectstore::GetLocationSyncReply;
+using objectstore::GetLocationSyncRequest;
+using objectstore::GetLocationAsyncReply;
+using objectstore::GetLocationAsyncRequest;
+using objectstore::GetLocationAsyncAnswerRequest;
+using objectstore::GetLocationAsyncAnswerReply;
 
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
@@ -71,89 +69,26 @@ public:
     return grpc::Status::OK;
   }
 
-  grpc::Status Subscribe(grpc::ServerContext *context,
-                         const SubscriptionRequest *request,
-                         SubscriptionReply *reply) {
-    std::lock_guard<std::mutex> guard(notification_mutex_);
-    ObjectID object_id = ObjectID::FromBinary(request->object_id());
-    std::string ip = request->subscriber_ip();
-
-    auto v = pendings_.find(object_id);
-    if (v == pendings_.end()) {
-      pendings_[object_id] = {ip};
-    } else {
-      pendings_[object_id].push_back(ip);
-    }
-
-    reply->set_ok(true);
-
-    return grpc::Status::OK;
-  }
-
-  grpc::Status Unsubscribe(grpc::ServerContext *context,
-                           const UnsubscriptionRequest *request,
-                           UnsubscriptionReply *reply) {
-    std::lock_guard<std::mutex> guard(notification_mutex_);
-
-    // TODO: remove IP from pending_
-
-    reply->set_ok(true);
-
-    return grpc::Status::OK;
-  }
-
-  grpc::Status ObjectComplete(grpc::ServerContext *context,
-                              const ObjectCompleteRequest *request,
-                              ObjectCompleteReply *reply) {
-    TIMELINE("notification ObjectComplete");
-    std::lock_guard<std::mutex> guard(notification_mutex_);
-    ObjectID object_id = ObjectID::FromBinary(request->object_id());
-
-    auto v = pendings_.find(object_id);
-    if (v != pendings_.end()) {
-      for (auto &ip : v->second) {
-        auto reply_ok = send_notification(ip, object_id);
-        DCHECK(reply_ok)
-            << "[NotificationServer] Sending Notification failure.";
-      }
-    }
-
-    reply->set_ok(true);
-
-    return grpc::Status::OK;
-  }
-
-  grpc::Status WriteObjectLocation(grpc::ServerContext *context,
-                                   const WriteObjectLocationRequest *request,
-                                   WriteObjectLocationReply *reply) {
-    TIMELINE("notification WriteObjectLocation");
+  grpc::Status WriteLocation(grpc::ServerContext *context,
+                                   const WriteLocationRequest *request,
+                                   WriteLocationReply *reply) {
+    TIMELINE("notification WriteLocation");
     std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
-    std::string ip_address = request->ip();
-    if (object_location_store_.find(object_id) ==
-        object_location_store_.end()) {
-      object_location_store_[object_id] = {ip_address};
-    } else {
-      object_location_store_[object_id].insert(ip_address);
-    }
-    if (object_location_store_ready_.find(object_id) ==
-        object_location_store_ready_.end()) {
-      object_location_store_ready_[object_id] = {ip_address};
-    } else {
-      object_location_store_ready_[object_id].insert(ip_address);
-    }
+    std::string sender_ip = request->sender_ip();
+    bool finished = request->finished();
+    int weight = (rand() % 100) + finished ? 100 : 0; 
+    object_location_store_[object_id].insert(sender_ip);
+    object_location_store_ready_[object_id].push(std::make_pair(weight, sender_ip));
+    try_send_notification(object_id);
     reply->set_ok(true);
-    l.unlock();
-    if (object_location_store_cv_.find(object_id) != object_location_store_cv_.end()) {
-      object_location_store_cv_[object_id].notify_one();
-    }
     return grpc::Status::OK;
   }
 
-  grpc::Status GetObjectLocation(grpc::ServerContext *context,
-                                 const GetObjectLocationRequest *request,
-                                 GetObjectLocationReply *reply) {
-    TIMELINE("notification GetObjectLocation");
+  grpc::Status GetLocationSync(grpc::ServerContext *context,
+                                 const GetLocationSyncRequest *request,
+                                 GetLocationSyncReply *reply) {
+    TIMELINE("notification GetLocationSync");
     std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     if (object_location_store_.find(object_id) ==
@@ -161,29 +96,65 @@ public:
       // This should never happen.
       reply->set_ip("");
     } else {
-      if (object_location_store_cv_.find(object_id) == object_location_store_cv_.end()) {
-        object_location_store_cv_.emplace(std::piecewise_construct,
-              std::forward_as_tuple(object_id),
-              std::forward_as_tuple());
-      }
-      object_location_store_cv_[object_id].wait(l, 
-          [this, &object_id](){return object_location_store_ready_[object_id].size() > 0;});
-      auto it = object_location_store_ready_[object_id].begin();
-      reply->set_ip(*it);
-      object_location_store_ready_[object_id].erase(it);
+      std::shared_ptr<std::mutex> sync_mutex = make_shared<std::mutex>();
+      sync_mutex->lock();
+      std::shared_ptr<std::string> result_sender_ip = make_shared<std::string>();
+      pending_receiver_ips_[object_id].push({true, sync_mutex, result_sender_ip, ""});
+      try_send_notification(object_id);
+      l.unlock();
+      sync_mutex->lock();
+      l.lock();
+      DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
+      DCHECK(result_sender_ip.use_count() == 1) << "result_sender_ip memory leak detected";
+      reply->set_ip(*result_sender_ip);
     }
     return grpc::Status::OK;
   }
 
+  grpc::Status GetLocationAsync(grpc::ServerContext *context,
+                         const GetLocationAsyncRequest *request,
+                         GetLocationAsyncReply *reply) {
+    std::lock_guard<std::mutex> guard(notification_mutex_);
+    std::string receiver_ip = request->receiver_ip();
+    // TODO: pass in repeated object ids will send twice.
+    for (auto object_id_it: request->object_ids()) {
+      ObjectID object_id = ObjectID::FromBinary(*object_id_it);
+      pending_receiver_ips_[object_id].push({false, nullptr, nullptr, receiver_ip});
+      try_send_notification(object_id);
+    }
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
 private:
-  bool send_notification(const std::string &ip, ObjectID object_id) {
+  void try_send_notification(const ObjectID &object_id) {
+    if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() && 
+        object_location_store_ready_.find(object_id) != object_location_store_ready_.end()) {
+      while (!pending_receiver_ips_[object_id].empty() && !object_location_store_ready_[object_id].empty()) {
+        std::string sender_ip = object_location_store_ready_[object_id].top().second;
+        receiver_queue_element receiver = pending_receiver_ips_[object_id].front();
+        object_location_store_ready_.pop();
+        pending_receiver_ips_.pop();
+        if (receiver.sync) {
+          *receiver.result_sender_ip = sender_ip;
+          DCHECK(!receiver.sync_mutex->try_lock()) << "sync_mutex should be locked";
+          receiver.sync_mutex->unlock();
+        }
+        else {
+          DCHECK(send_notification(sender_ip, receiver.receiver_ip, object_id)) << "Failed to send notification";
+        }
+      }
+    }
+  }
+
+  bool send_notification(const std::string &sender_ip, const std::string &receiver_ip, const ObjectID &object_id) {
     auto remote_address = ip + ":" + std::to_string(port_);
     create_stub(remote_address);
     grpc::ClientContext context;
-    ObjectIsReadyRequest request;
-    ObjectIsReadyReply reply;
+    GetLocationAsyncAnswerRequest request;
+    GetLocationAsyncAnswerReply reply;
     request.set_object_id(object_id.Binary());
-    notification_listener_stub_pool_[remote_address]->ObjectIsReady(
+    notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
   }
@@ -193,16 +164,20 @@ private:
   std::unordered_set<std::string> participants_;
   const int port_;
   std::mutex notification_mutex_;
-  std::unordered_map<ObjectID, std::vector<std::string>> pendings_;
+  struct receiver_queue_element {
+    bool sync;
+    std::shared_ptr<std::mutex> sync_mutex;
+    std::shared_ptr<std::string> result_sender_ip;
+    std::string receiver_ip;
+  }
+  std::unordered_map<ObjectID, std::queue<receiver_queue_element>> pending_receiver_ips_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
   std::unordered_map<std::string,
                      std::unique_ptr<objectstore::NotificationListener::Stub>>
       notification_listener_stub_pool_;
   std::mutex object_location_mutex_;
-  std::unordered_map<ObjectID, std::unordered_set<std::string>> 
-      object_location_store_ready_;
-  std::unordered_map<ObjectID, std::condition_variable> 
-      object_location_store_cv_;
+  std::unordered_map<ObjectID, std::priority_queue<std::pair<int, std::string>>> 
+      object_location_store_ready_; // (weight, ip) in priority queue, weight=1 means finished
   std::unordered_map<ObjectID, std::unordered_set<std::string>> 
       object_location_store_;
   void create_stub(const std::string &remote_grpc_address) {
