@@ -96,9 +96,9 @@ public:
       // This should never happen.
       reply->set_sender_ip("");
     } else {
-      std::shared_ptr<std::mutex> sync_mutex = make_shared<std::mutex>();
+      std::shared_ptr<std::mutex> sync_mutex = std::make_shared<std::mutex>();
       sync_mutex->lock();
-      std::shared_ptr<std::string> result_sender_ip = make_shared<std::string>();
+      std::shared_ptr<std::string> result_sender_ip = std::make_shared<std::string>();
       pending_receiver_ips_[object_id].push({true, sync_mutex, result_sender_ip, ""});
       try_send_notification(object_id);
       l.unlock();
