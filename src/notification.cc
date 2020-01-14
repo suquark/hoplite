@@ -133,8 +133,8 @@ private:
       while (!pending_receiver_ips_[object_id].empty() && !object_location_store_ready_[object_id].empty()) {
         std::string sender_ip = object_location_store_ready_[object_id].top().second;
         receiver_queue_element receiver = pending_receiver_ips_[object_id].front();
-        object_location_store_ready_.pop();
-        pending_receiver_ips_.pop();
+        object_location_store_ready_[object_id].pop();
+        pending_receiver_ips_[object_id].pop();
         if (receiver.sync) {
           *receiver.result_sender_ip = sender_ip;
           DCHECK(!receiver.sync_mutex->try_lock()) << "sync_mutex should be locked";
