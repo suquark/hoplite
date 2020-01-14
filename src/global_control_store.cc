@@ -88,6 +88,8 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   grpc_server_ = builder.BuildAndStart();
   auto remote_notification_server_address =
       redis_address_ + ":" + std::to_string(notification_port_);
+  LOG(INFO) << "[GCS Client] location server address: "
+            << remote_notification_server_address;
   notification_channel_ = grpc::CreateChannel(
       remote_notification_server_address, grpc::InsecureChannelCredentials());
   notification_stub_ =
@@ -103,7 +105,9 @@ void GlobalControlStoreClient::write_object_location(
   WriteObjectLocationReply reply;
   request.set_object_id(object_id.Binary());
   request.set_ip(my_address);
-  notification_stub_->WriteObjectLocation(&context, request, &reply);
+  auto status =
+      notification_stub_->WriteObjectLocation(&context, request, &reply);
+  DCHECK(status.ok()) << status.error_message();
   DCHECK(reply.ok()) << "WriteWriteObjectLocation for " << object_id.ToString()
                      << " failed.";
 }

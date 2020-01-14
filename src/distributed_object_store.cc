@@ -10,12 +10,13 @@ DistributedObjectStore::DistributedObjectStore(
     const std::string &redis_address, int redis_port, int notification_port,
     int notification_listening_port, const std::string &plasma_socket,
     const std::string &my_address, int object_writer_port, int grpc_port)
-    : my_address_(my_address), gcs_client_{redis_address, redis_port,
-                                           my_address, notification_port,
-                                           notification_listening_port},
-      object_control_{object_sender_, local_store_client_, state_, my_address,
+    : my_address_(my_address),
+      redis_address_(redis_address), gcs_client_{redis_address_, redis_port,
+                                                 my_address_, notification_port,
+                                                 notification_listening_port},
+      object_control_{object_sender_, local_store_client_, state_, my_address_,
                       grpc_port},
-      object_writer_{state_, gcs_client_, local_store_client_, my_address,
+      object_writer_{state_, gcs_client_, local_store_client_, my_address_,
                      object_writer_port},
       object_sender_{state_, local_store_client_}, local_store_client_{
                                                        false, plasma_socket} {

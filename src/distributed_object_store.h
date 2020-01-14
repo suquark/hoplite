@@ -44,7 +44,9 @@ public:
   }
 
 private:
-  const std::string my_address_;
+  // order of fields should be kept for proper initialization order
+  std::string my_address_;
+  std::string redis_address_;
   ObjectStoreState state_;
   GlobalControlStoreClient gcs_client_;
   LocalStoreClient local_store_client_;
