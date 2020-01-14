@@ -94,7 +94,7 @@ public:
     if (object_location_store_.find(object_id) ==
         object_location_store_.end())  {
       // This should never happen.
-      reply->set_ip("");
+      reply->set_sender_ip("");
     } else {
       std::shared_ptr<std::mutex> sync_mutex = make_shared<std::mutex>();
       sync_mutex->lock();
@@ -106,7 +106,7 @@ public:
       l.lock();
       DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
       DCHECK(result_sender_ip.use_count() == 1) << "result_sender_ip memory leak detected";
-      reply->set_ip(*result_sender_ip);
+      reply->set_sender_ip(*result_sender_ip);
     }
     return grpc::Status::OK;
   }
@@ -148,12 +148,13 @@ private:
   }
 
   bool send_notification(const std::string &sender_ip, const std::string &receiver_ip, const ObjectID &object_id) {
-    auto remote_address = ip + ":" + std::to_string(port_);
+    auto remote_address = receiver_ip + ":" + std::to_string(port_);
     create_stub(remote_address);
     grpc::ClientContext context;
     GetLocationAsyncAnswerRequest request;
     GetLocationAsyncAnswerReply reply;
     request.set_object_id(object_id.Binary());
+    request.set_sender_ip(sender_ip);
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
@@ -169,7 +170,7 @@ private:
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
     std::string receiver_ip;
-  }
+  };
   std::unordered_map<ObjectID, std::queue<receiver_queue_element>> pending_receiver_ips_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
   std::unordered_map<std::string,
