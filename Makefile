@@ -43,5 +43,7 @@ allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 %.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
+clean_bins:
+	rm -rf multicast_test reduce_test all_reduce_test python/*.cpp python/*.so *.so
 clean:
 	rm -rf multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp python/*.so *.o *.so

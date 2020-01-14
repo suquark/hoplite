@@ -30,7 +30,6 @@ def extract_dict_from_args(args):
         'notification_port': args.notification_port,
         'notification_listening_port': args.notification_listening_port,
         'plasma_socket': args.plasma_socket.encode(),
-        'my_address': get_my_address().encode(),
         'object_writer_port': args.object_writer_port,
         'grpc_port': args.grpc_port,
     }
@@ -44,7 +43,6 @@ def create_store_using_dict(args_dict):
         args_dict['notification_port'],
         args_dict['notification_listening_port'],
         args_dict['plasma_socket'],
-        args_dict['my_address'],
         args_dict['object_writer_port'],
         args_dict['grpc_port'])
     return store
