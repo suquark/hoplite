@@ -20,7 +20,7 @@ using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
 using objectstore::IsReadyReply;
 using objectstore::IsReadyRequest;
-using objectstore::WriteLocationReplyt;
+using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
