@@ -75,5 +75,5 @@ int main(int argc, char **argv) {
   notification_listener.reset(new NotificationListener(my_address, 8888));
   notification_listener_thread = notification_listener->Run();
   notification_listener_thread.join();
-  return 0
+  return 0;
 }
