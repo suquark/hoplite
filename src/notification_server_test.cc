@@ -100,7 +100,7 @@ void getlocationasync(const ObjectID &object_id, const std::string &my_address) 
   GetLocationAsyncReply reply;
   request.add_object_ids(object_id.Binary());
   request.set_receiver_ip(my_address);
-  stub->GetLocationSync(&context, request, &reply);
+  stub->GetLocationAsync(&context, request, &reply);
   DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
                      << " failed.";
 }
@@ -112,7 +112,7 @@ void getlocationsync(const ObjectID &object_id) {
   GetLocationSyncRequest request;
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
-  stub->WriteLocation(&context, request, &reply);
+  stub->GetLocationSync(&context, request, &reply);
   LOG(INFO) << "getlocationsync reply: " << reply.sender_ip();
 }
 
