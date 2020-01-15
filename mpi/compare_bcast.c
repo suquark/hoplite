@@ -6,12 +6,12 @@
 //
 // Comparison of MPI_Bcast with the my_bcast function
 //
+#include <assert.h>
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
-#include <assert.h>
 
-void my_bcast(void* data, int count, MPI_Datatype datatype, int root,
+void my_bcast(void *data, int count, MPI_Datatype datatype, int root,
               MPI_Comm communicator) {
   int world_rank;
   MPI_Comm_rank(communicator, &world_rank);
@@ -32,7 +32,7 @@ void my_bcast(void* data, int count, MPI_Datatype datatype, int root,
   }
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   if (argc != 3) {
     fprintf(stderr, "Usage: compare_bcast num_elements num_trials\n");
     exit(1);
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   double total_my_bcast_time = 0.0;
   double total_mpi_bcast_time = 0.0;
   int i;
-  int* data = (int*)malloc(sizeof(int) * num_elements);
+  int *data = (int *)malloc(sizeof(int) * num_elements);
   assert(data != NULL);
 
   for (i = 0; i < num_trials; i++) {

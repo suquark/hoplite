@@ -45,17 +45,22 @@ int main(int argc, char **argv) {
                      // results each time for each processor
   float *rand_nums = NULL;
   rand_nums = create_rand_nums(num_elements_per_proc);
-  float *global_nums = (float *)malloc(sizeof(float) * num_elements_per_proc);
+  float *global_nums = NULL;
+
+  if (world_rank == 0) {
+    global_nums =
+        (float *)malloc(sizeof(float) * num_elements_per_proc * world_size);
+  }
 
   // Reduce all of the local sums into the global sum
   time -= MPI_Wtime();
-  MPI_Allreduce(rand_nums, global_nums, num_elements_per_proc, MPI_FLOAT,
-                MPI_SUM, MPI_COMM_WORLD);
+  MPI_Gather(rand_nums, num_elements_per_proc, MPI_FLOAT, global_nums,
+             num_elements_per_proc, MPI_FLOAT, 0, MPI_COMM_WORLD);
   time += MPI_Wtime();
 
   // Print the result
   if (world_rank == 0) {
-    printf("MPI_Allreduce time = %lf\n", time);
+    printf("MPI_Gather time = %lf\n", time);
   }
 
   // Clean up

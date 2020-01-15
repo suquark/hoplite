@@ -164,21 +164,26 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
                                  std::shared_ptr<Buffer> *result) {
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.ToString());
-  // get object location from redis
-  while (true) {
-    std::string address = gcs_client_.get_object_location(object_id);
+  // check if object is local
+  bool found = false;
+  local_store_client_.ObjectExists(object_id, &found);
+  if (!found) {
+    // get object location from redis
+    while (true) {
+      std::string address = gcs_client_.get_object_location(object_id);
 
-    // send pull request to one of the location
-    bool reply_ok = object_control_.PullObject(address, object_id);
+      // send pull request to one of the location
+      bool reply_ok = object_control_.PullObject(address, object_id);
 
-    if (reply_ok) {
-      break;
+      if (reply_ok) {
+        break;
+      }
+      // if the sender is busy, wait for 1 millisecond and try again
+      usleep(1);
     }
-    // if the sender is busy, wait for 1 millisecond and try again
-    usleep(1);
   }
 
-  // get object from Plasma
+  // get object from local store
   std::vector<ObjectBuffer> object_buffers;
   local_store_client_.Get({object_id}, &object_buffers);
   *result = object_buffers[0].data;
