@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
   TEST1();
   TEST2(my_address);
   TEST3(my_address);
+  TEST4(my_address);
   notification_listener_thread.join();
   return 0;
 }
