@@ -18,6 +18,9 @@
 #include "common/id.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::GetLocationAsyncAnswerRequest;
+using objectstore::GetLocationAsyncAnswerReply;
+
 class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
 public:
