@@ -49,7 +49,6 @@ int main(int argc, char **argv) {
       (float *)malloc(sizeof(float) * num_elements_per_proc * world_size);
 
   // Reduce all of the local sums into the global sum
-  float global_sum;
   time -= MPI_Wtime();
   MPI_Allgather(rand_nums, num_elements_per_proc, MPI_FLOAT, global_nums,
                 num_elements_per_proc, MPI_FLOAT, MPI_COMM_WORLD);

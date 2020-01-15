@@ -48,7 +48,6 @@ int main(int argc, char **argv) {
   float *global_nums = (float *)malloc(sizeof(float) * num_elements_per_proc);
 
   // Reduce all of the local sums into the global sum
-  float global_sum;
   time -= MPI_Wtime();
   MPI_Reduce(rand_nums, global_nums, num_elements_per_proc, MPI_FLOAT, MPI_SUM,
              0, MPI_COMM_WORLD);
