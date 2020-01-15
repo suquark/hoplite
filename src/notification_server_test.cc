@@ -18,6 +18,12 @@
 #include "common/id.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::WriteLocationReply;
+using objectstore::WriteLocationRequest;
+using objectstore::GetLocationSyncReply;
+using objectstore::GetLocationSyncRequest;
+using objectstore::GetLocationAsyncReply;
+using objectstore::GetLocationAsyncRequest;
 using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncAnswerReply;
 
