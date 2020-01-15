@@ -27,7 +27,7 @@ cdef class Buffer:
 
     def __cinit__(self, *args, **kwargs):
         # Note: we should check self.py_buf.obj for uninitialized buffer,
-        # but unfortuantely I haven't figure out how to do that because
+        # but unfortuantely I haven't figured out how to do that because
         # Py_buffer is specially treated in Cython, and we cannot get rid of
         # reference count when cleaning up 'py_buf.obj'. Here we just use
         # 'None' as a workaround.
