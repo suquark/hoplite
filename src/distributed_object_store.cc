@@ -168,19 +168,19 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   bool found = false;
   local_store_client_.ObjectExists(object_id, &found);
   if (!found) {
-  // get object location from redis
-  while (true) {
-    std::string address = gcs_client_.get_object_location(object_id);
+    // get object location from redis
+    while (true) {
+      std::string address = gcs_client_.get_object_location(object_id);
 
-    // send pull request to one of the location
-    bool reply_ok = object_control_.PullObject(address, object_id);
+      // send pull request to one of the location
+      bool reply_ok = object_control_.PullObject(address, object_id);
 
-    if (reply_ok) {
-      break;
+      if (reply_ok) {
+        break;
+      }
+      // if the sender is busy, wait for 1 millisecond and try again
+      usleep(1);
     }
-    // if the sender is busy, wait for 1 millisecond and try again
-    usleep(1);
-  }
   }
 
   // get object from local store
