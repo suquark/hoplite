@@ -23,7 +23,7 @@ notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 py_distributed_object_store: libdistributed_object_store.so
-	python setup.py build_ext --inplace && mv *cpython*.so python/
+	python setup.py build_ext --inplace && cp *cpython*.so python/
 
 libdistributed_object_store.so: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS)
 	$(CXX) $^ $(LDFLAGS) -shared -o $@

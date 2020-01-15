@@ -11,16 +11,25 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector as c_vector
 
 from _client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG
-from cpython cimport Py_buffer
+from cpython cimport Py_buffer, PyObject
+from cpython.buffer cimport PyBUF_SIMPLE, PyObject_CheckBuffer, PyBuffer_Release, PyObject_GetBuffer, PyBuffer_FillInfo
 
 from enum import Enum
 import utils
 
+
 cdef class Buffer:
-    cdef shared_ptr[CBuffer] buf
+    cdef:
+        shared_ptr[CBuffer] buf
+        Py_buffer py_buf
 
     def __cinit__(self, *args, **kwargs):
-        pass
+        # Note: we should check self.py_buf.obj for uninitialized buffer,
+        # but unfortuantely I haven't figure out how to do that because
+        # Py_buffer is specially treated in Cython, and we cannot get rid of
+        # reference count when cleaning up 'py_buf.obj'. Here we just use
+        # 'None' as a workaround.
+        PyBuffer_FillInfo(&self.py_buf, None, NULL, 0, 0, PyBUF_SIMPLE)
 
     def __init__(self):
         raise ValueError("This object cannot be created from __init__")
@@ -32,17 +41,18 @@ cdef class Buffer:
         return _self
 
     @classmethod
-    def from_numpy(cls, obj):
+    def from_buffer(cls, obj):
         cdef:
             CBuffer* new_buf
-            size_t data_ptr
-            int64_t nbytes
             Buffer py_buf
-        interface = obj.__array_interface__
-        data_ptr, readonly = interface['data']
-        nbytes = obj.nbytes
-        new_buf = new CBuffer(<uint8_t*>data_ptr, nbytes)
+        if not PyObject_CheckBuffer(obj):
+            raise ValueError("Python object hasn't implemented the buffer interface")
         py_buf = Buffer.__new__(Buffer)
+        status = PyObject_GetBuffer(obj, &py_buf.py_buf, PyBUF_SIMPLE)
+        if status < 0:
+            raise ValueError("Failed to convert python object into buffer")
+        new_buf = new CBuffer(<uint8_t*>py_buf.py_buf.buf, py_buf.py_buf.len)
+        # TODO: we should hold the pybuf obj
         py_buf.buf.reset(new_buf)
         return py_buf
 
@@ -52,10 +62,16 @@ cdef class Buffer:
     def size(self):
         return self.buf.get().Size()
 
-    def crc32(self):
+    def __hash__(self):
         return self.buf.get().CRC32()
 
     def __dealloc__(self):
+        if self.py_buf.obj is not None:
+            # This is a workaround. Even if it is now an empty pointer,
+            # it should still work because the python implementation will
+            # just ignore that. Also it cannot be a null pointer because
+            # we should be the only owner of this buffer.
+            PyBuffer_Release(&self.py_buf)
         self.buf.reset()
 
 
