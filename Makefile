@@ -22,6 +22,9 @@ all: notification distributed_object_store multicast_test reduce_test allreduce_
 notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
+notification_server_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification_server_test.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
 distributed_object_store: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS)
 	$(CXX) $^ $(LDFLAGS) -shared -o lib$@.so
 
@@ -41,4 +44,4 @@ allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean:
-	rm -rf multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp *.o *.so
+	rm -rf notification_server_test multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp *.o *.so
