@@ -143,7 +143,7 @@ void TEST3(const std::string &my_address) {
   write_location(object_id, sender_ip_1);
   write_location(object_id, sender_ip_2);
   getlocationasync(object_id, my_address);
-  getlocationsync(object_id, my_address);
+  getlocationsync(object_id);
 }
 
 
