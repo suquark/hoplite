@@ -98,7 +98,7 @@ void getlocationasync(const ObjectID &object_id, const std::string &my_address) 
   grpc::ClientContext context;
   GetLocationAsyncRequest request;
   GetLocationAsyncReply reply;
-  request.set_object_id(object_id.Binary());
+  request.add_object_ids(object_id.Binary());
   request.set_receiver_ip(my_address);
   stub->GetLocationSync(&context, request, &reply);
   DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
