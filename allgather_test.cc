@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   DCHECK(object_size % sizeof(float) == 0);
 
   ObjectID rank_object_id = object_ids[rank];
-  std::shared_ptr<Buffer> gather_result;
+  std::unordered_map<ObjectID, std::shared_ptr<Buffer>> gather_result;
 
   put_random_buffer<float>(store, rank_object_id, object_size);
 
@@ -44,12 +44,16 @@ int main(int argc, char **argv) {
 
   auto start = std::chrono::system_clock::now();
   for (auto &object_id : object_ids) {
-    store.Get(object_id, &gather_result);
+    store.Get(object_id, &gather_result[object_id]);
   }
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> duration = end - start;
   LOG(INFO) << "allgathered using " << duration.count() << " seconds";
-
+  uint32_t sum_crc = 0;
+  for (auto &object_id : object_ids) {
+    sum_crc += gather_result[object_id]->CRC32();
+  }
+  LOG(INFO) << "CRC32 for objects is " << sum_crc;
   exit_thread.join();
   store.join_tasks();
   return 0;
