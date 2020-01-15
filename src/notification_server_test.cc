@@ -125,7 +125,7 @@ void TEST1() {
   getlocationsync(object_id);
 }
 
-void TEST2(const string& my_address) { 
+void TEST2(const std::string &my_address) { 
   LOG(INFO) << "=========== TEST2 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip = "1.2.3.4";
