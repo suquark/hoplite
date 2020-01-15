@@ -74,7 +74,7 @@ private:
 };
 
 std::shared_ptr<grpc::Channel> channel;
-std::unique_ptr<objectstore::NotificationListener::Stub> stub;
+std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
 void write_location(
     const ObjectID &object_id, const std::string &my_address) {
