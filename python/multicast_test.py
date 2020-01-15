@@ -24,5 +24,7 @@ def multicast(args_dict, world_rank, object_size):
         buffer = store.get(object_id)
         during = time.time() - start
         print("Buffer received, hash =", hash(buffer), "during =", during)
+        array = np.frombuffer(buffer, dtype=np.int32)
+        print(array)
     time.sleep(20)
 

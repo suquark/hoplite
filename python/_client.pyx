@@ -13,7 +13,6 @@ from libcpp.vector cimport vector as c_vector
 from _client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG
 from cpython cimport Py_buffer, PyObject
 from cpython.buffer cimport PyBUF_SIMPLE, PyObject_CheckBuffer, PyBuffer_Release, PyObject_GetBuffer, PyBuffer_FillInfo
-from numpy cimport PyArray_SimpleNewFromData, NPY_UINT8, PyArrayObject
 
 from enum import Enum
 import utils
@@ -23,8 +22,8 @@ cdef class Buffer:
     cdef:
         shared_ptr[CBuffer] buf
         Py_buffer py_buf
-        c_vector[size_t] shape
-        c_vector[size_t] strides
+        c_vector[Py_ssize_t] shape
+        c_vector[Py_ssize_t] strides
 
     def __cinit__(self, *args, **kwargs):
         # Note: we should check self.py_buf.obj for uninitialized buffer,
@@ -39,7 +38,7 @@ cdef class Buffer:
     def __init__(self):
         raise ValueError("This object cannot be created from __init__")
 
-    cdef update_buffer_from_pointer(uint8_t *data, int64_t size):
+    cdef update_buffer_from_pointer(self, uint8_t *data, int64_t size):
         cdef CBuffer* new_buf
         new_buf = new CBuffer(data, size)
         self.buf.reset(new_buf)
@@ -49,7 +48,7 @@ cdef class Buffer:
     cdef from_native(const shared_ptr[CBuffer] &buf):
         _self = <Buffer>Buffer.__new__(Buffer)
         _self.buf = buf
-        _self.shape[0] = buf.Size()
+        _self.shape[0] = buf.get().Size()
         return _self
 
     @classmethod
@@ -64,13 +63,13 @@ cdef class Buffer:
         status = PyObject_GetBuffer(obj, py_buf, PyBUF_SIMPLE)
         if status < 0:
             raise ValueError("Failed to convert python object into buffer")
-        self.update_buffer_from_pointer(py_buf.buf, py_buf.len)
+        new_buf.update_buffer_from_pointer(<uint8_t *>py_buf.buf, py_buf.len)
         return new_buf
 
     def __getbuffer__(self, Py_buffer* buffer, int flags):
         # get a bytes buffer
         buffer.readonly = 0
-        buffer.buf = self.buf.get().Data()
+        buffer.buf = self.buf.get().MutableData()
         buffer.format = 'b'
         buffer.internal = NULL
         buffer.itemsize = 1
