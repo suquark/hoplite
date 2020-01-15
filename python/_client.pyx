@@ -13,6 +13,7 @@ from libcpp.vector cimport vector as c_vector
 from _client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG
 from cpython cimport Py_buffer, PyObject
 from cpython.buffer cimport PyBUF_SIMPLE, PyObject_CheckBuffer, PyBuffer_Release, PyObject_GetBuffer, PyBuffer_FillInfo
+from numpy cimport PyArray_SimpleNewFromData, NPY_UINT8, PyArrayObject
 
 from enum import Enum
 import utils
@@ -22,6 +23,8 @@ cdef class Buffer:
     cdef:
         shared_ptr[CBuffer] buf
         Py_buffer py_buf
+        c_vector[size_t] shape
+        c_vector[size_t] strides
 
     def __cinit__(self, *args, **kwargs):
         # Note: we should check self.py_buf.obj for uninitialized buffer,
@@ -30,34 +33,56 @@ cdef class Buffer:
         # reference count when cleaning up 'py_buf.obj'. Here we just use
         # 'None' as a workaround.
         PyBuffer_FillInfo(&self.py_buf, None, NULL, 0, 0, PyBUF_SIMPLE)
+        self.shape.push_back(0)
+        self.strides.push_back(1)
 
     def __init__(self):
         raise ValueError("This object cannot be created from __init__")
+
+    cdef update_buffer_from_pointer(uint8_t *data, int64_t size):
+        cdef CBuffer* new_buf
+        new_buf = new CBuffer(data, size)
+        self.buf.reset(new_buf)
+        self.shape[0] = size
 
     @staticmethod
     cdef from_native(const shared_ptr[CBuffer] &buf):
         _self = <Buffer>Buffer.__new__(Buffer)
         _self.buf = buf
+        _self.shape[0] = buf.Size()
         return _self
 
     @classmethod
     def from_buffer(cls, obj):
         cdef:
-            CBuffer* new_buf
-            Buffer py_buf
+            Buffer new_buf
+            Py_buffer* py_buf
         if not PyObject_CheckBuffer(obj):
             raise ValueError("Python object hasn't implemented the buffer interface")
-        py_buf = Buffer.__new__(Buffer)
-        status = PyObject_GetBuffer(obj, &py_buf.py_buf, PyBUF_SIMPLE)
+        new_buf = Buffer.__new__(Buffer)
+        py_buf = &new_buf.py_buf
+        status = PyObject_GetBuffer(obj, py_buf, PyBUF_SIMPLE)
         if status < 0:
             raise ValueError("Failed to convert python object into buffer")
-        new_buf = new CBuffer(<uint8_t*>py_buf.py_buf.buf, py_buf.py_buf.len)
-        # TODO: we should hold the pybuf obj
-        py_buf.buf.reset(new_buf)
-        return py_buf
+        self.update_buffer_from_pointer(py_buf.buf, py_buf.len)
+        return new_buf
+
+    def __getbuffer__(self, Py_buffer* buffer, int flags):
+        # get a bytes buffer
+        buffer.readonly = 0
+        buffer.buf = self.buf.get().Data()
+        buffer.format = 'b'
+        buffer.internal = NULL
+        buffer.itemsize = 1
+        buffer.len = self.buf.get().Size()
+        buffer.ndim = 1
+        buffer.obj = self
+        buffer.shape = self.shape.data()
+        buffer.strides = self.strides.data()
+        buffer.suboffsets = NULL
 
     def data_ptr(self):
-        return self.buf.get().Data()
+        return <int64_t>self.buf.get().Data()
 
     def size(self):
         return self.buf.get().Size()
