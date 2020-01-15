@@ -132,9 +132,9 @@ int main(int argc, char **argv) {
   std::thread notification_listener_thread;
   notification_listener.reset(new NotificationListener(my_address, 8888));
   notification_listener_thread = notification_listener->Run();
-  notification_listener_thread.join();
   channel = grpc::CreateChannel(my_address + ":7777", grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);
   TEST1();
+  notification_listener_thread.join();
   return 0;
 }
