@@ -1,4 +1,4 @@
-EXECS=compare_bcast reduce allreduce
+EXECS=compare_bcast reduce allreduce gather
 MPICC?=mpicc
 
 all: ${EXECS}
@@ -11,6 +11,9 @@ reduce: reduce.c
 
 allreduce: allreduce.c
 	${MPICC} -O2 -o allreduce allreduce.c
+
+gather: gather.c
+	${MPICC} -O2 -o gather gather.c
 
 clean:
 	rm -f ${EXECS}
