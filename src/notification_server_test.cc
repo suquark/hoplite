@@ -120,7 +120,7 @@ void TEST1() {
   LOG(INFO) << "=========== TEST1 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string my_address = "1.2.3.4";
-  LOG(INFO) << "object_id: " << object_id << " my_address: " << my_address;
+  LOG(INFO) << "object_id: " << object_id.Hex() << " my_address: " << my_address;
   write_location(object_id, my_address);
   getlocationsync(object_id);
 }
