@@ -32,7 +32,7 @@ public:
                                       GetLocationAsyncAnswerReply *reply) {
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
-    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:" << object_id << " IP:" << sender_ip;
+    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:" << object_id.Hex() << " IP:" << sender_ip;
     reply->set_ok(true);
     return grpc::Status::OK;
   }
