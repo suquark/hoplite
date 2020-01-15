@@ -12,4 +12,5 @@ pkill notification
 sleep 2
 ./notification $my_address &
 sleep 2
-./notification_server_test $my_address
+./notification_server_test $my_address &
+sleep 40
