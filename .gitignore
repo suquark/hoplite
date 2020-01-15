@@ -33,6 +33,7 @@
 
 .vscode/
 .cquery_cache/
+__pycache__/
 # binaries, databases, protobuf sockets
 dump.rdb
 multicast_test

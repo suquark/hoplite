@@ -10,18 +10,20 @@ from libc.stdint cimport uint8_t, int32_t, uint64_t, int64_t
 from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector as c_vector
 
-from _client cimport CDistributedObjectStore, CBuffer, CObjectID
+from _client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG
+from cpython cimport Py_buffer
 
 from enum import Enum
+import utils
 
 cdef class Buffer:
     cdef shared_ptr[CBuffer] buf
 
-    def __cinit__(self, data_ptr, int64_t size):
-        cdef uint8_t *_data_ptr
+    def __cinit__(self, *args, **kwargs):
+        pass
 
-        _data_ptr = <uint8_t *>data_ptr
-        self.buf.reset(new CBuffer(_data_ptr, size))
+    def __init__(self):
+        raise ValueError("This object cannot be created from __init__")
 
     @staticmethod
     cdef from_native(const shared_ptr[CBuffer] &buf):
@@ -29,11 +31,29 @@ cdef class Buffer:
         _self.buf = buf
         return _self
 
+    @classmethod
+    def from_numpy(cls, obj):
+        cdef:
+            CBuffer* new_buf
+            size_t data_ptr
+            int64_t nbytes
+            Buffer py_buf
+        interface = obj.__array_interface__
+        data_ptr, readonly = interface['data']
+        nbytes = obj.nbytes
+        new_buf = new CBuffer(<uint8_t*>data_ptr, nbytes)
+        py_buf = Buffer.__new__(Buffer)
+        py_buf.buf.reset(new_buf)
+        return py_buf
+
     def data_ptr(self):
-        return self.buf.get().data()
+        return self.buf.get().Data()
 
     def size(self):
-        return self.buf.get().size()
+        return self.buf.get().Size()
+
+    def crc32(self):
+        return self.buf.get().CRC32()
 
     def __dealloc__(self):
         self.buf.reset()
@@ -44,6 +64,9 @@ cdef class ObjectID:
 
     def __cinit__(self, const c_string& binary):
         self.data = CObjectID.FromBinary(binary)
+
+    def __reduce__(self):
+        return type(self), (self.data.Binary(),)
 
 
 class ReduceOp(Enum):
@@ -56,11 +79,12 @@ class ReduceOp(Enum):
 cdef class DistributedObjectStore:
     cdef unique_ptr[CDistributedObjectStore] store
 
-    def __cinit__(self, const c_string &redis_address, int redis_port,
+    def __cinit__(self, bytes redis_address, int redis_port,
                   int notification_port, int notification_listening_port,
-                  const c_string &plasma_socket,
-                  const c_string &my_address, int object_writer_port,
+                  bytes plasma_socket, int object_writer_port,
                   int grpc_port):
+        my_address = utils.get_my_address().encode()
+        CRayLog.StartRayLog(my_address, CRayLogDEBUG)
         self.store.reset(new CDistributedObjectStore(redis_address, redis_port,
             notification_port, notification_listening_port, plasma_socket,
             my_address, object_writer_port, grpc_port))
@@ -90,10 +114,10 @@ cdef class DistributedObjectStore:
     def put(self, Buffer buf, object_id=None):
         cdef CObjectID created_object_id
         if object_id is None:
-            created_object_id = self.store.get().Put(buf.buf.get().data(), buf.buf.get().size())
+            created_object_id = self.store.get().Put(buf.buf)
             return ObjectID(created_object_id.Binary())
         else:
-            self.store.get().Put(buf.buf.get().data(), buf.buf.get().size(), (<ObjectID>object_id).data)
+            self.store.get().Put(buf.buf, (<ObjectID>object_id).data)
             return object_id
 
     def __dealloc__(self):
