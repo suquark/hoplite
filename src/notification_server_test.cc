@@ -67,6 +67,26 @@ private:
   std::shared_ptr<NotificationListenerImpl> service_;
 };
 
+std::shared_ptr<grpc::Channel> channel;
+std::unique_ptr<objectstore::NotificationListener::Stub> stub;
+
+void GlobalControlStoreClient::write_location(
+    const ObjectID &object_id, const std::string &my_address) {
+  TIMELINE("write_location");
+  LOG(INFO) << "Adding object " << object_id.Hex()
+            << " to notification server with address = " << my_address << ".";
+  grpc::ClientContext context;
+  WriteLocationRequest request;
+  WriteLocationReply reply;
+  request.set_object_id(object_id.Binary());
+  request.set_sender_ip(my_address);
+  request.set_finished(true);
+  stub->WriteLocation(&context, request, &reply);
+  DCHECK(reply.ok()) << "WriteObjectLocation for " << object_id.ToString()
+                     << " failed.";
+}
+
+
 int main(int argc, char **argv) {
   std::string my_address = std::string(argv[1]);
   ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
@@ -75,5 +95,8 @@ int main(int argc, char **argv) {
   notification_listener.reset(new NotificationListener(my_address, 8888));
   notification_listener_thread = notification_listener->Run();
   notification_listener_thread.join();
+  channel = grpc::CreateChannel(my_address + ":7777", grpc::InsecureChannelCredentials());
+  stub = objectstore::NotificationServer::NewStub(channel);
+  
   return 0;
 }
