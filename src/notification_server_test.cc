@@ -134,6 +134,18 @@ void TEST2(const std::string &my_address) {
   getlocationasync(object_id, my_address);
 }
 
+void TEST3(const std::string &my_address) { 
+  LOG(INFO) << "=========== TEST3 ===========";
+  ObjectID object_id = ObjectID::FromRandom();
+  std::string sender_ip_1 = "1.2.3.4";
+  std::string sender_ip_2 = "2.3.4.5";
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
+  write_location(object_id, sender_ip_1);
+  write_location(object_id, sender_ip_2);
+  getlocationasync(object_id, my_address);
+  getlocationsync(object_id, my_address);
+}
+
 
 int main(int argc, char **argv) {
   std::string my_address = std::string(argv[1]);
@@ -146,6 +158,7 @@ int main(int argc, char **argv) {
   stub = objectstore::NotificationServer::NewStub(channel);
   TEST1();
   TEST2(my_address);
+  TEST3(my_address);
   notification_listener_thread.join();
   return 0;
 }
