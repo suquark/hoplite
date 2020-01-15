@@ -70,11 +70,11 @@ private:
 std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationListener::Stub> stub;
 
-void GlobalControlStoreClient::write_location(
+void write_location(
     const ObjectID &object_id, const std::string &my_address) {
   TIMELINE("write_location");
   LOG(INFO) << "Adding object " << object_id.Hex()
-            << " to notification server with address = " << my_address << ".";
+            << " to notification server with address = " << my_address;
   grpc::ClientContext context;
   WriteLocationRequest request;
   WriteLocationReply reply;
@@ -84,6 +84,30 @@ void GlobalControlStoreClient::write_location(
   stub->WriteLocation(&context, request, &reply);
   DCHECK(reply.ok()) << "WriteObjectLocation for " << object_id.ToString()
                      << " failed.";
+}
+
+void getlocationasync(const ObjectID &object_id, const std::string &my_address) {
+  TIMELINE("getlocationasync");
+  LOG(INFO) << "Async get location of " << object_id.Hex();
+  grpc::ClientContext context;
+  GetLocationAsyncRequest request;
+  GetLocationAsyncReply reply;
+  request.set_object_id(object_id.Binary());
+  request.set_receiver_ip(my_address);
+  stub->GetLocationSync(&context, request, &reply);
+  DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
+                     << " failed.";
+}
+
+void getlocationsync(const ObjectID &object_id) {
+  TIMELINE("getlocationsync");
+  LOG(INFO) << "Sync get location of " << object_id.Hex();
+  grpc::ClientContext context;
+  GetLocationSyncRequest request;
+  GetLocationSyncReply reply;
+  request.set_object_id(object_id.Binary());
+  stub->WriteLocation(&context, request, &reply);
+  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip();
 }
 
 
