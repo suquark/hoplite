@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     }
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
-    LOG(INFO) << "gathered using " << duration.count();
+    LOG(INFO) << "gathered using " << duration.count() << " seconds";
   }
 
   exit_thread.join();
