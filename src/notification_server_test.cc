@@ -64,7 +64,7 @@ private:
   const int notification_port_;
 
   std::unique_ptr<grpc::Server> grpc_server_;
-  std::shared_ptr<NotificationServiceImpl> service_;
+  std::shared_ptr<NotificationListenerImpl> service_;
 };
 
 int main(int argc, char **argv) {
