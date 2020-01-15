@@ -44,8 +44,8 @@ int main(int argc, char **argv) {
 
   if (rank == 0) {
     auto start = std::chrono::system_clock::now();
-    for (auto& object_id : object_ids) {
-    	store.Get(object_id, &gather_result);
+    for (auto &object_id : object_ids) {
+      store.Get(object_id, &gather_result);
     }
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
