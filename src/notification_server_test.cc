@@ -116,6 +116,14 @@ void getlocationsync(const ObjectID &object_id) {
   LOG(INFO) << "getlocationsync reply: " << reply.sender_ip();
 }
 
+void TEST1() { 
+  LOG(INFO) << "=========== TEST1 ===========";
+  ObjectID object_id = ObjectID::FromRandom();
+  std::string my_address = "1.2.3.4";
+  LOG(INFO) << "object_id: " << object_id << " my_address: " << my_address;
+  write_location(object_id, my_address);
+  getlocationsync(object_id);
+}
 
 int main(int argc, char **argv) {
   std::string my_address = std::string(argv[1]);
@@ -127,6 +135,6 @@ int main(int argc, char **argv) {
   notification_listener_thread.join();
   channel = grpc::CreateChannel(my_address + ":7777", grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);
-  
+  TEST1();
   return 0;
 }
