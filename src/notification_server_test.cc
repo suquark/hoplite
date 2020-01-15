@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
   ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
   std::unique_ptr<NotificationListener> notification_listener;
   std::thread notification_listener_thread;
-  notification_listener.reset(new NotificationServer(my_address, 7777, 8888));
+  notification_listener.reset(new NotificationListener(my_address, 7777, 8888));
   notification_listener_thread = notification_listener->Run();
   notification_listener_thread.join();
   return 0
