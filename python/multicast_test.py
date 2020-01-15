@@ -15,14 +15,16 @@ def multicast(args_dict, world_rank, object_size):
     object_id = store_lib.ObjectID(b'\0' * 20)
     if world_rank == 0:
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
-        buffer = store_lib.Buffer.from_numpy(array)
-        print("Buffer created, crc32 =", buffer.crc32())
+        buffer = store_lib.Buffer.from_buffer(array)
+        print("Buffer created, hash =", hash(buffer))
         store.put(buffer, object_id)
     else:
         time.sleep(5)
         start = time.time()
         buffer = store.get(object_id)
         during = time.time() - start
-        print("Buffer received, crc32 =", buffer.crc32(), "during =", during)
+        print("Buffer received, hash =", hash(buffer), "during =", during)
+        array = np.frombuffer(buffer, dtype=np.int32)
+        print(array)
     time.sleep(20)
 

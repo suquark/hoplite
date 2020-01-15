@@ -31,7 +31,7 @@ ray.worker.global_worker.run_function_on_all_workers(
 ray.init(address='auto', load_code_from_local=True)
 
 # wait for the location server & the function run on all clients
-time.sleep(5)
+time.sleep(10)
 
 tasks = []
 
