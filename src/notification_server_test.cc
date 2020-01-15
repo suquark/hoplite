@@ -146,6 +146,17 @@ void TEST3(const std::string &my_address) {
   getlocationsync(object_id);
 }
 
+void TEST4(const std::string &my_address) { 
+  LOG(INFO) << "=========== TEST4 ===========";
+  ObjectID object_id = ObjectID::FromRandom();
+  std::string sender_ip_1 = "1.2.3.4";
+  std::string sender_ip_2 = "2.3.4.5";
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
+  getlocationasync(object_id, my_address);
+  write_location(object_id, sender_ip_1);
+  write_location(object_id, sender_ip_2);
+  getlocationsync(object_id);
+}
 
 int main(int argc, char **argv) {
   std::string my_address = std::string(argv[1]);
