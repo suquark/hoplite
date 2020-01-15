@@ -77,29 +77,29 @@ std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
 void write_location(
-    const ObjectID &object_id, const std::string &my_address) {
+    const ObjectID &object_id, const std::string &sender_ip) {
   TIMELINE("write_location");
   LOG(INFO) << "Adding object " << object_id.Hex()
-            << " to notification server with address = " << my_address;
+            << " to notification server with address = " << sender_ip;
   grpc::ClientContext context;
   WriteLocationRequest request;
   WriteLocationReply reply;
   request.set_object_id(object_id.Binary());
-  request.set_sender_ip(my_address);
+  request.set_sender_ip(sender_ip);
   request.set_finished(true);
   stub->WriteLocation(&context, request, &reply);
   DCHECK(reply.ok()) << "WriteObjectLocation for " << object_id.ToString()
                      << " failed.";
 }
 
-void getlocationasync(const ObjectID &object_id, const std::string &my_address) {
+void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip) {
   TIMELINE("getlocationasync");
   LOG(INFO) << "Async get location of " << object_id.Hex();
   grpc::ClientContext context;
   GetLocationAsyncRequest request;
   GetLocationAsyncReply reply;
   request.add_object_ids(object_id.Binary());
-  request.set_receiver_ip(my_address);
+  request.set_receiver_ip(receiver_ip);
   stub->GetLocationAsync(&context, request, &reply);
   DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
                      << " failed.";
@@ -119,11 +119,21 @@ void getlocationsync(const ObjectID &object_id) {
 void TEST1() { 
   LOG(INFO) << "=========== TEST1 ===========";
   ObjectID object_id = ObjectID::FromRandom();
-  std::string my_address = "1.2.3.4";
-  LOG(INFO) << "object_id: " << object_id.Hex() << " my_address: " << my_address;
-  write_location(object_id, my_address);
+  std::string sender_ip = "1.2.3.4";
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
+  write_location(object_id, sender_ip);
   getlocationsync(object_id);
 }
+
+void TEST2(const string& my_address) { 
+  LOG(INFO) << "=========== TEST2 ===========";
+  ObjectID object_id = ObjectID::FromRandom();
+  std::string sender_ip = "1.2.3.4";
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
+  write_location(object_id, sender_ip);
+  getlocationasync(object_id, my_address);
+}
+
 
 int main(int argc, char **argv) {
   std::string my_address = std::string(argv[1]);
@@ -135,6 +145,7 @@ int main(int argc, char **argv) {
   channel = grpc::CreateChannel(my_address + ":7777", grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);
   TEST1();
+  TEST2(my_address);
   notification_listener_thread.join();
   return 0;
 }
