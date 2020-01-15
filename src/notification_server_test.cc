@@ -44,12 +44,12 @@ public:
                        const int notification_port)
     : notification_port_(notification_port),
       service_(std::make_shared<NotificationListenerImpl>()) {
-  std::string grpc_address = my_address + ":" + std::to_string(notification_port);
-  grpc::ServerBuilder builder;
-  builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
-  builder.RegisterService(&*service_);
-  grpc_server_ = builder.BuildAndStart();
-
+    std::string grpc_address = my_address + ":" + std::to_string(notification_port);
+    grpc::ServerBuilder builder;
+    builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
+    builder.RegisterService(&*service_);
+    grpc_server_ = builder.BuildAndStart();
+  }
   inline std::thread Run() {
     std::thread notification_thread(&NotificationListener::worker_loop, this);
     return notification_thread;
