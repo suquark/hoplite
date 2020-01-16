@@ -22,7 +22,8 @@ constexpr int BACKLOG = 10;
 int send_all(int conn_fd, const void *buf, const size_t size) {
   size_t cursor = 0;
   while (cursor < size) {
-    int bytes_sent = send(conn_fd, buf + cursor, size - cursor, 0);
+    int bytes_sent =
+        send(conn_fd, (const uint8_t *)buf + cursor, size - cursor, 0);
     if (bytes_sent < 0) {
       LOG(ERROR) << "Socket send error (code=" << errno << ")";
       return bytes_sent;
@@ -35,7 +36,7 @@ int send_all(int conn_fd, const void *buf, const size_t size) {
 int recv_all(int conn_fd, void *buf, const size_t size) {
   size_t cursor = 0;
   while (cursor < size) {
-    int bytes_recv = recv(conn_fd, buf + cursor, size - cursor, 0);
+    int bytes_recv = recv(conn_fd, (uint8_t *)buf + cursor, size - cursor, 0);
     if (bytes_recv < 0) {
       LOG(ERROR) << "Socket recv error (code=" << errno << ")";
       return bytes_recv;
