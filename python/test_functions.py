@@ -12,9 +12,9 @@ import utils
 @ray.remote(resources={'node': 1}, max_calls=1)
 def ray_multicast(args_dict, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
-    object_id = ray.ObjectID(b'\0' * 20);
+    object_id = ray.ObjectID(b'\0' * 20)
     if world_rank == 0:
-        ray.worker.global_worker.core_worker.free_objects([object_id], False, True);
+        ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
         buffer = store_lib.Buffer.from_buffer(array)
         print("Buffer created, hash =", hash(buffer))
@@ -34,8 +34,8 @@ def ray_multicast(args_dict, world_rank, object_size):
 @ray.remote(resources={'node': 1}, max_calls=1)
 def ray_reduce(args_dict, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
-    object_id = ray.ObjectID(str(world_rank).encode().rjust(20, b'\0'));
-    ray.worker.global_worker.core_worker.free_objects([object_id], False, True);
+    object_id = ray.ObjectID(str(world_rank).encode().rjust(20, b'\0'))
+    ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
     ray.worker.global_worker.put_object(object_id, array)
