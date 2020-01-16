@@ -16,7 +16,7 @@ my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 test_name=$1
 test_executable=$1_test
 working_dir=$(dirname $(realpath -s $0))
-test_executable_abspath=$working_dir$test_executable
+test_executable_abspath=$working_dir/$test_executable
 world_size=$2
 object_size=$3
 
@@ -38,7 +38,7 @@ if [ "$#" -eq 3 ]; then
     worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
     slaves=()
     for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
-    slaves=(${slaves[@]:0:$(($1-1))})
+    slaves=(${slaves[@]:0:$(($world_size-1))})
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $my_address; slaves: ${slaves[@]}"
 
     # create logging dir
