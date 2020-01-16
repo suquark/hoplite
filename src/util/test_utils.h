@@ -75,7 +75,7 @@ float get_uniform_random_float(const std::string &seed_str) {
 std::shared_ptr<Buffer> get_random_float_buffer(size_t n_elements,
                                                 const std::string &seed_str) {
   auto buf = std::make_shared<Buffer>(n_elements * sizeof(float));
-  auto data = buf->MutableData();
+  float* data = (float*)buf->MutableData();
   float random_number = get_uniform_random_float(seed_str);
   for (int64_t i = 0; i < n_elements; i++) {
     data[i] = i * random_number;
