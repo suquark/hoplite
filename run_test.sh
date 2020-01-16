@@ -14,7 +14,7 @@ my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
 # sleep 2
 
 test_name=$1
-test_executable=$1_test
+test_executable=$test_name
 working_dir=$(dirname $(realpath -s $0))
 test_executable_abspath=$working_dir/$test_executable
 world_size=$2
@@ -27,7 +27,7 @@ fi
 
 if [ "$#" -eq 3 ]; then
     # prompt test info
-    echo "$(tput setaf 2) Running test $(tput bold)$test_name ...$(tput sgr 0)"
+    echo "$(tput setaf 2)[INFO]$(tput sgr 0) Running test $(tput setaf 3)$(tput bold)$test_name$(tput sgr 0)"
 
     pkill notification
     sleep 2
@@ -44,6 +44,7 @@ if [ "$#" -eq 3 ]; then
     # create logging dir
     log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
     mkdir -p $log_dir
+    ln -sf $log_dir $working_dir/log/latest
 
     # execute remote commands
     for index in ${!slaves[@]}
@@ -59,6 +60,6 @@ else
     redis_address=$4
     rank=$5
     log_dir=$6
-    echo "Node($my_address) redis_address: $redis_address world_size: $world_size rank: $5 object_size: $object_size"
+    echo "$(tput setaf 2)[INFO]$(tput sgr 0) Node($my_address) redis_address: $redis_address world_size: $world_size rank: $5 object_size: $object_size"
     $test_executable_abspath $redis_address $my_address $world_size $rank $object_size 2>&1 | tee $log_dir/$my_address.client.log
 fi
