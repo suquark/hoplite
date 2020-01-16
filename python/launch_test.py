@@ -41,6 +41,8 @@ tasks = []
 for rank in range(args.world_size):
     if args.type_of_test == 'ray-multicast':
         task_id = test_functions.ray_multicast.remote(args_dict, rank, args.object_size)
+    if args.type_of_test == 'ray-reduce':
+        task_id = test_functions.ray_reduce.remote(args_dict, args.world_size, rank, args.object_size) 
     if args.type_of_test == 'multicast':
         task_id = test_functions.multicast.remote(args_dict, rank, args.object_size)
     tasks.append(task_id)
