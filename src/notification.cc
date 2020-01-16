@@ -99,7 +99,7 @@ public:
       std::shared_ptr<std::mutex> sync_mutex = std::make_shared<std::mutex>();
       sync_mutex->lock();
       std::shared_ptr<std::string> result_sender_ip = std::make_shared<std::string>();
-      pending_receiver_ips_[object_id].push({true, sync_mutex, result_sender_ip, ""});
+      pending_receiver_ips_[object_id].push({true, sync_mutex, result_sender_ip, "", ""});
       try_send_notification(object_id);
       l.unlock();
       sync_mutex->lock();
@@ -116,10 +116,11 @@ public:
                          GetLocationAsyncReply *reply) {
     std::lock_guard<std::mutex> guard(notification_mutex_);
     std::string receiver_ip = request->receiver_ip();
+    std::string query_id = request->query_id();
     // TODO: pass in repeated object ids will send twice.
     for (auto object_id_it: request->object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].push({false, nullptr, nullptr, receiver_ip});
+      pending_receiver_ips_[object_id].push({false, nullptr, nullptr, receiver_ip, query_id});
       try_send_notification(object_id);
     }
     reply->set_ok(true);
@@ -141,13 +142,13 @@ private:
           receiver.sync_mutex->unlock();
         }
         else {
-          DCHECK(send_notification(sender_ip, receiver.receiver_ip, object_id)) << "Failed to send notification";
+          DCHECK(send_notification(sender_ip, receiver.receiver_ip, object_id, receiver.query_id)) << "Failed to send notification";
         }
       }
     }
   }
 
-  bool send_notification(const std::string &sender_ip, const std::string &receiver_ip, const ObjectID &object_id) {
+  bool send_notification(const std::string &sender_ip, const std::string &receiver_ip, const ObjectID &object_id, const std::string &query_id) {
     auto remote_address = receiver_ip + ":" + std::to_string(port_);
     create_stub(remote_address);
     grpc::ClientContext context;
@@ -155,6 +156,7 @@ private:
     GetLocationAsyncAnswerReply reply;
     request.set_object_id(object_id.Binary());
     request.set_sender_ip(sender_ip);
+    request.set_query_id(query_id);
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
@@ -170,6 +172,7 @@ private:
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
     std::string receiver_ip;
+    std::string query_id;
   };
   std::unordered_map<ObjectID, std::queue<receiver_queue_element>> pending_receiver_ips_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;

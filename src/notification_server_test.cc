@@ -38,7 +38,8 @@ public:
                                       GetLocationAsyncAnswerReply *reply) {
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
-    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:" << object_id.Hex() << " IP:" << sender_ip;
+    std::string query_id = request->query_id();
+    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:" << object_id.Hex() << " IP:" << sender_ip << " Query:" << query_id;
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -92,7 +93,7 @@ void write_location(
                      << " failed.";
 }
 
-void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip) {
+void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip, const std::string &query_id) {
   TIMELINE("getlocationasync");
   LOG(INFO) << "Async get location of " << object_id.Hex();
   grpc::ClientContext context;
@@ -100,6 +101,7 @@ void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip)
   GetLocationAsyncReply reply;
   request.add_object_ids(object_id.Binary());
   request.set_receiver_ip(receiver_ip);
+  request.set_query_id(query_id);
   stub->GetLocationAsync(&context, request, &reply);
   DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
                      << " failed.";
@@ -131,7 +133,7 @@ void TEST2(const std::string &my_address) {
   std::string sender_ip = "1.2.3.4";
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
   write_location(object_id, sender_ip);
-  getlocationasync(object_id, my_address);
+  getlocationasync(object_id, my_address, "TEST2_query_id");
 }
 
 void TEST3(const std::string &my_address) { 
@@ -142,7 +144,7 @@ void TEST3(const std::string &my_address) {
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
   write_location(object_id, sender_ip_1);
   write_location(object_id, sender_ip_2);
-  getlocationasync(object_id, my_address);
+  getlocationasync(object_id, my_address, "TEST3_query_id");
   getlocationsync(object_id);
 }
 
@@ -152,7 +154,7 @@ void TEST4(const std::string &my_address) {
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
-  getlocationasync(object_id, my_address);
+  getlocationasync(object_id, my_address, "TEST4_query_id");
   write_location(object_id, sender_ip_1);
   write_location(object_id, sender_ip_2);
   getlocationsync(object_id);

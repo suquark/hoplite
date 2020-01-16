@@ -91,6 +91,7 @@ message GetLocationSyncReply {
 message GetLocationAsyncRequest {
   repeated bytes object_ids = 1;
   bytes receiver_ip = 2;
+  bytes query_id = 3;
 }
 
 message GetLocationAsyncReply {
@@ -100,6 +101,7 @@ message GetLocationAsyncReply {
 message GetLocationAsyncAnswerRequest {
   bytes object_id = 1;
   bytes sender_ip = 2;
+  bytes query_id = 3;
 }
 
 message GetLocationAsyncAnswerReply {
