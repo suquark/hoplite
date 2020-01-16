@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
 
-    LOG(INFO) << "Object(" << object_id.Hex() << ") is retrieved using "
+    LOG(INFO) << object_id.ToString() << "is retrieved using "
               << duration.count() << " seconds. CRC32 = " << result->CRC32();
   }
 
