@@ -44,7 +44,7 @@ if [ "$#" -eq 3 ]; then
     # create logging dir
     log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
     mkdir -p $log_dir
-    ln -sf $log_dir $working_dir/log/latest
+    ln -sf $log_dir/ $working_dir/log/latest/
 
     # execute remote commands
     for index in ${!slaves[@]}
