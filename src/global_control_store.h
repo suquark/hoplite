@@ -12,8 +12,6 @@
 #include <vector>
 #include <utility>
 
-struct redisContext;
-
 struct NotificationListenerImpl;
 
 class ObjectNotifications {
@@ -31,7 +29,7 @@ private:
 class GlobalControlStoreClient {
 public:
   GlobalControlStoreClient(const std::string &notification_server_address,
-                           const std::string &my_address, int notification_port,
+                           const std::string &my_address, int notification_server_port,
                            int notification_listen_port);
 
   // Write object location to the notification server.
@@ -60,7 +58,7 @@ private:
   std::shared_ptr<grpc::Channel> notification_channel_;
   std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
 
-  std::mutex notifications_pool_mutex_;
+  std::shared_ptr<std::mutex> notifications_pool_mutex_;
   std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> notifications_pool_;
 
   std::unique_ptr<grpc::Server> grpc_server_;

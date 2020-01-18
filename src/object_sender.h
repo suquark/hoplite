@@ -13,8 +13,8 @@
 
 class ObjectSender {
 public:
-  ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, 
-               LocalStoreClient &local_store_client, const std::string &my_address);
+  ObjectSender(ObjectStoreState &state, 
+               LocalStoreClient &local_store_client);
 
   void AppendTask(const objectstore::ReduceToRequest *request);
 
@@ -30,11 +30,9 @@ private:
 
   void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
-  std::string my_address_;
   std::queue<objectstore::ReduceToRequest *> pending_tasks_;
   std::mutex queue_mutex_;
   std::condition_variable queue_cv_;
-  GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
 };

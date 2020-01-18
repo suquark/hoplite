@@ -19,11 +19,9 @@
 
 class DistributedObjectStore {
 public:
-  DistributedObjectStore(const std::string &redis_address, int redis_port,
-                         int notification_port, int notification_listening_port,
-                         const std::string &plasma_socket,
-                         const std::string &my_address, int object_writer_port,
-                         int grpc_port);
+  DistributedObjectStore(const std::string &notification_server_address, int notification_server_port,
+                         int notification_listen_port, const std::string &plasma_socket,
+                         const std::string &my_address, int object_writer_port, int grpc_port);
 
   void Put(const void *data, size_t size, const ObjectID &object_id);
 
