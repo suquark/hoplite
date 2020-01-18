@@ -84,10 +84,12 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   LOG(INFO) << "grpc_server_ started";
   auto remote_notification_server_address =
       notification_server_address_ + ":" + std::to_string(notification_server_port_);
+  LOG(INFO) << "remote_notification_server_address " << remote_notification_server_address;
   notification_channel_ = grpc::CreateChannel(
       remote_notification_server_address, grpc::InsecureChannelCredentials());
   notification_stub_ =
       objectstore::NotificationServer::NewStub(notification_channel_);
+  LOG(INFO) << "notification_stub_ created";
 }
 
 void GlobalControlStoreClient::WriteLocation(
