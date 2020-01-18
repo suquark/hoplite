@@ -21,9 +21,10 @@ class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
 public:
   NotificationListenerImpl(
-      std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> &object_notifications_pool)
+      std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> &object_notifications_pool,
+      std::shared_ptr<std::mutex> notifications_pool_mutex)
       : objectstore::NotificationListener::Service(),
-        object_notifications_(object_notifications_pool), 
+        object_notifications_pool_(object_notifications_pool), 
         notifications_pool_mutex_(notifications_pool_mutex){}
 
   grpc::Status GetLocationAsyncAnswer(grpc::ServerContext *context,
@@ -57,18 +58,19 @@ std::vector<std::pair<ObjectID, std::string>> ObjectNotifications::GetNotificati
 
 void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id, const std::string &sender_ip) {
   std::unique_lock<std::mutex> l(notification_mutex_);
-  ready_.insert(std::make_pair(object_id, sender_ip));
+  ready_.push_back(std::make_pair(object_id, sender_ip));
   l.unlock();
   notification_cv_.notify_one();
 }
 
 GlobalControlStoreClient::GlobalControlStoreClient(
     const std::string &notification_server_address, const std::string &my_address, 
-    int notification_port, int notification_listen_port)
+    int notification_server_port, int notification_listen_port)
     : notification_server_address_(notification_server_address_), my_address_(my_address),
       notification_server_port_(notification_server_port),
       notification_listen_port_(notification_listen_port),
-      service_(std::make_shared<NotificationListenerImpl>(notifications_)) {
+      notifications_pool_mutex_(std::make_shared<std::mutex>()),
+      service_(std::make_shared<NotificationListenerImpl>(notifications_, notifications_pool_mutex_)) {
   std::string grpc_address =
       my_address + ":" + std::to_string(notification_listen_port_);
   grpc::ServerBuilder builder;
@@ -133,6 +135,5 @@ GlobalControlStoreClient::GetLocationAsync(
 
 void GlobalControlStoreClient::worker_loop() {
   LOG(INFO) << "[GCSClient] Gcs client " << my_address_ << " started";
-
   grpc_server_->Wait();
 }

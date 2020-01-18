@@ -16,7 +16,7 @@ struct NotificationListenerImpl;
 
 class ObjectNotifications {
 public:
-  std::vector<ObjectID> GetNotifications();
+  std::vector<std::pair<ObjectID, std::string>> GetNotifications();
 
   void ReceiveObjectNotification(const ObjectID &object_id, const std::string &sender_ip);
 
