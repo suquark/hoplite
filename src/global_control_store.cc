@@ -68,7 +68,7 @@ void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id, c
 GlobalControlStoreClient::GlobalControlStoreClient(
     const std::string &notification_server_address, const std::string &my_address, 
     int notification_server_port, int notification_listen_port)
-    : notification_server_address_(notification_server_address_), my_address_(my_address),
+    : notification_server_address_(notification_server_address), my_address_(my_address),
       notification_server_port_(notification_server_port),
       notification_listen_port_(notification_listen_port),
       notifications_pool_mutex_(std::make_shared<std::mutex>()),
