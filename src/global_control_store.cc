@@ -76,10 +76,12 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   TIMELINE("GlobalControlStoreClient");
   std::string grpc_address =
       my_address + ":" + std::to_string(notification_listen_port_);
+  LOG(INFO) << "grpc_address " << grpc_address;
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&*service_);
   grpc_server_ = builder.BuildAndStart();
+  LOG(INFO) << "grpc_server_ started";
   auto remote_notification_server_address =
       notification_server_address_ + ":" + std::to_string(notification_server_port_);
   notification_channel_ = grpc::CreateChannel(
