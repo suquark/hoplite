@@ -45,7 +45,7 @@ public:
                << " for object " << object_id.ToString();
 
     state_.transfer_complete(object_id);
-    gcs_client_.WriteLocation(object_id, my_address_);
+    gcs_client_.WriteLocation(object_id, my_address_, true);
     reply->set_ok(true);
     return grpc::Status::OK;
   }

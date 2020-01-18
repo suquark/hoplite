@@ -34,13 +34,14 @@ public:
 
   // Write object location to the notification server.
   void WriteLocation(const ObjectID &object_id,
-                     const std::string &my_address);
+                     const std::string &my_address,
+                     bool finished);
 
   // Get object location from the notification server.
   std::string GetLocationSync(const ObjectID &object_id);
 
   std::shared_ptr<ObjectNotifications>
-  GetLocationAsync(const std::vector<ObjectID> &object_ids);
+  GetLocationAsync(const std::vector<ObjectID> &object_ids, const std::string& query_id);
 
   inline std::thread Run() {
     std::thread notification_thread(&GlobalControlStoreClient::worker_loop,
