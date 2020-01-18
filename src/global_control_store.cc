@@ -25,7 +25,9 @@ public:
       std::shared_ptr<std::mutex> notifications_pool_mutex)
       : objectstore::NotificationListener::Service(),
         object_notifications_pool_(object_notifications_pool), 
-        notifications_pool_mutex_(notifications_pool_mutex){}
+        notifications_pool_mutex_(notifications_pool_mutex){
+            TIMELINE("NotificationListenerImpl");
+        }
 
   grpc::Status GetLocationAsyncAnswer(grpc::ServerContext *context,
                                       const GetLocationAsyncAnswerRequest *request,
@@ -71,6 +73,7 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       notification_listen_port_(notification_listen_port),
       notifications_pool_mutex_(std::make_shared<std::mutex>()),
       service_(std::make_shared<NotificationListenerImpl>(notifications_pool_, notifications_pool_mutex_)) {
+  TIMELINE("GlobalControlStoreClient");
   std::string grpc_address =
       my_address + ":" + std::to_string(notification_listen_port_);
   grpc::ServerBuilder builder;
