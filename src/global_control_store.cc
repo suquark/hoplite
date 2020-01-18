@@ -89,14 +89,14 @@ void GlobalControlStoreClient::WriteLocation(
     const ObjectID &object_id, const std::string &sender_ip, bool finished) {
   TIMELINE("GlobalControlStoreClient::WriteLocation");
   LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
-            << " to notification server with address = " << my_address << ".";
+            << " to notification server with address = " << sender_ip << ".";
   grpc::ClientContext context;
   WriteLocationRequest request;
   WriteLocationReply reply;
   request.set_object_id(object_id.Binary());
-  request.set_sender_ip(my_address);
+  request.set_sender_ip(sender_ip);
   request.set_finished(finished);
-  notification_stub_->WriteObjectLocation(&context, request, &reply);
+  notification_stub_->WriteLocation(&context, request, &reply);
   DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
                      << " failed.";
 }
