@@ -88,7 +88,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   ObjectID tail_objectid;
   std::string tail_address;
   // TODO: support different reduce op and types.
-  ObjectNotifications *notifications =
+  std::shared_ptr<ObjectNotifications> notifications =
       gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary());
   while (remaining_ids.size() > 0) {
     std::vector<std::pair<ObjectID, std::string>> ready_ids = notifications->GetNotifications();
