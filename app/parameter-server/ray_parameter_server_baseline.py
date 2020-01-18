@@ -64,7 +64,7 @@ def evaluate(model, test_loader):
 iterations = 200
 num_workers = 2
 
-ray.init(ignore_reinit_error=True)
+ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2)
 workers = [DataWorker.remote() for i in range(num_workers)]
 
@@ -109,7 +109,7 @@ ray.shutdown()
 
 print("Running Asynchronous Parameter Server Training.")
 
-ray.init(ignore_reinit_error=True)
+ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2)
 workers = [DataWorker.remote() for i in range(num_workers)]
 
