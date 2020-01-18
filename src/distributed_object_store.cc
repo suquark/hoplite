@@ -13,7 +13,7 @@ DistributedObjectStore::DistributedObjectStore(
     : my_address_(my_address), gcs_client_{notification_server_address,
                                            my_address, notification_server_port,
                                            notification_listen_port},
-      object_control_{object_sender_, local_store_client_, state_, my_address,
+      object_control_{object_sender_, local_store_client_, gcs_clinet_, state_, my_address,
                       grpc_port},
       object_writer_{state_, gcs_client_, local_store_client_, my_address,
                      object_writer_port},
