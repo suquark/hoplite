@@ -14,8 +14,11 @@ class ObjectStoreServiceImpl;
 
 class GrpcServer {
 public:
-  GrpcServer(ObjectSender &object_sender, LocalStoreClient &local_store_client,
-             ObjectStoreState &state, const std::string &ip, int port);
+  GrpcServer(ObjectSender &object_sender,
+                       LocalStoreClient &local_store_client, 
+                       GlobalControlStoreClient &gcs_client,
+                       ObjectStoreState &state, const std::string &my_address,
+                       int port);
 
   inline std::thread Run() {
     return std::thread(&GrpcServer::worker_loop, this);
