@@ -45,7 +45,8 @@ int main(int argc, char **argv) {
 
   if (rank == 0) {
     auto start = std::chrono::system_clock::now();
-    store.Get(object_ids, object_size, reduction_id, &reduction_result);
+    store.Reduce(object_ids, object_size, reduction_id);
+    store.Get(reduction_id, &reduction_result);
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
     LOG(INFO) << reduction_id.ToString() << " is reduced using "

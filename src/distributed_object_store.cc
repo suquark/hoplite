@@ -55,26 +55,23 @@ ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
   return object_id;
 }
 
-void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
-                                 size_t _expected_size,
-                                 ObjectID *created_reduction_id,
-                                 std::shared_ptr<Buffer> *result) {
+void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
+                                    size_t _expected_size,
+                                    ObjectID *created_reduction_id) {
   const auto reduction_id = ObjectID::FromRandom();
   *created_reduction_id = reduction_id;
-  Get(object_ids, _expected_size, reduction_id, result);
+  Reduce(object_ids, _expected_size, reduction_id);
 }
 
-void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
-                                 size_t _expected_size,
-                                 const ObjectID &reduction_id,
-                                 std::shared_ptr<Buffer> *result) {
+void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
+                                    size_t _expected_size,
+                                    const ObjectID &reduction_id) {
+  // TODO: support different reduce op and types.
   TIMELINE("DistributedObjectStore Get multiple objects");
 
   DCHECK(object_ids.size() > 0);
   // TODO: get size by checking the size of ObjectIDs
-  std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
-                                             object_ids.end());
-  std::vector<ObjectID> local_object_ids;
+
   // create the endpoint buffer
   std::shared_ptr<Buffer> buffer;
   auto pstatus =
@@ -86,18 +83,36 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   auto reduction_endpoint =
       state_.create_progressive_stream(reduction_id, buffer);
 
+  // starting a thread
+  std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
+                               object_ids, reduction_id);
+
+  reduction_tasks_[reduction_id] =
+      std::make_pair(reduction_endpoint，std::move(reduction_thread));
+}
+
+void DistributedObjectStore::poll_and_reduce(
+    const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
+  // we do not use reference for its parameters because it will be executed
+  // in a thread.
+
+  std::shared_ptr<ObjectNotifications> notifications =
+      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary());
+
+  // states for enumerating the chain
+  std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
+                                             object_ids.end());
+  std::vector<ObjectID> local_object_ids;
   int node_index = 0;
   ObjectID tail_objectid;
   std::string tail_address;
-  // TODO: support different reduce op and types.
-  std::shared_ptr<ObjectNotifications> notifications =
-      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary());
+
+  // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
     std::vector<std::pair<ObjectID, std::string>> ready_ids =
         notifications->GetNotifications();
-    // TODO: we can sort the ready ids by its node address.
+    // TODO: we should group ready ids by their node address.
     for (auto &ready_id_pair : ready_ids) {
-      // FIXME: Somehow the location of the object is not written to Redis.
       ObjectID ready_id = ready_id_pair.first;
       std::string address = ready_id_pair.second;
       DCHECK(address != "")
@@ -149,16 +164,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
     reply_ok = object_control_.InvokeReduceTo(
         tail_address, reduction_id, local_object_ids, my_address_, true);
   }
-
   DCHECK(reply_ok);
-  // wait until the object is fully reduced.
-  reduction_endpoint->wait();
-
-  // reduce remaining objects.
-  local_store_client_.Seal(reduction_id);
-
-  // get object from Plasma
-  *result = buffer;
 }
 
 void DistributedObjectStore::Get(const ObjectID &object_id,
@@ -167,14 +173,24 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
            object_id.ToString());
 
   // check if object is local
-  bool found = false;
-  local_store_client_.ObjectExists(object_id, &found);
-  if (!found) {
-    std::string address = gcs_client_.GetLocationSync(object_id);
+  if (local_store_client_.ObjectExists(object_id)) {
+    auto reduction_task_pair = reduction_tasks_[object_id];
+    if (reduction_task_pair != reduction_tasks_.end()) {
+      // ==> This ObjectID belongs to a reduction task.
+      reduction_task_pair.second.join();
+      // wait until the object is fully reduced
+      reduction_task_pair.first->wait();
+      reduction_tasks_.erase(object_id);
+      // seal the object objects
+      local_store_client_.Seal(reduction_id);
+    } else {
+      // ==> This ObjectID refers to a remote object.
+      std::string address = gcs_client_.GetLocationSync(object_id);
 
-    // send pull request to one of the location
-    DCHECK(object_control_.PullObject(address, object_id))
-        << "Failed to pull object";
+      // send pull request to one of the location
+      DCHECK(object_control_.PullObject(address, object_id))
+          << "Failed to pull object";
+    }
   }
 
   // get object from local store

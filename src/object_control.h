@@ -41,6 +41,9 @@ private:
   std::unordered_map<std::string,
                      std::unique_ptr<objectstore::ObjectStore::Stub>>
       object_store_stub_pool_;
+
+  std::mutex grpc_stub_map_mutex_;
+  void get_stub(const std::string &remote_grpc_address);
   void create_stub(const std::string &remote_grpc_address);
 };
 

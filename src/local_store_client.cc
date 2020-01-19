@@ -32,15 +32,9 @@ Status LocalStoreClient::Seal(const ObjectID &object_id) {
   return Status::OK();
 }
 
-Status LocalStoreClient::ObjectExists(const ObjectID &object_id, bool *found) {
+bool LocalStoreClient::ObjectExists(const ObjectID &object_id) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  auto got_object = buffers_.find(object_id);
-  if (got_object == buffers_.end()) {
-    *found = false;
-  } else {
-    *found = true;
-  }
-  return Status::OK();
+  return buffers_.find(object_id) != buffers_.end();
 }
 
 Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,

@@ -24,19 +24,27 @@ ObjectStoreState::get_reduction_stream(const ObjectID &reduction_id) {
 
 std::shared_ptr<ProgressiveStream> ObjectStoreState::create_progressive_stream(
     const ObjectID &reduction_id, const std::shared_ptr<Buffer> &buffer) {
+  while (progressive_stream_lock_.test_and_set(std::memory_order_acquire))
+    ; // spin
   DCHECK(progressive_stream_.find(reduction_id) == progressive_stream_.end());
   progressive_stream_[reduction_id] =
       std::make_shared<ProgressiveStream>(buffer);
-  return progressive_stream_[reduction_id];
+  auto stream = progressive_stream_[reduction_id];
+  progressive_stream_lock_.clear(std::memory_order_release); // release lock
+  return stream;
 }
 
 std::shared_ptr<ProgressiveStream>
 ObjectStoreState::get_progressive_stream(const ObjectID &reduction_id) {
+  while (progressive_stream_lock_.test_and_set(std::memory_order_acquire))
+    ; // spin
+  std::shared_ptr<ProgressiveStream> stream;
   if (progressive_stream_.find(reduction_id) == progressive_stream_.end()) {
     LOG(DEBUG) << "reduction endpoint id = " << reduction_id.Hex()
                << " not found";
-    return nullptr;
   } else {
-    return progressive_stream_[reduction_id];
+    stream = progressive_stream_[reduction_id];
   }
+  progressive_stream_lock_.clear(std::memory_order_release); // release lock
+  return stream;
 }

@@ -52,6 +52,7 @@ public:
     finished_mutex_.lock();
     finished_mutex_.unlock();
   }
+  inline std::shared_ptr<Buffer> get_buffer() { return buf_ptr_; }
 
   int64_t receive_progress;
   std::atomic_int64_t progress;
@@ -78,6 +79,7 @@ public:
   get_progressive_stream(const ObjectID &object_id);
 
 private:
+  std::atomic_flag progressive_stream_lock_ = ATOMIC_FLAG_INIT;
   std::mutex reduction_stream_mutex_;
   std::condition_variable reduction_stream_cv_;
   std::unordered_map<ObjectID, std::shared_ptr<ReductionStream>>

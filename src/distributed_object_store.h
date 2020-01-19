@@ -30,11 +30,11 @@ public:
 
   ObjectID Put(const std::shared_ptr<Buffer> &buffer);
 
-  void Get(const std::vector<ObjectID> &object_ids, size_t _expected_size,
-           ObjectID *created_reduction_id, std::shared_ptr<Buffer> *result);
+  void Reduce(const std::vector<ObjectID> &object_ids, size_t _expected_size,
+              ObjectID *created_reduction_id);
 
-  void Get(const std::vector<ObjectID> &object_ids, size_t _expected_size,
-           const ObjectID &reduction_id, std::shared_ptr<Buffer> *result);
+  void Reduce(const std::vector<ObjectID> &object_ids, size_t _expected_size,
+              const ObjectID &reduction_id);
 
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
@@ -45,6 +45,10 @@ public:
   }
 
 private:
+  void poll_and_reduce(std::shared_ptr<ObjectNotifications> notifications,
+                       const std::vector<ObjectID> &object_ids,
+                       const ObjectID &reduction_id);
+
   // order of fields should be kept for proper initialization order
   std::string my_address_;
   std::string redis_address_;
@@ -54,6 +58,10 @@ private:
   TCPServer object_writer_;
   ObjectSender object_sender_;
   GrpcServer object_control_;
+  // A map for currently working reduction tasks.
+  std::unordered_map<ObjectID,
+                     std::pair<std::shared_ptr<ProgressiveStream>, std::thread>>
+      reduction_tasks_;
   std::thread object_writer_thread_;
   std::thread object_sender_thread_;
   std::thread object_control_thread_;
