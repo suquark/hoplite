@@ -97,7 +97,7 @@ public:
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::shared_ptr<std::mutex> sync_mutex = std::make_shared<std::mutex>();
     // TODO: change this sync_mutex to a condition variable
-    // We initiate a locked mutex here. This mutex will be unlocked when 
+    // We initiate a locked mutex here. This mutex will be unlocked when
     // we find the sender for this request.
     sync_mutex->lock();
     std::shared_ptr<std::string> result_sender_ip =

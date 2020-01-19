@@ -12,7 +12,8 @@ DistributedObjectStore::DistributedObjectStore(
     const std::string &plasma_socket, const std::string &my_address,
     int object_writer_port, int grpc_port)
     : my_address_(my_address), gcs_client_{notification_server_address,
-                                           my_address_, notification_server_port,
+                                           my_address_,
+                                           notification_server_port,
                                            notification_listen_port},
       object_control_{object_sender_, local_store_client_, state_, my_address_,
                       grpc_port},
