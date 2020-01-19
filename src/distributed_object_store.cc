@@ -95,7 +95,7 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
     std::vector<std::pair<ObjectID, std::string>> ready_ids =
         notifications->GetNotifications();
     // TODO: we can sort the ready ids by its node address.
-    for (auto ready_id_pair : ready_ids) {
+    for (auto &ready_id_pair : ready_ids) {
       // FIXME: Somehow the location of the object is not written to Redis.
       ObjectID ready_id = ready_id_pair.first;
       std::string address = ready_id_pair.second;

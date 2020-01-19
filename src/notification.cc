@@ -77,7 +77,10 @@ public:
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     bool finished = request->finished();
-    int weight = (rand() % 100) + finished ? 100 : 0;
+    // Weights of finished objects will be always larger than the weights of
+    // unfinished objects. All finished objects as well as unfinished objects
+    // will have random weights.
+    int weight = (rand() % 100) + (finished ? 100 : 0);
     object_location_store_[object_id].insert(sender_ip);
     object_location_store_ready_[object_id].push(
         std::make_pair(weight, sender_ip));
@@ -93,6 +96,9 @@ public:
     std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::shared_ptr<std::mutex> sync_mutex = std::make_shared<std::mutex>();
+    // TODO: change this sync_mutex to a condition variable
+    // We initiate a locked mutex here. This mutex will be unlocked when 
+    // we find the sender for this request.
     sync_mutex->lock();
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
