@@ -91,23 +91,17 @@ public:
     TIMELINE("notification GetLocationSync");
     std::unique_lock<std::mutex> l(object_location_mutex_);
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
-    if (object_location_store_.find(object_id) ==
-        object_location_store_.end())  {
-      // This should never happen.
-      reply->set_sender_ip("");
-    } else {
-      std::shared_ptr<std::mutex> sync_mutex = std::make_shared<std::mutex>();
-      sync_mutex->lock();
-      std::shared_ptr<std::string> result_sender_ip = std::make_shared<std::string>();
-      pending_receiver_ips_[object_id].push({true, sync_mutex, result_sender_ip, "", ""});
-      try_send_notification(object_id);
-      l.unlock();
-      sync_mutex->lock();
-      l.lock();
-      DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
-      DCHECK(result_sender_ip.use_count() == 1) << "result_sender_ip memory leak detected";
-      reply->set_sender_ip(*result_sender_ip);
-    }
+    std::shared_ptr<std::mutex> sync_mutex = std::make_shared<std::mutex>();
+    sync_mutex->lock();
+    std::shared_ptr<std::string> result_sender_ip = std::make_shared<std::string>();
+    pending_receiver_ips_[object_id].push({true, sync_mutex, result_sender_ip, "", ""});
+    try_send_notification(object_id);
+    l.unlock();
+    sync_mutex->lock();
+    l.lock();
+    DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
+    DCHECK(result_sender_ip.use_count() == 1) << "result_sender_ip memory leak detected";
+    reply->set_sender_ip(*result_sender_ip);
     return grpc::Status::OK;
   }
 
