@@ -172,19 +172,21 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.ToString());
 
-  // check if object is local
-  if (!local_store_client_.ObjectExists(object_id)) {
-    auto search = reduction_tasks_.find(object_id);
-    if (search != reduction_tasks_.end()) {
-      // ==> This ObjectID belongs to a reduction task.
-      auto &reduction_task_pair = search->second;
-      reduction_task_pair.second.join();
-      // wait until the object is fully reduced
-      reduction_task_pair.first->wait();
-      reduction_tasks_.erase(object_id);
-      // seal the object objects
-      local_store_client_.Seal(object_id);
-    } else {
+  // FIXME: currently the object store will assume that the object
+  // exists even before 'Seal' is called. This will cause the problem
+  // that an on-going reduction task could be skipped. Here we just
+  // reorder the checking process as a workaround.
+  auto search = reduction_tasks_.find(object_id);
+  if (search != reduction_tasks_.end()) {
+    // ==> This ObjectID belongs to a reduction task.
+    auto &reduction_task_pair = search->second;
+    reduction_task_pair.second.join();
+    // wait until the object is fully reduced
+    reduction_task_pair.first->wait();
+    reduction_tasks_.erase(object_id);
+    local_store_client_.Seal(object_id);
+  } else {
+    if (!local_store_client_.ObjectExists(object_id)) {
       // ==> This ObjectID refers to a remote object.
       std::string address = gcs_client_.GetLocationSync(object_id);
 
@@ -194,7 +196,6 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     }
   }
 
-  // get object from local store
   std::vector<ObjectBuffer> object_buffers;
   local_store_client_.Get({object_id}, &object_buffers);
   *result = object_buffers[0].data;
