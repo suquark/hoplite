@@ -11,7 +11,7 @@ Buffer::Buffer(int64_t size): size_(size), is_data_owner_(true) {
 }
 
 uint8_t* Buffer::MutableData() { return data_ptr_; }
-const uint8_t* Buffer::Data() { return data_ptr_; }
+const uint8_t* Buffer::Data() const { return data_ptr_; }
 int64_t Buffer::Size() const { return size_; }
 uint32_t Buffer::CRC32() const {
   unsigned long crc = crc32(0L, Z_NULL, 0);
@@ -27,6 +27,11 @@ void Buffer::CopyFrom(const std::vector<uint8_t> &data) {
 void Buffer::CopyFrom(const uint8_t *data, size_t size) {
   DCHECK(size == size_) << "input size mismatch";
   std::memcpy(data_ptr_, data, size);
+}
+
+void Buffer::CopyFrom(const Buffer &buffer) {
+  DCHECK(buffer.Size() == size_) << "input size mismatch";
+  std::memcpy(data_ptr_, buffer.Data(), buffer.Size());
 }
 
 Buffer::~Buffer() {

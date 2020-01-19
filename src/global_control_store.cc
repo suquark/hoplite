@@ -114,7 +114,8 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
   request.set_object_id(object_id.Binary());
   request.set_sender_ip(sender_ip);
   request.set_finished(finished);
-  notification_stub_->WriteLocation(&context, request, &reply);
+  auto status = notification_stub_->WriteLocation(&context, request, &reply);
+  DCHECK(status.ok()) << status.error_message();
   DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
                      << " failed.";
 }

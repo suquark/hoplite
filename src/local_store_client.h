@@ -16,6 +16,8 @@ public:
 
   Status Seal(const ObjectID &object_id);
 
+  Status ObjectExists(const ObjectID &object_id, bool *found);
+
   Status Get(const std::vector<ObjectID> &object_ids,
              std::vector<ObjectBuffer> *object_buffers);
 

@@ -33,11 +33,14 @@
 
 .vscode/
 .cquery_cache/
+__pycache__/
 # binaries, databases, protobuf sockets
 dump.rdb
 multicast_test
 reduce_test
 allreduce_test
+gather_test
+allgather_test
 *.pb.h
 notification
 

@@ -12,13 +12,13 @@ DistributedObjectStore::DistributedObjectStore(
     const std::string &plasma_socket, const std::string &my_address,
     int object_writer_port, int grpc_port)
     : my_address_(my_address), gcs_client_{notification_server_address,
-                                           my_address, notification_server_port,
+                                           my_address_, notification_server_port,
                                            notification_listen_port},
-      object_control_{object_sender_, local_store_client_, state_, my_address,
+      object_control_{object_sender_, local_store_client_, state_, my_address_,
                       grpc_port},
-      object_writer_{state_, gcs_client_, local_store_client_, my_address,
+      object_writer_{state_, gcs_client_, local_store_client_, my_address_,
                      object_writer_port},
-      object_sender_{state_, gcs_client_, local_store_client_, my_address},
+      object_sender_{state_, gcs_client_, local_store_client_, my_address_},
       local_store_client_{false, plasma_socket} {
   TIMELINE("DistributedObjectStore construction function");
   // create a thread to receive remote object
@@ -31,26 +31,26 @@ DistributedObjectStore::DistributedObjectStore(
   notification_thread_ = gcs_client_.Run();
 }
 
-void DistributedObjectStore::Put(const void *data, size_t size,
+void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                                  const ObjectID &object_id) {
   TIMELINE(std::string("DistributedObjectStore Put single object ") +
            object_id.Hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
-  auto pstatus = local_store_client_.Create(object_id, size, &ptr);
+  auto pstatus = local_store_client_.Create(object_id, buffer->Size(), &ptr);
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
-                       << object_id.Hex() << " size = " << size
+                       << object_id.Hex() << " size = " << buffer->Size()
                        << ", status = " << pstatus.ToString();
-  ptr->CopyFrom((const uint8_t *)data, size);
+  ptr->CopyFrom(*buffer);
   local_store_client_.Seal(object_id);
   gcs_client_.WriteLocation(object_id, my_address_, true);
 }
 
-ObjectID DistributedObjectStore::Put(const void *data, size_t size) {
+ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
   TIMELINE("DistributedObjectStore Put without object_id");
   // generate a random object id
   auto object_id = ObjectID::FromRandom();
-  Put(data, size, object_id);
+  Put(buffer, object_id);
   return object_id;
 }
 
@@ -164,14 +164,19 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
                                  std::shared_ptr<Buffer> *result) {
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.ToString());
-  // get object location from notification server
-  std::string address = gcs_client_.GetLocationSync(object_id);
 
-  // send pull request to one of the location
-  DCHECK(object_control_.PullObject(address, object_id))
-      << "Failed to pull object";
+  // check if object is local
+  bool found = false;
+  local_store_client_.ObjectExists(object_id, &found);
+  if (!found) {
+    std::string address = gcs_client_.GetLocationSync(object_id);
 
-  // get object from Plasma
+    // send pull request to one of the location
+    DCHECK(object_control_.PullObject(address, object_id))
+        << "Failed to pull object";
+  }
+
+  // get object from local store
   std::vector<ObjectBuffer> object_buffers;
   local_store_client_.Get({object_id}, &object_buffers);
   *result = object_buffers[0].data;

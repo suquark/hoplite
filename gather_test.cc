@@ -1,15 +1,13 @@
 #include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "common/buffer.h"
-#include "common/id.h"
 #include "distributed_object_store.h"
 #include "logging.h"
 #include "test_utils.h"
 
 int main(int argc, char **argv) {
-  // signal(SIGPIPE, SIG_IGN);
   // argv: *, redis_address, my_address, #nodes, current_index, object_size
   std::string redis_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
@@ -27,33 +25,37 @@ int main(int argc, char **argv) {
 
   std::thread exit_thread(timed_exit, 20);
 
-  ObjectID object_id = object_id_from_integer(0);
-  std::shared_ptr<Buffer> result;
+  std::vector<ObjectID> object_ids;
+  float sum = 0;
+  for (int i = 0; i < world_size; i++) {
+    auto oid = object_id_from_integer(i);
+    object_ids.push_back(oid);
+    auto rnum = get_uniform_random_float(oid.Hex());
+    sum += rnum;
+  }
+  DCHECK(object_size % sizeof(float) == 0);
+
+  ObjectID rank_object_id = object_ids[rank];
+  std::unordered_map<ObjectID, std::shared_ptr<Buffer>> gather_result;
+
+  put_random_buffer<float>(store, rank_object_id, object_size);
+
+  barrier(rank, redis_address, 7777, world_size, my_address);
 
   if (rank == 0) {
-    result = std::make_shared<Buffer>(object_size);
-    uint8_t *buf = result->MutableData();
-    for (int64_t i = 0; i < object_size; i++) {
-      buf[i] = i % 256;
-    }
-    store.Put(result, object_id);
-
-    LOG(INFO) << object_id.ToString() << " is created!"
-              << " CRC32 = " << result->CRC32();
-
-    LOG(INFO) << "entering barrier";
-    barrier(rank, redis_address, 7777, world_size, my_address);
-  } else {
-
-    LOG(INFO) << "entering barrier";
-    barrier(rank, redis_address, 7777, world_size, my_address);
     auto start = std::chrono::system_clock::now();
-    store.Get(object_id, &result);
+    for (auto &object_id : object_ids) {
+      store.Get(object_id, &gather_result[object_id]);
+    }
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
+    LOG(INFO) << "gathered using " << duration.count() << " seconds";
 
-    LOG(INFO) << object_id.ToString() << " is retrieved using "
-              << duration.count() << " seconds. CRC32 = " << result->CRC32();
+    uint32_t sum_crc = 0;
+    for (auto &object_id : object_ids) {
+      sum_crc += gather_result[object_id]->CRC32();
+    }
+    LOG(INFO) << "CRC32 for objects is " << sum_crc;
   }
 
   exit_thread.join();

@@ -26,9 +26,9 @@ public:
                          const std::string &my_address, int object_writer_port,
                          int grpc_port);
 
-  void Put(const void *data, size_t size, const ObjectID &object_id);
+  void Put(const std::shared_ptr<Buffer> &buffer, const ObjectID &object_id);
 
-  ObjectID Put(const void *data, size_t size);
+  ObjectID Put(const std::shared_ptr<Buffer> &buffer);
 
   void Get(const std::vector<ObjectID> &object_ids, size_t _expected_size,
            ObjectID *created_reduction_id, std::shared_ptr<Buffer> *result);
@@ -45,7 +45,9 @@ public:
   }
 
 private:
-  const std::string my_address_;
+  // order of fields should be kept for proper initialization order
+  std::string my_address_;
+  std::string redis_address_;
   ObjectStoreState state_;
   GlobalControlStoreClient gcs_client_;
   LocalStoreClient local_store_client_;
