@@ -79,7 +79,9 @@ bool GrpcServer::PullObject(const std::string &remote_address,
   PullReply reply;
   request.set_object_id(object_id.Binary());
   request.set_puller_ip(my_address_);
-  object_store_stub_pool_[remote_grpc_address]->Pull(&context, request, &reply);
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->Pull(&context, request, &reply);
   return reply.ok();
 }
 
@@ -105,8 +107,9 @@ bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
   if (src_object_id != nullptr) {
     request.set_src_object_id(src_object_id->Binary());
   }
-  auto status = object_store_stub_pool_[remote_grpc_address]->ReduceTo(
-      &context, request, &reply);
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->ReduceTo(&context, request, &reply);
   DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
                       << remote_grpc_address
                       << ", message: " << status.error_message()
@@ -121,7 +124,14 @@ void GrpcServer::worker_loop() {
   grpc_server_->Wait();
 }
 
+objectstore::ObjectStore::Stub *
+GrpcServer::get_stub(const std::string &remote_grpc_address) {
+  std::lock_guard<std::mutex> lock(grpc_stub_map_mutex_);
+  return object_store_stub_pool_[remote_grpc_address].get();
+}
+
 void GrpcServer::create_stub(const std::string &remote_grpc_address) {
+  std::lock_guard<std::mutex> lock(grpc_stub_map_mutex_);
   if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
     channel_pool_[remote_grpc_address] = grpc::CreateChannel(
         remote_grpc_address, grpc::InsecureChannelCredentials());
