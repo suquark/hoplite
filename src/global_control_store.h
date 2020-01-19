@@ -9,8 +9,8 @@
 #include <string>
 #include <thread>
 #include <unordered_set>
-#include <vector>
 #include <utility>
+#include <vector>
 
 struct NotificationListenerImpl;
 
@@ -18,7 +18,8 @@ class ObjectNotifications {
 public:
   std::vector<std::pair<ObjectID, std::string>> GetNotifications();
 
-  void ReceiveObjectNotification(const ObjectID &object_id, const std::string &sender_ip);
+  void ReceiveObjectNotification(const ObjectID &object_id,
+                                 const std::string &sender_ip);
 
 private:
   std::mutex notification_mutex_;
@@ -29,19 +30,20 @@ private:
 class GlobalControlStoreClient {
 public:
   GlobalControlStoreClient(const std::string &notification_server_address,
-                           const std::string &my_address, int notification_server_port,
+                           const std::string &my_address,
+                           int notification_server_port,
                            int notification_listen_port);
 
   // Write object location to the notification server.
-  void WriteLocation(const ObjectID &object_id,
-                     const std::string &my_address,
+  void WriteLocation(const ObjectID &object_id, const std::string &my_address,
                      bool finished);
 
   // Get object location from the notification server.
   std::string GetLocationSync(const ObjectID &object_id);
 
   std::shared_ptr<ObjectNotifications>
-  GetLocationAsync(const std::vector<ObjectID> &object_ids, const std::string& query_id);
+  GetLocationAsync(const std::vector<ObjectID> &object_ids,
+                   const std::string &query_id);
 
   inline std::thread Run() {
     std::thread notification_thread(&GlobalControlStoreClient::worker_loop,
@@ -60,7 +62,8 @@ private:
   std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
 
   std::shared_ptr<std::mutex> notifications_pool_mutex_;
-  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> notifications_pool_;
+  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>>
+      notifications_pool_;
 
   std::unique_ptr<grpc::Server> grpc_server_;
   std::shared_ptr<NotificationListenerImpl> service_;

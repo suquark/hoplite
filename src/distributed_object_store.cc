@@ -7,9 +7,10 @@
 #include "logging.h"
 
 DistributedObjectStore::DistributedObjectStore(
-    const std::string &notification_server_address, int redis_port, int notification_server_port,
-    int notification_listen_port, const std::string &plasma_socket,
-    const std::string &my_address, int object_writer_port, int grpc_port)
+    const std::string &notification_server_address, int redis_port,
+    int notification_server_port, int notification_listen_port,
+    const std::string &plasma_socket, const std::string &my_address,
+    int object_writer_port, int grpc_port)
     : my_address_(my_address), gcs_client_{notification_server_address,
                                            my_address, notification_server_port,
                                            notification_listen_port},
@@ -17,7 +18,7 @@ DistributedObjectStore::DistributedObjectStore(
                       grpc_port},
       object_writer_{state_, gcs_client_, local_store_client_, my_address,
                      object_writer_port},
-      object_sender_{state_, gcs_client_, local_store_client_, my_address}, 
+      object_sender_{state_, gcs_client_, local_store_client_, my_address},
       local_store_client_{false, plasma_socket} {
   TIMELINE("DistributedObjectStore construction function");
   // create a thread to receive remote object
@@ -91,7 +92,8 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   std::shared_ptr<ObjectNotifications> notifications =
       gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary());
   while (remaining_ids.size() > 0) {
-    std::vector<std::pair<ObjectID, std::string>> ready_ids = notifications->GetNotifications();
+    std::vector<std::pair<ObjectID, std::string>> ready_ids =
+        notifications->GetNotifications();
     // TODO: we can sort the ready ids by its node address.
     for (auto ready_id_pair : ready_ids) {
       // FIXME: Somehow the location of the object is not written to Redis.
@@ -166,7 +168,8 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   std::string address = gcs_client_.GetLocationSync(object_id);
 
   // send pull request to one of the location
-  DCHECK(object_control_.PullObject(address, object_id)) << "Failed to pull object";
+  DCHECK(object_control_.PullObject(address, object_id))
+      << "Failed to pull object";
 
   // get object from Plasma
   std::vector<ObjectBuffer> object_buffers;

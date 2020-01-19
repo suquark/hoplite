@@ -46,8 +46,8 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
                            GlobalControlStoreClient &gcs_client,
                            LocalStoreClient &local_store_client,
                            const std::string &my_address)
-    : state_(state), gcs_client_(gcs_client), 
-      local_store_client_(local_store_client), my_address_(my_address){
+    : state_(state), gcs_client_(gcs_client),
+      local_store_client_(local_store_client), my_address_(my_address) {
   TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
 }

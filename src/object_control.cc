@@ -55,7 +55,7 @@ private:
 };
 
 GrpcServer::GrpcServer(ObjectSender &object_sender,
-                       LocalStoreClient &local_store_client, 
+                       LocalStoreClient &local_store_client,
                        ObjectStoreState &state, const std::string &my_address,
                        int port)
     : my_address_(my_address), grpc_port_(port), state_(state),

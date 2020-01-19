@@ -8,30 +8,32 @@
 #include "global_control_store.h"
 #include "logging.h"
 
-using objectstore::WriteLocationReply;
-using objectstore::WriteLocationRequest;
-using objectstore::GetLocationSyncReply;
-using objectstore::GetLocationSyncRequest;
+using objectstore::GetLocationAsyncAnswerReply;
+using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
 using objectstore::GetLocationAsyncRequest;
-using objectstore::GetLocationAsyncAnswerRequest;
-using objectstore::GetLocationAsyncAnswerReply;
+using objectstore::GetLocationSyncReply;
+using objectstore::GetLocationSyncRequest;
+using objectstore::WriteLocationReply;
+using objectstore::WriteLocationRequest;
 
 class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
 public:
   NotificationListenerImpl(
-      std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> &object_notifications_pool,
+      std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>>
+          &object_notifications_pool,
       std::shared_ptr<std::mutex> notifications_pool_mutex)
       : objectstore::NotificationListener::Service(),
-        object_notifications_pool_(object_notifications_pool), 
-        notifications_pool_mutex_(notifications_pool_mutex){
-            TIMELINE("NotificationListenerImpl");
-        }
+        object_notifications_pool_(object_notifications_pool),
+        notifications_pool_mutex_(notifications_pool_mutex) {
+    TIMELINE("NotificationListenerImpl");
+  }
 
-  grpc::Status GetLocationAsyncAnswer(grpc::ServerContext *context,
-                                      const GetLocationAsyncAnswerRequest *request,
-                                      GetLocationAsyncAnswerReply *reply) {
+  grpc::Status
+  GetLocationAsyncAnswer(grpc::ServerContext *context,
+                         const GetLocationAsyncAnswerRequest *request,
+                         GetLocationAsyncAnswerReply *reply) {
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
@@ -46,11 +48,13 @@ public:
   }
 
 private:
-  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> &object_notifications_pool_;
+  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>>
+      &object_notifications_pool_;
   std::shared_ptr<std::mutex> notifications_pool_mutex_;
 };
 
-std::vector<std::pair<ObjectID, std::string>> ObjectNotifications::GetNotifications() {
+std::vector<std::pair<ObjectID, std::string>>
+ObjectNotifications::GetNotifications() {
   std::unique_lock<std::mutex> l(notification_mutex_);
   notification_cv_.wait(l, [this]() { return !ready_.empty(); });
   std::vector<std::pair<ObjectID, std::string>> notifications = ready_;
@@ -58,7 +62,8 @@ std::vector<std::pair<ObjectID, std::string>> ObjectNotifications::GetNotificati
   return notifications;
 }
 
-void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id, const std::string &sender_ip) {
+void ObjectNotifications::ReceiveObjectNotification(
+    const ObjectID &object_id, const std::string &sender_ip) {
   std::unique_lock<std::mutex> l(notification_mutex_);
   ready_.push_back(std::make_pair(object_id, sender_ip));
   l.unlock();
@@ -66,13 +71,16 @@ void ObjectNotifications::ReceiveObjectNotification(const ObjectID &object_id, c
 }
 
 GlobalControlStoreClient::GlobalControlStoreClient(
-    const std::string &notification_server_address, const std::string &my_address, 
-    int notification_server_port, int notification_listen_port)
-    : notification_server_address_(notification_server_address), my_address_(my_address),
+    const std::string &notification_server_address,
+    const std::string &my_address, int notification_server_port,
+    int notification_listen_port)
+    : notification_server_address_(notification_server_address),
+      my_address_(my_address),
       notification_server_port_(notification_server_port),
       notification_listen_port_(notification_listen_port),
       notifications_pool_mutex_(std::make_shared<std::mutex>()),
-      service_(std::make_shared<NotificationListenerImpl>(notifications_pool_, notifications_pool_mutex_)) {
+      service_(std::make_shared<NotificationListenerImpl>(
+          notifications_pool_, notifications_pool_mutex_)) {
   TIMELINE("GlobalControlStoreClient");
   std::string grpc_address =
       my_address + ":" + std::to_string(notification_listen_port_);
@@ -83,8 +91,10 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   grpc_server_ = builder.BuildAndStart();
   LOG(INFO) << "grpc_server_ started";
   auto remote_notification_server_address =
-      notification_server_address_ + ":" + std::to_string(notification_server_port_);
-  LOG(INFO) << "remote_notification_server_address " << remote_notification_server_address;
+      notification_server_address_ + ":" +
+      std::to_string(notification_server_port_);
+  LOG(INFO) << "remote_notification_server_address "
+            << remote_notification_server_address;
   notification_channel_ = grpc::CreateChannel(
       remote_notification_server_address, grpc::InsecureChannelCredentials());
   notification_stub_ =
@@ -92,8 +102,9 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   LOG(INFO) << "notification_stub_ created";
 }
 
-void GlobalControlStoreClient::WriteLocation(
-    const ObjectID &object_id, const std::string &sender_ip, bool finished) {
+void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
+                                             const std::string &sender_ip,
+                                             bool finished) {
   TIMELINE("GlobalControlStoreClient::WriteLocation");
   LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip << ".";
@@ -119,10 +130,10 @@ GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
   return std::string(reply.sender_ip());
 }
 
-std::shared_ptr<ObjectNotifications>
-GlobalControlStoreClient::GetLocationAsync(
-    const std::vector<ObjectID> &object_ids, const std::string& query_id) {
-  std::shared_ptr<ObjectNotifications> notifications = std::make_shared<ObjectNotifications>();
+std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
+    const std::vector<ObjectID> &object_ids, const std::string &query_id) {
+  std::shared_ptr<ObjectNotifications> notifications =
+      std::make_shared<ObjectNotifications>();
   {
     std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
     notifications_pool_[query_id] = notifications;

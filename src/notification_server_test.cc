@@ -1,45 +1,47 @@
+#include <atomic>
+#include <condition_variable>
 #include <cstdlib>
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <unistd.h>
-#include <utility>
-#include <unordered_map>
-#include <unordered_set>
-#include <condition_variable>
 #include <queue>
-#include <atomic>
 #include <string>
 #include <thread>
+#include <unistd.h>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
-#include "logging.h"
 #include "common/id.h"
+#include "logging.h"
 #include "object_store.grpc.pb.h"
 
-using objectstore::WriteLocationReply;
-using objectstore::WriteLocationRequest;
-using objectstore::GetLocationSyncReply;
-using objectstore::GetLocationSyncRequest;
+using objectstore::GetLocationAsyncAnswerReply;
+using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
 using objectstore::GetLocationAsyncRequest;
-using objectstore::GetLocationAsyncAnswerRequest;
-using objectstore::GetLocationAsyncAnswerReply;
+using objectstore::GetLocationSyncReply;
+using objectstore::GetLocationSyncRequest;
+using objectstore::WriteLocationReply;
+using objectstore::WriteLocationRequest;
 
 class NotificationListenerImpl final
     : public objectstore::NotificationListener::Service {
 public:
-  NotificationListenerImpl()
-      : objectstore::NotificationListener::Service() {}
+  NotificationListenerImpl() : objectstore::NotificationListener::Service() {}
 
-  grpc::Status GetLocationAsyncAnswer(grpc::ServerContext *context,
-                                      const GetLocationAsyncAnswerRequest *request,
-                                      GetLocationAsyncAnswerReply *reply) {
+  grpc::Status
+  GetLocationAsyncAnswer(grpc::ServerContext *context,
+                         const GetLocationAsyncAnswerRequest *request,
+                         GetLocationAsyncAnswerReply *reply) {
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
-    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:" << object_id.Hex() << " IP:" << sender_ip << " Query:" << query_id;
+    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:"
+              << object_id.Hex() << " IP:" << sender_ip
+              << " Query:" << query_id;
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -47,11 +49,12 @@ public:
 
 class NotificationListener {
 public:
-  NotificationListener(const std::string &my_address, 
+  NotificationListener(const std::string &my_address,
                        const int notification_port)
-    : notification_port_(notification_port),
-      service_(std::make_shared<NotificationListenerImpl>()) {
-    std::string grpc_address = my_address + ":" + std::to_string(notification_port);
+      : notification_port_(notification_port),
+        service_(std::make_shared<NotificationListenerImpl>()) {
+    std::string grpc_address =
+        my_address + ":" + std::to_string(notification_port);
     grpc::ServerBuilder builder;
     builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&*service_);
@@ -77,8 +80,7 @@ private:
 std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
-void write_location(
-    const ObjectID &object_id, const std::string &sender_ip) {
+void write_location(const ObjectID &object_id, const std::string &sender_ip) {
   TIMELINE("write_location");
   LOG(INFO) << "Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip;
@@ -93,7 +95,8 @@ void write_location(
                      << " failed.";
 }
 
-void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip, const std::string &query_id) {
+void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip,
+                      const std::string &query_id) {
   TIMELINE("getlocationasync");
   LOG(INFO) << "Async get location of " << object_id.Hex();
   grpc::ClientContext context;
@@ -118,7 +121,7 @@ void getlocationsync(const ObjectID &object_id) {
   LOG(INFO) << "getlocationsync reply: " << reply.sender_ip();
 }
 
-void TEST1() { 
+void TEST1() {
   LOG(INFO) << "=========== TEST1 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip = "1.2.3.4";
@@ -127,7 +130,7 @@ void TEST1() {
   getlocationsync(object_id);
 }
 
-void TEST2(const std::string &my_address) { 
+void TEST2(const std::string &my_address) {
   LOG(INFO) << "=========== TEST2 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip = "1.2.3.4";
@@ -136,24 +139,28 @@ void TEST2(const std::string &my_address) {
   getlocationasync(object_id, my_address, "TEST2_query_id");
 }
 
-void TEST3(const std::string &my_address) { 
+void TEST3(const std::string &my_address) {
   LOG(INFO) << "=========== TEST3 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
-  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
+  LOG(INFO) << "object_id: " << object_id.Hex()
+            << " sender_ip_1: " << sender_ip_1
+            << " sender_ip_2: " << sender_ip_2;
   write_location(object_id, sender_ip_1);
   write_location(object_id, sender_ip_2);
   getlocationasync(object_id, my_address, "TEST3_query_id");
   getlocationsync(object_id);
 }
 
-void TEST4(const std::string &my_address) { 
+void TEST4(const std::string &my_address) {
   LOG(INFO) << "=========== TEST4 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
-  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
+  LOG(INFO) << "object_id: " << object_id.Hex()
+            << " sender_ip_1: " << sender_ip_1
+            << " sender_ip_2: " << sender_ip_2;
   getlocationasync(object_id, my_address, "TEST4_query_id");
   write_location(object_id, sender_ip_1);
   write_location(object_id, sender_ip_2);
@@ -167,7 +174,8 @@ int main(int argc, char **argv) {
   std::thread notification_listener_thread;
   notification_listener.reset(new NotificationListener(my_address, 8888));
   notification_listener_thread = notification_listener->Run();
-  channel = grpc::CreateChannel(my_address + ":7777", grpc::InsecureChannelCredentials());
+  channel = grpc::CreateChannel(my_address + ":7777",
+                                grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);
   TEST1();
   TEST2(my_address);
