@@ -137,7 +137,7 @@ cdef class DistributedObjectStore:
 
     def reduce_async(self, object_ids, expected_size, reduce_op, reduction_id=None):
         cdef:
-            ObjectID _created_reduction_id
+            ObjectID _created_reduction_id = ObjectID(b'\0' * 20)
             c_vector[CObjectID] raw_object_ids
 
         if reduce_op == ReduceOp.SUM:
@@ -149,7 +149,7 @@ cdef class DistributedObjectStore:
                     raw_object_ids, <int64_t>expected_size, (<ObjectID>reduction_id).data)
                 return reduction_id
             else:
-                self.store.get().Get(
+                self.store.get().Reduce(
                     raw_object_ids, <int64_t>expected_size, &_created_reduction_id.data)
                 return _created_reduction_id
         else:
