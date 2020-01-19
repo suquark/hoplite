@@ -35,10 +35,10 @@ private:
   std::queue<objectstore::ReduceToRequest *> pending_tasks_;
   std::mutex queue_mutex_;
   std::condition_variable queue_cv_;
-  GlobalControlStoreClient &gcs_client;
+  GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
-  std::string my_address;
+  std::string my_address_;
 };
 
 #endif // OBJECT_SENDER_H
