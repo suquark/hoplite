@@ -174,9 +174,10 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
 
   // check if object is local
   if (local_store_client_.ObjectExists(object_id)) {
-    auto reduction_task_pair = reduction_tasks_[object_id];
-    if (reduction_task_pair != reduction_tasks_.end()) {
+    auto search = reduction_tasks_.find(object_id);
+    if (search != reduction_tasks_.end()) {
       // ==> This ObjectID belongs to a reduction task.
+      auto &reduction_task_pair = search->second;
       reduction_task_pair.second.join();
       // wait until the object is fully reduced
       reduction_task_pair.first->wait();
