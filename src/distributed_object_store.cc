@@ -182,7 +182,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
       reduction_task_pair.first->wait();
       reduction_tasks_.erase(object_id);
       // seal the object objects
-      local_store_client_.Seal(reduction_id);
+      local_store_client_.Seal(object_id);
     } else {
       // ==> This ObjectID refers to a remote object.
       std::string address = gcs_client_.GetLocationSync(object_id);
