@@ -173,7 +173,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
            object_id.ToString());
 
   // check if object is local
-  if (local_store_client_.ObjectExists(object_id)) {
+  if (!local_store_client_.ObjectExists(object_id)) {
     auto search = reduction_tasks_.find(object_id);
     if (search != reduction_tasks_.end()) {
       // ==> This ObjectID belongs to a reduction task.
