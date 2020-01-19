@@ -22,8 +22,7 @@ public:
                          LocalStoreClient &local_store_client,
                          ObjectStoreState &state)
       : ObjectStore::Service(), object_sender_(object_sender),
-        local_store_client_(local_store_client), gcs_client_(gcs_client),
-        my_address_(my_address), state_(state) {}
+        local_store_client_(local_store_client), state_(state) {}
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
@@ -37,7 +36,6 @@ public:
     LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
                << " for object " << object_id.ToString();
 
-    gcs_client_.WriteLocation(object_id, my_address_, true);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -54,8 +52,6 @@ private:
   ObjectSender &object_sender_;
   ObjectStoreState &state_;
   LocalStoreClient &local_store_client_;
-  GlobalControlStoreClient &gcs_client_;
-  std::string my_address_;
 };
 
 GrpcServer::GrpcServer(ObjectSender &object_sender,
