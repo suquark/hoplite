@@ -196,6 +196,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     }
   }
 
+  // get object from local store
   std::vector<ObjectBuffer> object_buffers;
   local_store_client_.Get({object_id}, &object_buffers);
   *result = object_buffers[0].data;
