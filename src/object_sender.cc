@@ -172,7 +172,9 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   if (strcmp(ack, "OK") != 0)
     LOG(FATAL) << "ack is wrong";
 
-  //TODO: add writelocation here for the original object
+  for (auto &oid_str : request->dst_object_ids()) {
+    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true);
+  }
 
   close(conn_fd);
 }
