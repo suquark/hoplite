@@ -167,7 +167,7 @@ void TCPServer::receive_and_reduce_object(
 
   if (is_endpoint) {
     // notify other nodes that our stream is on progress
-    gcs_client_.write_object_location(reduction_id, server_ipaddr_);
+    gcs_client_.WriteLocation(reduction_id, server_ipaddr_, false);
     std::shared_ptr<ProgressiveStream> stream =
         state_.get_progressive_stream(reduction_id);
     stream_reduce_add<ProgressiveStream, float>(conn_fd, stream.get(), buffers);
@@ -199,10 +199,9 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
 
   auto stream = state_.create_progressive_stream(object_id, ptr);
   // notify other nodes that our stream is on progress
-  gcs_client_.write_object_location(object_id, server_ipaddr_);
+  gcs_client_.WriteLocation(object_id, server_ipaddr_, false);
   stream_write<ProgressiveStream>(conn_fd, stream.get());
   local_store_client_.Seal(object_id);
-  gcs_client_.PublishObjectCompletionEvent(object_id);
 
   // reply message
   auto status = send_all(conn_fd, "OK", 3);

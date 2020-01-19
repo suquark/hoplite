@@ -28,11 +28,6 @@ public:
                     PullReply *reply) {
     TIMELINE("ObjectStoreServiceImpl::Pull()");
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
-    bool transfer_available = state_.transfer_available(object_id);
-    if (!transfer_available) {
-      reply->set_ok(false);
-      return grpc::Status::OK;
-    }
 
     LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
                << " for object " << object_id.ToString();
@@ -41,7 +36,6 @@ public:
     LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
                << " for object " << object_id.ToString();
 
-    state_.transfer_complete(object_id);
     reply->set_ok(true);
     return grpc::Status::OK;
   }

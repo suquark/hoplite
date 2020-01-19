@@ -6,13 +6,16 @@
 #include <queue>
 #include <thread>
 
+#include "global_control_store.h"
 #include "local_store_client.h"
 #include "object_store.pb.h"
 #include "object_store_state.h"
 
 class ObjectSender {
 public:
-  ObjectSender(ObjectStoreState &state, LocalStoreClient &local_store_client);
+  ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
+               LocalStoreClient &local_store_client,
+               const std::string &my_address);
 
   void AppendTask(const objectstore::ReduceToRequest *request);
 
@@ -31,8 +34,10 @@ private:
   std::queue<objectstore::ReduceToRequest *> pending_tasks_;
   std::mutex queue_mutex_;
   std::condition_variable queue_cv_;
+  GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
+  std::string my_address_;
 };
 
 #endif // OBJECT_SENDER_H

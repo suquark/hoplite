@@ -7,19 +7,20 @@
 #include "logging.h"
 
 DistributedObjectStore::DistributedObjectStore(
-    const std::string &redis_address, int redis_port, int notification_port,
-    int notification_listening_port, const std::string &plasma_socket,
-    const std::string &my_address, int object_writer_port, int grpc_port)
-    : my_address_(my_address),
-      redis_address_(redis_address), gcs_client_{redis_address_, redis_port,
-                                                 my_address_, notification_port,
-                                                 notification_listening_port},
+    const std::string &notification_server_address, int redis_port,
+    int notification_server_port, int notification_listen_port,
+    const std::string &plasma_socket, const std::string &my_address,
+    int object_writer_port, int grpc_port)
+    : my_address_(my_address), gcs_client_{notification_server_address,
+                                           my_address_,
+                                           notification_server_port,
+                                           notification_listen_port},
       object_control_{object_sender_, local_store_client_, state_, my_address_,
                       grpc_port},
       object_writer_{state_, gcs_client_, local_store_client_, my_address_,
                      object_writer_port},
-      object_sender_{state_, local_store_client_}, local_store_client_{
-                                                       false, plasma_socket} {
+      object_sender_{state_, gcs_client_, local_store_client_, my_address_},
+      local_store_client_{false, plasma_socket} {
   TIMELINE("DistributedObjectStore construction function");
   // create a thread to receive remote object
   object_writer_thread_ = object_writer_.Run();
@@ -43,8 +44,7 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                        << ", status = " << pstatus.ToString();
   ptr->CopyFrom(*buffer);
   local_store_client_.Seal(object_id);
-  gcs_client_.write_object_location(object_id, my_address_);
-  gcs_client_.PublishObjectCompletionEvent(object_id);
+  gcs_client_.WriteLocation(object_id, my_address_, true);
 }
 
 ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
@@ -90,14 +90,16 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
   ObjectID tail_objectid;
   std::string tail_address;
   // TODO: support different reduce op and types.
-  ObjectNotifications *notifications =
-      gcs_client_.subscribe_object_locations(object_ids, true);
+  std::shared_ptr<ObjectNotifications> notifications =
+      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary());
   while (remaining_ids.size() > 0) {
-    std::vector<ObjectID> ready_ids = notifications->GetNotifications();
+    std::vector<std::pair<ObjectID, std::string>> ready_ids =
+        notifications->GetNotifications();
     // TODO: we can sort the ready ids by its node address.
-    for (auto &ready_id : ready_ids) {
+    for (auto &ready_id_pair : ready_ids) {
       // FIXME: Somehow the location of the object is not written to Redis.
-      std::string address = gcs_client_.get_object_location(ready_id);
+      ObjectID ready_id = ready_id_pair.first;
+      std::string address = ready_id_pair.second;
       DCHECK(address != "")
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
@@ -154,7 +156,6 @@ void DistributedObjectStore::Get(const std::vector<ObjectID> &object_ids,
 
   // reduce remaining objects.
   local_store_client_.Seal(reduction_id);
-  gcs_client_.unsubscribe_object_locations(notifications);
 
   // get object from Plasma
   *result = buffer;
@@ -164,23 +165,16 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
                                  std::shared_ptr<Buffer> *result) {
   TIMELINE(std::string("DistributedObjectStore Get single object ") +
            object_id.ToString());
+
   // check if object is local
   bool found = false;
   local_store_client_.ObjectExists(object_id, &found);
   if (!found) {
-    // get object location from redis
-    while (true) {
-      std::string address = gcs_client_.get_object_location(object_id);
+    std::string address = gcs_client_.GetLocationSync(object_id);
 
-      // send pull request to one of the location
-      bool reply_ok = object_control_.PullObject(address, object_id);
-
-      if (reply_ok) {
-        break;
-      }
-      // if the sender is busy, wait for 1 millisecond and try again
-      usleep(1);
-    }
+    // send pull request to one of the location
+    DCHECK(object_control_.PullObject(address, object_id))
+        << "Failed to pull object";
   }
 
   // get object from local store
