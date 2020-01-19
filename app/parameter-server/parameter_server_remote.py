@@ -98,10 +98,12 @@ class ParameterServer(object):
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
-        summed_gradients = [
-            np.stack(gradient_zip).sum(axis=0)
-            for gradient_zip in zip(*gradients)
-        ]
+        grouped_gradients = list(zip(*gradients))
+
+        # TODO: implement the following reduction code:
+
+        # reduced_weights_id = store.reduce(gradients, reduce_op)
+        # summed_gradients = store.get(reduced_weights_id)
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
@@ -137,4 +139,6 @@ class DataWorker(object):
         output = self.model(data)
         loss = F.nll_loss(output, target)
         loss.backward()
-        return self.model.get_gradients()
+        gradients = self.model.get_gradients()
+        # TODO: put gradients into a buffer
+        return gradients_buffer
