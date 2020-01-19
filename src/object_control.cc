@@ -79,7 +79,7 @@ bool GrpcServer::PullObject(const std::string &remote_address,
   PullReply reply;
   request.set_object_id(object_id.Binary());
   request.set_puller_ip(my_address_);
-  objectstore::ObjectStore::Stub *stub = get_stub();
+  auto stub = get_stub(remote_grpc_address);
   // TODO: make sure that grpc stub is thread-safe.
   auto status = stub->Pull(&context, request, &reply);
   return reply.ok();
@@ -107,7 +107,7 @@ bool GrpcServer::InvokeReduceTo(const std::string &remote_address,
   if (src_object_id != nullptr) {
     request.set_src_object_id(src_object_id->Binary());
   }
-  objectstore::ObjectStore::Stub *stub = get_stub();
+  auto stub = get_stub(remote_grpc_address);
   // TODO: make sure that grpc stub is thread-safe.
   auto status = stub->ReduceTo(&context, request, &reply);
   DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"

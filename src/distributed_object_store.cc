@@ -88,7 +88,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
                                object_ids, reduction_id);
 
   reduction_tasks_[reduction_id] =
-      std::make_pair(reduction_endpoint，std::move(reduction_thread));
+      std::make_pair(reduction_endpoint, std::move(reduction_thread));
 }
 
 void DistributedObjectStore::poll_and_reduce(

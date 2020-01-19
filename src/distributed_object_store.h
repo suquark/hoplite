@@ -45,9 +45,8 @@ public:
   }
 
 private:
-  void poll_and_reduce(std::shared_ptr<ObjectNotifications> notifications,
-                       const std::vector<ObjectID> &object_ids,
-                       const ObjectID &reduction_id);
+  void poll_and_reduce(const std::vector<ObjectID> object_ids,
+                       const ObjectID reduction_id);
 
   // order of fields should be kept for proper initialization order
   std::string my_address_;
