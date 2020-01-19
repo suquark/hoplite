@@ -44,4 +44,4 @@ allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean:
-	rm -rf notification_server_test multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp *.o *.so
+	rm -rf notification notification_server_test multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp *.o *.so
