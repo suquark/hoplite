@@ -12,5 +12,5 @@ all_nodes=($my_address ${slaves[@]})
 
 for node in ${all_nodes[@]}; do
   echo "=> $node"
-  ssh -o StrictHostKeyChecking=no $node 'PATH=$PATH:/home/ubuntu/anaconda3/bin;'; $@
+  ssh -o StrictHostKeyChecking=no $node PATH=$PATH:/home/ubuntu/anaconda3/bin:/home/ubuntu/anaconda3/condabin, $@
 done
