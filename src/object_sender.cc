@@ -43,8 +43,11 @@ template <typename T> void stream_send(int conn_fd, T *stream) {
 }
 
 ObjectSender::ObjectSender(ObjectStoreState &state,
-                           LocalStoreClient &local_store_client)
-    : state_(state), local_store_client_(local_store_client){
+                           GlobalControlStoreClient &gcs_client,
+                           LocalStoreClient &local_store_client,
+                           const std::string &my_address)
+    : state_(state), gcs_client_(gcs_client), 
+      local_store_client_(local_store_client), my_address_(my_address){
   TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
 }
@@ -123,6 +126,8 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   close(conn_fd);
 
+  gcs_client_.WriteLocation(object_id, my_address_, true);
+
   LOG(DEBUG) << "function returned";
 }
 
@@ -156,7 +161,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
-    DCHECK(stream != nullptr) << "Stream should not be stream";
+    DCHECK(stream != nullptr) << "Stream should not be nullptr";
     stream_send<ReductionStream>(conn_fd, stream.get());
   }
 
@@ -166,6 +171,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   DCHECK(!status) << "socket recv error: ack, error code = " << errno;
   if (strcmp(ack, "OK") != 0)
     LOG(FATAL) << "ack is wrong";
+
+  //TODO: add writelocation here for the original object
 
   close(conn_fd);
 }

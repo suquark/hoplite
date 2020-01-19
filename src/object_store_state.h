@@ -64,11 +64,6 @@ private:
 class ObjectStoreState {
 
 public:
-  // Return true if we are able to transfer an object.
-  bool transfer_available(const ObjectID &object_id);
-
-  void transfer_complete(const ObjectID &object_id);
-
   std::shared_ptr<ReductionStream>
   create_reduction_stream(const ObjectID &reduction_id, size_t size);
 
@@ -83,8 +78,6 @@ public:
   get_progressive_stream(const ObjectID &object_id);
 
 private:
-  std::mutex transfer_mutex_;
-  std::unordered_map<std::string, int> current_transfer_;
   std::mutex reduction_stream_mutex_;
   std::condition_variable reduction_stream_cv_;
   std::unordered_map<ObjectID, std::shared_ptr<ReductionStream>>

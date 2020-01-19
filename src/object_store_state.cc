@@ -1,26 +1,6 @@
 #include "object_store_state.h"
 #include "logging.h"
 
-// Return true if we are able to transfer an object.
-bool ObjectStoreState::transfer_available(const ObjectID &object_id) {
-  std::lock_guard<std::mutex> guard(transfer_mutex_);
-  if (current_transfer_.find(object_id.Hex()) == current_transfer_.end()) {
-    current_transfer_[object_id.Hex()] = 0;
-  }
-
-  if (current_transfer_[object_id.Hex()] < 1) {
-    current_transfer_[object_id.Hex()]++;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-void ObjectStoreState::transfer_complete(const ObjectID &object_id) {
-  std::lock_guard<std::mutex> guard(transfer_mutex_);
-  current_transfer_[object_id.Hex()]--;
-}
-
 std::shared_ptr<ReductionStream>
 ObjectStoreState::create_reduction_stream(const ObjectID &reduction_id,
                                           size_t size) {
