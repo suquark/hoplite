@@ -25,13 +25,13 @@ To run the application, first install some dependencies.
 Let's first define some helper functions and import some dependencies.
 
 """
+import argparse
 import os
 import sys
 from pathlib import Path
 python_src = Path(__file__).resolve().parents[2] / 'python'
 
 sys.path.append(str(python_src))
-import utils
 
 import torch
 import torch.nn as nn
@@ -41,8 +41,13 @@ import numpy as np
 
 import ray
 
-from parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
+import utils
 import py_distributed_object_store as store_lib
+
+from parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
+
+parser = argparse.ArgumentParser(description='broadcast test')
+utils.add_arguments(parser)
 
 
 def evaluate(model, test_loader):
@@ -63,6 +68,8 @@ def evaluate(model, test_loader):
 
 
 utils.start_location_server()
+args = parser.parse_args()
+args_dict = utils.extract_dict_from_args(args)
 
 ###########################################################################
 # Synchronous Parameter Server Training
@@ -75,8 +82,8 @@ iterations = 200
 num_workers = 2
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(1e-2)
-workers = [DataWorker.remote() for i in range(num_workers)]
+ps = ParameterServer.remote(args_dict, 1e-2)
+workers = [DataWorker.remote(args_dict) for i in range(num_workers)]
 
 ###########################################################################
 # We'll also instantiate a model on the driver process to evaluate the test
@@ -120,8 +127,8 @@ ray.shutdown()
 print("Running Asynchronous Parameter Server Training.")
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(1e-2)
-workers = [DataWorker.remote() for i in range(num_workers)]
+ps = ParameterServer.remote(args_dict, 1e-2)
+workers = [DataWorker.remote(args_dict) for i in range(num_workers)]
 
 ###########################################################################
 # Here, workers will asynchronously compute the gradients given its
