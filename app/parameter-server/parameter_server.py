@@ -40,7 +40,7 @@ import numpy as np
 
 import ray
 
-from ray_parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
+from parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
 import py_distributed_object_store as store_lib
 
 
@@ -108,9 +108,6 @@ for i in range(iterations):
 print("Final accuracy is {:.1f}.".format(accuracy))
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
-
-raise NotImplementedError(
-    "Asynchronous Parameter Server have not been supported")
 
 ###########################################################################
 # Asynchronous Parameter Server Training
