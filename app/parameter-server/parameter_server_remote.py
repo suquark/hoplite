@@ -112,7 +112,7 @@ class ParameterServer(object):
         for gradients_per_layer, (data_size, _) in zip(grouped_gradients, self.weights_info):
             reduced_weights_id = self.store.reduce_async(
                 gradients_per_layer, data_size, store_lib.ReduceOp.SUM)
-            reduced_weights_id.append(reduced_weights_id)
+            reduced_weights_ids.append(reduced_weights_id)
 
         summed_gradients = []
         for reduction_id, (_, shape) in zip(reduced_weights_ids, self.weights_info):
