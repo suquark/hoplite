@@ -237,7 +237,7 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
 def reduce(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = utils.object_id_from_int(world_rank)
-    array = np.random.rand(2**30, size=object_size//4, dtype=np.float32)
+    array = np.random.rand(object_size//4).astype(np.float32)
     buffer = store_lib.Buffer.from_buffer(array)
     store.put(buffer, object_id)
 
