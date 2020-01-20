@@ -3,7 +3,6 @@ import grpc
 import subprocess
 import numpy as np
 import os
-import socket
 import time
 import ray
 
