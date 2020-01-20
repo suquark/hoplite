@@ -233,3 +233,28 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
         print(array)
     time.sleep(20)
 
+@ray.remote(resources={'node': 1}, max_calls=1)
+def reduce(args_dict, notification_address, world_size, world_rank, object_size):
+    store = utils.create_store_using_dict(args_dict)
+    object_id = utils.object_id_from_int(world_rank)
+    array = np.random.rand(2**30, size=object_size//4, dtype=np.float32)
+    buffer = store_lib.Buffer.from_buffer(array)
+    store.put(buffer, object_id)
+
+    print("Buffer created, hash =", hash(buffer))
+    if world_rank == 0:
+        object_ids = []
+        for i in range(0, world_size):
+            object_ids.append(utils.object_id_from_int(i))
+        barrier(world_rank, notification_address, notification_port, world_size)
+        start = time.time()
+        reduction_id = store.reduce_async(object_ids, object_size, store_lib.ReduceOp.SUM)
+        reduced_buffer = store.get(reduction_id)
+        duration = time.time() - start
+        reduce_result = np.frombuffer(reduced_buffer)
+        print("Reduce completed, hash =", hash(reduced_buffer), "duration =", duration)
+        print(reduce_result)
+    else:
+        barrier(world_rank, notification_address, notification_port, world_size)
+
+    time.sleep(30)

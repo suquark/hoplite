@@ -51,6 +51,11 @@ def create_store_using_dict(args_dict):
     return store
 
 
+def object_id_from_int(n):
+    import py_distributed_object_store as store_lib
+    return store_lib.ObjectID(str(n).encode().rjust(20, b'\0'))
+
+
 def register_cleanup(processes):
     def _cleanup_processes():
         for p in processes:

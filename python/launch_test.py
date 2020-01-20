@@ -54,6 +54,8 @@ for rank in range(args.world_size):
         task_id = test_functions.ray_allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     if args.type_of_test == 'multicast':
         task_id = test_functions.multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    if args.type_of_test == 'reduce':
+        task_id = test_functions.reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     tasks.append(task_id)
 
 ray.get(tasks)
