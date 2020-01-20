@@ -31,6 +31,7 @@ from pathlib import Path
 python_src = Path(__file__).resolve().parents[2] / 'python'
 
 sys.path.append(str(python_src))
+import utils
 
 import torch
 import torch.nn as nn
