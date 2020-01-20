@@ -1,4 +1,7 @@
 import atexit
+import os
+import subprocess
+import time
 
 
 def get_my_address():
@@ -53,3 +56,11 @@ def register_cleanup(processes):
         for p in processes:
             p.terminate()
     atexit.register(_cleanup_processes)
+
+
+def start_location_server():
+    notification_path = os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), 'notification')
+    notification_p = subprocess.Popen([notification_path, get_my_address()])
+    register_cleanup([notification_p])
+    time.sleep(2)

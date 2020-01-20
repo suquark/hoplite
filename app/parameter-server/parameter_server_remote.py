@@ -7,6 +7,9 @@ from filelock import FileLock
 import ray
 import numpy as np
 
+import utils
+import py_distributed_object_store as store_lib
+
 
 def get_data_loader():
     """Safely downloads data. Returns training/validation set dataloader."""
@@ -91,19 +94,32 @@ class ConvNet(nn.Module):
 # remote actor.
 
 
-@ray.remote
+@ray.remote(resources={'node': 1})
 class ParameterServer(object):
-    def __init__(self, lr):
+    def __init__(self, args_dict, lr):
+        self.store = utils.create_store_using_dict(args_dict)
         self.model = ConvNet()
+        self.weights_info = []
+        for p in self.model.parameters():
+            self.weights_info.append(
+                (p.numel() * p.element_size(), tuple(p.shape)))
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
         grouped_gradients = list(zip(*gradients))
 
-        # TODO: implement the following reduction code:
+        reduced_weights_ids = []
+        for gradients_per_layer, (data_size, _) in zip(grouped_gradients, self.weights_info):
+            reduced_weights_id = self.store.reduce_async(
+                gradients_per_layer, data_size, store_lib.ReduceOp.SUM)
+            reduced_weights_id.append(reduced_weights_id)
 
-        # reduced_weights_id = store.reduce(gradients, reduce_op)
-        # summed_gradients = store.get(reduced_weights_id)
+        summed_gradients = []
+        for reduction_id, (_, shape) in zip(reduced_weights_ids, self.weights_info):
+            grad_buffer = self.store.get(reduction_id)
+            summed_gradients.append(np.frombuffer(
+                grad_buffer, dtype=np.float32).reshape(shape))
+
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
@@ -122,9 +138,10 @@ class ParameterServer(object):
 # Parameter Server model weights.
 
 
-@ray.remote
+@ray.remote(resources={'node': 1})
 class DataWorker(object):
-    def __init__(self):
+    def __init__(self, args_dict):
+        self.store = utils.create_store_using_dict(args_dict)
         self.model = ConvNet()
         self.data_iterator = iter(get_data_loader()[0])
 
@@ -140,5 +157,8 @@ class DataWorker(object):
         loss = F.nll_loss(output, target)
         loss.backward()
         gradients = self.model.get_gradients()
-        # TODO: put gradients into a buffer
-        return gradients_buffer
+        gradient_ids = []
+        for g in gradients:
+            buffer = store_lib.Buffer.from_buffer(g)
+            gradient_ids.append(self.store.put(buffer))
+        return gradient_ids

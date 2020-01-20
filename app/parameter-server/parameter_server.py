@@ -32,9 +32,11 @@ import torch.nn.functional as F
 
 import numpy as np
 
-from ray_parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
-
 import ray
+
+from ray_parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
+import utils
+import py_distributed_object_store as store_lib
 
 
 def evaluate(model, test_loader):
@@ -53,6 +55,8 @@ def evaluate(model, test_loader):
             correct += (predicted == target).sum().item()
     return 100. * correct / total
 
+
+utils.start_location_server()
 
 ###########################################################################
 # Synchronous Parameter Server Training
@@ -99,6 +103,9 @@ for i in range(iterations):
 print("Final accuracy is {:.1f}.".format(accuracy))
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
+
+raise NotImplementedError(
+    "Asynchronous Parameter Server have not been supported")
 
 ###########################################################################
 # Asynchronous Parameter Server Training
