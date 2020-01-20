@@ -26,6 +26,12 @@ Let's first define some helper functions and import some dependencies.
 
 """
 import os
+import sys
+from pathlib import Path
+python_src = Path(__file__).resolve().parents[2] / 'python'
+
+sys.path.append(str(python_src))
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,7 +41,6 @@ import numpy as np
 import ray
 
 from ray_parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
-import utils
 import py_distributed_object_store as store_lib
 
 
