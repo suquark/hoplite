@@ -47,7 +47,8 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
                            LocalStoreClient &local_store_client,
                            const std::string &my_address)
     : state_(state), gcs_client_(gcs_client),
-      local_store_client_(local_store_client), my_address_(my_address) {
+      local_store_client_(local_store_client), my_address_(my_address),
+      exit_(false) {
   TIMELINE("ObjectSender construction function");
   LOG(INFO) << "[ObjectSender] object sender is ready.";
 }
@@ -57,7 +58,16 @@ void ObjectSender::worker_loop() {
     objectstore::ReduceToRequest *request;
     {
       std::unique_lock<std::mutex> l(queue_mutex_);
-      queue_cv_.wait(l, [this]() { return !pending_tasks_.empty(); });
+      queue_cv_.wait_for(l, std::chrono::seconds(1),
+                         [this]() { return !pending_tasks_.empty(); });
+      {
+        if (exit_) {
+          return;
+        }
+      }
+      if (pending_tasks_.empty()) {
+        continue;
+      }
       request = pending_tasks_.front();
       pending_tasks_.pop();
     }

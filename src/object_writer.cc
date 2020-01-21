@@ -90,7 +90,13 @@ TCPServer::TCPServer(ObjectStoreState &state,
             << port;
 }
 
+void handle_signal(int sig) {
+  LOG(INFO) << "Signal received on object writer";
+  pthread_exit(NULL);
+}
+
 void TCPServer::worker_loop() {
+  signal(SIGUSR1, handle_signal);
   while (true) {
     TIMELINE("TCPServer::worker_loop() step");
     LOG(DEBUG) << "waiting for a connection";

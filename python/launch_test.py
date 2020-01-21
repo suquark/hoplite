@@ -29,11 +29,6 @@ utils.register_cleanup([notification_p])
 
 notification_address = utils.get_my_address()
 
-current_directory = os.path.abspath(os.path.curdir)
-print(current_directory)
-ray.worker.global_worker.run_function_on_all_workers(
-    lambda worker_info: sys.path.insert(1, current_directory), print(sys.path))
-
 ray.init(address='auto', load_code_from_local=True)
 
 # wait for the location server & the function run on all clients

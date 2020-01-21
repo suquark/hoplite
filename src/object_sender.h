@@ -26,6 +26,10 @@ public:
 
   void send_object(const objectstore::PullRequest *request);
 
+  inline void Shutdown() {
+    exit_ = true;
+  }
+
 private:
   void worker_loop();
 
@@ -38,6 +42,8 @@ private:
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
   std::string my_address_;
+
+  std::atomic<bool> exit_;
 };
 
 #endif // OBJECT_SENDER_H

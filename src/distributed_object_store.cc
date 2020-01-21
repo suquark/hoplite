@@ -32,6 +32,18 @@ DistributedObjectStore::DistributedObjectStore(
   notification_thread_ = gcs_client_.Run();
 }
 
+DistributedObjectStore::~DistributedObjectStore() {
+  TIMELINE("~DistributedObjectStore");
+  pthread_kill(object_writer_thread_.native_handle(), SIGUSR1);
+  object_writer_thread_.join();
+  object_sender_.Shutdown();
+  object_sender_thread_.join();
+  object_control_.Shutdown();
+  object_control_thread_.join();
+  gcs_client_.Shutdown();
+  notification_thread_.join();
+}
+
 void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                                  const ObjectID &object_id) {
   TIMELINE(std::string("DistributedObjectStore Put single object ") +

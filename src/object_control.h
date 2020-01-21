@@ -30,6 +30,8 @@ public:
                       const std::string &dst_address, bool is_endpoint,
                       const ObjectID *src_object_id = nullptr);
 
+  inline void Shutdown() { grpc_server_->Shutdown(); }
+
 private:
   void worker_loop();
   const int grpc_port_;
