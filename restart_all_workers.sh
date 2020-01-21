@@ -12,7 +12,7 @@ if [ "$#" -eq 0 ]; then
         ssh $node $(realpath -s $0) restart
     done
 else 
-    for pid in $(ps aux | grep 'default_worker.py' | grep -v 'object_manager_port' | grep -v grep | awk '{print $2}') do 
+    for pid in $(ps aux | grep 'default_worker.py' | grep -v 'object_manager_port' | grep -v grep | awk '{print $2}'); do 
         kill $pid
     done
 fi
