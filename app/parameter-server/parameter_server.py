@@ -38,7 +38,7 @@ num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(args_dict, 1e-2)
-workers = [DataWorker.remote() for i in range(args_dict, num_workers)]
+workers = [DataWorker.remote(args_dict) for i in range(num_workers)]
 
 model = ConvNet()
 test_loader = get_data_loader()[1]
