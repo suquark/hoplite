@@ -91,7 +91,7 @@ class ConvNet(nn.Module):
 # remote actor.
 
 
-@ray.remote
+@ray.remote(resources={'node': 1})
 class ParameterServer(object):
     def __init__(self, lr):
         self.model = ConvNet()
@@ -120,7 +120,7 @@ class ParameterServer(object):
 # Parameter Server model weights.
 
 
-@ray.remote
+@ray.remote(resources={'node': 1})
 class DataWorker(object):
     def __init__(self):
         self.model = ConvNet()
