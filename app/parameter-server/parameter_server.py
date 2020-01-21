@@ -46,7 +46,9 @@ import py_distributed_object_store as store_lib
 
 from parameter_server_remote import ParameterServer, DataWorker, ConvNet, get_data_loader
 
-parser = argparse.ArgumentParser(description='broadcast test')
+parser = argparse.ArgumentParser(description='parameter server')
+parser.add_argument('-n', '--num-workers', type=int, required=True,
+                    help='number of parameter server workers')
 utils.add_arguments(parser)
 
 
@@ -79,7 +81,7 @@ args_dict = utils.extract_dict_from_args(args)
 # workers.
 
 iterations = 200
-num_workers = 2
+num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(args_dict, 1e-2)

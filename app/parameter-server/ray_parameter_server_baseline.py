@@ -25,6 +25,7 @@ To run the application, first install some dependencies.
 Let's first define some helper functions and import some dependencies.
 
 """
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -36,6 +37,9 @@ from ray_parameter_server_remote import ParameterServer, DataWorker, ConvNet, ge
 
 import ray
 
+parser = argparse.ArgumentParser(description='parameter server')
+parser.add_argument('-n', '--num-workers', type=int, required=True,
+                    help='number of parameter server workers')
 
 def evaluate(model, test_loader):
     """Evaluates the accuracy of the model on a validation dataset."""
@@ -62,7 +66,7 @@ def evaluate(model, test_loader):
 # workers.
 
 iterations = 200
-num_workers = 2
+num_workers = parser.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2)
