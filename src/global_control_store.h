@@ -51,6 +51,8 @@ public:
     return notification_thread;
   }
 
+  inline void Shutdown() { grpc_server_->Shutdown(); }
+
 private:
   void worker_loop();
 

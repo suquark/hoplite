@@ -26,6 +26,8 @@ public:
                          const std::string &my_address, int object_writer_port,
                          int grpc_port);
 
+  ~DistributedObjectStore();
+
   void Put(const std::shared_ptr<Buffer> &buffer, const ObjectID &object_id);
 
   ObjectID Put(const std::shared_ptr<Buffer> &buffer);
@@ -42,6 +44,7 @@ public:
     object_writer_thread_.join();
     object_sender_thread_.join();
     object_control_thread_.join();
+    notification_thread_.join();
   }
 
 private:
