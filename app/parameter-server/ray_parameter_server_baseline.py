@@ -29,6 +29,7 @@ Let's first define some helper functions and import some dependencies.
 """
 import argparse
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -45,6 +46,8 @@ parser.add_argument('-a', '--enable-async', action='store_true',
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
+parser.add_argument('--no-test', action='store_true',
+                    help='skip all tests except the last one')
 
 args = parser.parse_args()
 iterations = 200
@@ -59,6 +62,8 @@ test_loader = get_data_loader()[1]
 
 # get initial weights
 current_weights = ps.get_weights.remote()
+
+start = time.time()
 
 if not args.enable_async:
     ###########################################################################
@@ -86,7 +91,7 @@ if not args.enable_async:
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
 
-        if i % 10 == 0:
+        if i % 10 == 0 and not args.no_test:
             # Evaluate the current model.
             model.set_weights(ray.get(current_weights))
             accuracy = evaluate(model, test_loader)
@@ -120,13 +125,15 @@ else:
         current_weights = ps.apply_gradients.remote(*[ready_gradient_id])
         gradients[worker.compute_gradients.remote(current_weights)] = worker
 
-        if i % 10 == 0:
+        if i % 10 == 0 and not args.no_test:
             # Evaluate the current model after every 10 updates.
             model.set_weights(ray.get(current_weights))
             accuracy = evaluate(model, test_loader)
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 
-print("Final accuracy is {:.1f}.".format(accuracy))
+during = time.time() - start
+accuracy = evaluate(model, test_loader)
+print("Final accuracy is {:.1f}.".format(accuracy), f"during = {during}s")
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
 
