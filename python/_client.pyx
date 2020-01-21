@@ -144,7 +144,7 @@ cdef class DistributedObjectStore:
             assert isinstance(expected_size, int) and expected_size > 0
             for oid in object_ids:
                 raw_object_ids.push_back((<ObjectID>oid).data)
-            if reduction_id is None:
+            if reduction_id is not None:
                 self.store.get().Reduce(
                     raw_object_ids, <int64_t>expected_size, (<ObjectID>reduction_id).data)
                 return reduction_id

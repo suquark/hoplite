@@ -44,6 +44,8 @@ allgather_test
 *.pb.h
 notification
 
+python/object_store_pb2*.py
+
 # logs
 log/
 python/*.cpp

@@ -1,78 +1,8 @@
-import os
-import torch
-from torch import nn
-from torch.nn import functional as F
-from torchvision import datasets, transforms
-from filelock import FileLock
-import ray
 import numpy as np
+import ray
+import torch
 
-
-def get_data_loader():
-    """Safely downloads data. Returns training/validation set dataloader."""
-    mnist_transforms = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize((0.1307, ), (0.3081, ))])
-
-    # We add FileLock here because multiple workers will want to
-    # download data, and this may cause overwrites since
-    # DataLoader is not threadsafe.
-    with FileLock(os.path.expanduser("~/data.lock")):
-        train_loader = torch.utils.data.DataLoader(
-            datasets.MNIST(
-                "~/data",
-                train=True,
-                download=True,
-                transform=mnist_transforms),
-            batch_size=128,
-            shuffle=True)
-        test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST("~/data", train=False, transform=mnist_transforms),
-            batch_size=128,
-            shuffle=True)
-    return train_loader, test_loader
-
-
-#######################################################################
-# Setup: Defining the Neural Network
-# ----------------------------------
-#
-# We define a small neural network to use in training. We provide
-# some helper functions for obtaining data, including getter/setter
-# methods for gradients and weights.
-
-
-class ConvNet(nn.Module):
-    """Small ConvNet for MNIST."""
-
-    def __init__(self):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 3, kernel_size=3)
-        self.fc = nn.Linear(192, 10)
-
-    def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 3))
-        x = x.view(-1, 192)
-        x = self.fc(x)
-        return F.log_softmax(x, dim=1)
-
-    def get_weights(self):
-        return {k: v.cpu() for k, v in self.state_dict().items()}
-
-    def set_weights(self, weights):
-        self.load_state_dict(weights)
-
-    def get_gradients(self):
-        grads = []
-        for p in self.parameters():
-            grad = None if p.grad is None else p.grad.data.cpu().numpy()
-            grads.append(grad)
-        return grads
-
-    def set_gradients(self, gradients):
-        for g, p in zip(gradients, self.parameters()):
-            if g is not None:
-                p.grad = torch.from_numpy(g)
+from ps_helper import get_data_loader, ConvNet, criterion
 
 
 ###########################################################################
@@ -91,7 +21,7 @@ class ConvNet(nn.Module):
 # remote actor.
 
 
-@ray.remote
+@ray.remote(resources={'node': 1})
 class ParameterServer(object):
     def __init__(self, lr):
         self.model = ConvNet()
@@ -120,7 +50,7 @@ class ParameterServer(object):
 # Parameter Server model weights.
 
 
-@ray.remote
+@ray.remote(resources={'node': 1})
 class DataWorker(object):
     def __init__(self):
         self.model = ConvNet()
@@ -135,6 +65,6 @@ class DataWorker(object):
             data, target = next(self.data_iterator)
         self.model.zero_grad()
         output = self.model(data)
-        loss = F.nll_loss(output, target)
+        loss = criterion(output, target)
         loss.backward()
         return self.model.get_gradients()
