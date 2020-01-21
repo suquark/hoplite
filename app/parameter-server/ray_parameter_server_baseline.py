@@ -131,8 +131,8 @@ else:
             accuracy = evaluate(model, test_loader)
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 
-during = time.time() - start
 model.set_weights(ray.get(current_weights))
+during = time.time() - start
 accuracy = evaluate(model, test_loader)
 print("Final accuracy is {:.1f}.".format(accuracy), f"during = {during}s")
 # Clean up Ray resources and processes before the next example.

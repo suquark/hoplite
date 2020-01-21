@@ -131,7 +131,7 @@ void DistributedObjectStore::poll_and_reduce(
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
-                << ready_id.ToString();
+                << ", object_id = " << ready_id.ToString();
       if (address == my_address_) {
         // move local objects to another address, because there's no
         // necessary to transfer them through the network.
