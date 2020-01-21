@@ -23,7 +23,7 @@ from ps_helper import ConvNet, get_data_loader, evaluate
 from parameter_server_remote import ParameterServer, DataWorker
 
 parser = argparse.ArgumentParser(description='parameter server')
-parser.add_argument('-a', '--enable-async', type=bool, action='store_true',
+parser.add_argument('-a', '--enable-async', action='store_true',
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
