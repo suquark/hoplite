@@ -39,18 +39,26 @@ tasks = []
 for rank in range(args.world_size):
     if args.type_of_test == 'ray-multicast':
         task_id = test_functions.ray_multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
-    if args.type_of_test == 'ray-reduce':
+    elif args.type_of_test == 'ray-reduce':
         task_id = test_functions.ray_reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
-    if args.type_of_test == 'ray-allreduce':
+    elif args.type_of_test == 'ray-allreduce':
         task_id = test_functions.ray_allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
-    if args.type_of_test == 'ray-gather':
+    elif args.type_of_test == 'ray-gather':
         task_id = test_functions.ray_gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
-    if args.type_of_test == 'ray-allgather':
+    elif args.type_of_test == 'ray-allgather':
         task_id = test_functions.ray_allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
-    if args.type_of_test == 'multicast':
+    elif args.type_of_test == 'multicast':
         task_id = test_functions.multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
-    if args.type_of_test == 'reduce':
+    elif args.type_of_test == 'reduce':
         task_id = test_functions.reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    elif args.type_of_test == 'allreduce':
+        task_id = test_functions.allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    elif args.type_of_test == 'gather':
+        task_id = test_functions.gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    elif args.type_of_test == 'allgather':
+        task_id = test_functions.allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    else:
+        raise ValueError(f"Test '{args.type_of_test}' not exists.")
     tasks.append(task_id)
 
 ray.get(tasks)
