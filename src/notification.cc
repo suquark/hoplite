@@ -82,12 +82,12 @@ public:
     // unfinished objects. All finished objects as well as unfinished objects
     // will have random weights.
     int weight = (rand() % 100) + (finished ? 100 : 0);
-    if (object_size_.find(object) == object_size_.end()) {
+    if (object_size_.find(object_id) == object_size_.end()) {
       object_size_[object_id] = object_size;
     }
     else {
       DCHECK(object_size_[object_id] == object_size) 
-        << "Size of object " << object_id.Hex() << " has changed."
+        << "Size of object " << object_id.Hex() << " has changed.";
     }
     object_location_store_ready_[object_id].push(
         std::make_pair(weight, sender_ip));
@@ -119,7 +119,7 @@ public:
     DCHECK(result_sender_ip.use_count() == 1)
         << "result_sender_ip memory leak detected";
     reply->set_sender_ip(*result_sender_ip);
-    reply->set_object_size(object_size_[object_id])
+    reply->set_object_size(object_size_[object_id]);
     return grpc::Status::OK;
   }
 
@@ -179,7 +179,7 @@ private:
     request.set_object_id(object_id.Binary());
     request.set_sender_ip(sender_ip);
     request.set_query_id(query_id);
-    request.set_object_size(object_size);
+    request.set_object_size(object_size_[object_id]);
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();

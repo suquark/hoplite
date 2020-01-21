@@ -81,7 +81,7 @@ private:
 std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
-void write_location(const ObjectID &object_id, const std::string &sender_ip, size_t size) {
+void write_location(const ObjectID &object_id, const std::string &sender_ip, size_t object_size) {
   TIMELINE("write_location");
   LOG(INFO) << "Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip;
