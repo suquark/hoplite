@@ -43,11 +43,11 @@ def get_data_loader():
                 train=True,
                 download=True,
                 transform=mnist_transforms),
-            batch_size=128,
+            batch_size=8,
             shuffle=True)
         test_loader = torch.utils.data.DataLoader(
             datasets.MNIST("~/data", train=False, transform=mnist_transforms),
-            batch_size=128,
+            batch_size=8,
             shuffle=True)
     return train_loader, test_loader
 
