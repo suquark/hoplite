@@ -73,15 +73,15 @@ utils.start_location_server()
 args = parser.parse_args()
 args_dict = utils.extract_dict_from_args(args)
 
+iterations = 200
+num_workers = args.num_workers
+
 ###########################################################################
 # Synchronous Parameter Server Training
 # -------------------------------------
 # We'll now create a synchronous parameter server training scheme. We'll first
 # instantiate a process for the parameter server, along with multiple
 # workers.
-
-iterations = 200
-num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(args_dict, 1e-2)

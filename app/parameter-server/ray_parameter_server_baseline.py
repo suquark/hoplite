@@ -41,6 +41,7 @@ parser = argparse.ArgumentParser(description='parameter server')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 
+
 def evaluate(model, test_loader):
     """Evaluates the accuracy of the model on a validation dataset."""
     model.eval()
@@ -58,15 +59,16 @@ def evaluate(model, test_loader):
     return 100. * correct / total
 
 
+args = parser.parse_args()
+iterations = 200
+num_workers = args.num_workers
+
 ###########################################################################
 # Synchronous Parameter Server Training
 # -------------------------------------
 # We'll now create a synchronous parameter server training scheme. We'll first
 # instantiate a process for the parameter server, along with multiple
 # workers.
-
-iterations = 200
-num_workers = parser.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2)
