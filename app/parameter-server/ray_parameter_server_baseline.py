@@ -41,7 +41,7 @@ from ray_parameter_server_remote import ParameterServer, DataWorker, ConvNet, ge
 import ray
 
 parser = argparse.ArgumentParser(description='parameter server')
-parser.add_argument('-a', '--async', type=bool, action='store_true',
+parser.add_argument('-a', '--enable-async', type=bool, action='store_true',
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
@@ -60,7 +60,7 @@ test_loader = get_data_loader()[1]
 # get initial weights
 current_weights = ps.get_weights.remote()
 
-if not args.async:
+if not args.enable_async:
     ###########################################################################
     # Synchronous Parameter Server Training
     # -------------------------------------
