@@ -24,15 +24,10 @@ args_dict = utils.extract_dict_from_args(args)
 
 import test_functions
 
-notification_p = subprocess.Popen(['../notification', utils.get_my_address()])
-utils.register_cleanup([notification_p])
-
+utils.start_location_server()
 notification_address = utils.get_my_address()
 
 ray.init(address='auto', load_code_from_local=True)
-
-# wait for the location server & the function run on all clients
-time.sleep(20)
 
 tasks = []
 
