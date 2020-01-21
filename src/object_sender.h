@@ -27,7 +27,6 @@ public:
   void send_object(const objectstore::PullRequest *request);
 
   inline void Shutdown() {
-    std::lock_guard<std::mutex> guard(exit_mutex_);
     exit_ = true;
   }
 
@@ -44,8 +43,7 @@ private:
   ObjectStoreState &state_;
   std::string my_address_;
 
-  std::mutex exit_mutex_;
-  bool exit_;
+  std::atomic<bool> exit_;
 };
 
 #endif // OBJECT_SENDER_H

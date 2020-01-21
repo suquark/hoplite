@@ -61,7 +61,6 @@ void ObjectSender::worker_loop() {
       queue_cv_.wait_for(l, std::chrono::seconds(1),
                          [this]() { return !pending_tasks_.empty(); });
       {
-        std::lock_guard<std::mutex> guard(exit_mutex_);
         if (exit_) {
           return;
         }
