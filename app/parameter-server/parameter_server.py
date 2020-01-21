@@ -1,30 +1,5 @@
-"""
-Parameter Server
-================
+#!/usr/bin/env python3
 
-The parameter server is a framework for distributed machine learning training.
-
-In the parameter server framework, a centralized server (or group of server
-nodes) maintains global shared parameters of a machine-learning model
-(e.g., a neural network) while the data and computation of calculating
-updates (i.e., gradient descent updates) are distributed over worker nodes.
-
-.. image:: ../images/param_actor.png
-    :align: center
-
-Parameter servers are a core part of many machine learning applications. This
-document walks through how to implement simple synchronous and asynchronous
-parameter servers using Ray actors.
-
-To run the application, first install some dependencies.
-
-.. code-block:: bash
-
-  pip install torch torchvision filelock
-
-Let's first define some helper functions and import some dependencies.
-
-"""
 import argparse
 import os
 import sys
@@ -51,7 +26,6 @@ parser = argparse.ArgumentParser(description='parameter server')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 utils.add_arguments(parser)
-
 
 utils.start_location_server()
 args = parser.parse_args()
