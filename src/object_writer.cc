@@ -92,6 +92,7 @@ TCPServer::TCPServer(ObjectStoreState &state,
 
 void handle_signal(int sig) {
   LOG(INFO) << "Signal received on object writer";
+  close(server_fd_);
   pthread_exit(NULL);
 }
 
