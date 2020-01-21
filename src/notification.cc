@@ -77,11 +77,18 @@ public:
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     bool finished = request->finished();
+    size_t object_size = request->object_size();
     // Weights of finished objects will be always larger than the weights of
     // unfinished objects. All finished objects as well as unfinished objects
     // will have random weights.
     int weight = (rand() % 100) + (finished ? 100 : 0);
-    object_location_store_[object_id].insert(sender_ip);
+    if (object_size_.find(object) == object_size_.end()) {
+      object_size_[object_id] = object_size;
+    }
+    else {
+      DCHECK(object_size_[object_id] == object_size) 
+        << "Size of object " << object_id.Hex() << " has changed."
+    }
     object_location_store_ready_[object_id].push(
         std::make_pair(weight, sender_ip));
     try_send_notification(object_id);
@@ -112,6 +119,7 @@ public:
     DCHECK(result_sender_ip.use_count() == 1)
         << "result_sender_ip memory leak detected";
     reply->set_sender_ip(*result_sender_ip);
+    reply->set_object_size(object_size_[object_id])
     return grpc::Status::OK;
   }
 
@@ -171,6 +179,7 @@ private:
     request.set_object_id(object_id.Binary());
     request.set_sender_ip(sender_ip);
     request.set_query_id(query_id);
+    request.set_object_size(object_size);
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
@@ -198,8 +207,7 @@ private:
   std::unordered_map<ObjectID, std::priority_queue<std::pair<int, std::string>>>
       object_location_store_ready_; // (weight, ip) in priority queue, weight=1
                                     // means finished
-  std::unordered_map<ObjectID, std::unordered_set<std::string>>
-      object_location_store_;
+  std::unordered_map<ObjectID, size_t> object_size_;
   void create_stub(const std::string &remote_grpc_address) {
     if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
       channel_pool_[remote_grpc_address] = grpc::CreateChannel(

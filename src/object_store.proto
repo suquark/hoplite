@@ -74,6 +74,7 @@ message WriteLocationRequest {
   bytes object_id = 1;
   bytes sender_ip = 2;
   bool finished = 3;
+  int64 object_size = 4;
 }
 
 message WriteLocationReply {
@@ -86,12 +87,14 @@ message GetLocationSyncRequest {
 
 message GetLocationSyncReply {
   bytes sender_ip = 1;
+  int64 object_size = 2;
 }
 
 message GetLocationAsyncRequest {
   repeated bytes object_ids = 1;
   bytes receiver_ip = 2;
   bytes query_id = 3;
+  int64 object_size = 4;
 }
 
 message GetLocationAsyncReply {

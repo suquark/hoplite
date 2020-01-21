@@ -39,9 +39,10 @@ public:
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
-    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID:"
-              << object_id.Hex() << " IP:" << sender_ip
-              << " Query:" << query_id;
+    size_t object_size = request->object_size();
+    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID: "
+              << object_id.Hex() << " IP: " << sender_ip
+              << " Query: " << query_id <<" Size: " << object_size;
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -80,7 +81,7 @@ private:
 std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
-void write_location(const ObjectID &object_id, const std::string &sender_ip) {
+void write_location(const ObjectID &object_id, const std::string &sender_ip, size_t size) {
   TIMELINE("write_location");
   LOG(INFO) << "Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip;
@@ -90,6 +91,7 @@ void write_location(const ObjectID &object_id, const std::string &sender_ip) {
   request.set_object_id(object_id.Binary());
   request.set_sender_ip(sender_ip);
   request.set_finished(true);
+  request.set_object_size(object_size);
   stub->WriteLocation(&context, request, &reply);
   DCHECK(reply.ok()) << "WriteObjectLocation for " << object_id.ToString()
                      << " failed.";
@@ -118,15 +120,16 @@ void getlocationsync(const ObjectID &object_id) {
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
   stub->GetLocationSync(&context, request, &reply);
-  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip();
+  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip() << " Size: " << reply.object_size();
 }
 
 void TEST1() {
   LOG(INFO) << "=========== TEST1 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip = "1.2.3.4";
+  size_t object_size = 100;
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
-  write_location(object_id, sender_ip);
+  write_location(object_id, sender_ip, object_size);
   getlocationsync(object_id);
 }
 
@@ -134,8 +137,9 @@ void TEST2(const std::string &my_address) {
   LOG(INFO) << "=========== TEST2 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip = "1.2.3.4";
+  size_t object_size = 200;
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
-  write_location(object_id, sender_ip);
+  write_location(object_id, sender_ip, object_size);
   getlocationasync(object_id, my_address, "TEST2_query_id");
 }
 
@@ -144,11 +148,12 @@ void TEST3(const std::string &my_address) {
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
+  size_t object_size = 300;
   LOG(INFO) << "object_id: " << object_id.Hex()
             << " sender_ip_1: " << sender_ip_1
             << " sender_ip_2: " << sender_ip_2;
-  write_location(object_id, sender_ip_1);
-  write_location(object_id, sender_ip_2);
+  write_location(object_id, sender_ip_1, object_size);
+  write_location(object_id, sender_ip_2, object_size);
   getlocationasync(object_id, my_address, "TEST3_query_id");
   getlocationsync(object_id);
 }
@@ -158,12 +163,13 @@ void TEST4(const std::string &my_address) {
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
+  size_t object_size = 400;
   LOG(INFO) << "object_id: " << object_id.Hex()
             << " sender_ip_1: " << sender_ip_1
             << " sender_ip_2: " << sender_ip_2;
   getlocationasync(object_id, my_address, "TEST4_query_id");
-  write_location(object_id, sender_ip_1);
-  write_location(object_id, sender_ip_2);
+  write_location(object_id, sender_ip_1, object_size);
+  write_location(object_id, sender_ip_2, object_size);
   getlocationsync(object_id);
 }
 
