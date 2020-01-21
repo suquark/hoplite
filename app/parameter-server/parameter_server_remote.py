@@ -50,6 +50,7 @@ class ParameterServer(object):
             grad_view = view[cursor: cursor+data_size]
             grad = np.frombuffer(grad_view, dtype=np.float32).reshape(data_shape)
             summed_gradients.append(grad)
+            cursor += data_size
 
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
