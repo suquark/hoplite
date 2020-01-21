@@ -32,6 +32,9 @@ def barrier(world_rank, notification_address, notification_port, world_size):
     my_address = utils.get_my_address()
     if (world_rank == 0):
         register_group(notification_address, notification_port, world_size)
+    else:
+        # we must ensure that the master will register group first.
+        time.sleep(5)
     is_ready(notification_address, notification_port, my_address)
 
 @ray.remote(resources={'node': 1}, max_calls=1)
