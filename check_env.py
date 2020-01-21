@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import ray
 import check_env_remote
 
