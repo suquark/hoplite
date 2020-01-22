@@ -124,10 +124,10 @@ void DistributedObjectStore::poll_and_reduce(
     std::vector<NotificationMessage> ready_ids =
         notifications->GetNotifications();
     // TODO: we should group ready ids by their node address.
-    for (auto &ready_id_tuple : ready_ids) {
-      ObjectID ready_id = std::get<0>(ready_id_tuple);
-      std::string address = std::get<1>(ready_id_tuple);
-      size_t object_size = std::get<2>(ready_id_tuple);
+    for (auto &ready_id_message : ready_ids) {
+      ObjectID ready_id = ready_id_message.object_id;
+      std::string address = ready_id_message.sender_ip;
+      size_t object_size = ready_id_message.object_size;
       DCHECK(address != "")
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
@@ -202,8 +202,8 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     if (!local_store_client_.ObjectExists(object_id)) {
       // ==> This ObjectID refers to a remote object.
       SyncReply reply_pair = gcs_client_.GetLocationSync(object_id);
-      std::string address = reply_pair.first;
-      size_t object_size = reply_pair.second;
+      std::string address = reply_pair.sender_ip;
+      size_t object_size = reply_pair.object_size;
       // send pull request to one of the location
       DCHECK(object_control_.PullObject(address, object_id))
           << "Failed to pull object";
