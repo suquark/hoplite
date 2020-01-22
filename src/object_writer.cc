@@ -90,10 +90,15 @@ TCPServer::TCPServer(ObjectStoreState &state,
             << port;
 }
 
-void handle_signal(int sig) {
-  LOG(INFO) << "Signal received on object writer";
+void TCPServer::Shutdown() {
   close(server_fd_);
   server_fd_ = -1;
+  // we still send a signal here because the client may eb
+  pthread_kill(server_thread_.native_handle(), SIGUSR1);
+}
+
+void handle_signal(int sig) {
+  LOG(INFO) << "Signal received on object writer";
   pthread_exit(NULL);
 }
 
@@ -104,6 +109,12 @@ void TCPServer::worker_loop() {
     LOG(DEBUG) << "waiting for a connection";
     socklen_t addrlen = sizeof(address_);
     int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
+    if (conn_fd < 0) {
+      LOG(ERROR)
+          << "Socket accept error, maybe it has been closed by the user. "
+          << "Shutting down the object writer ...";
+      return;
+    }
     DCHECK(conn_fd >= 0) << "socket accept error";
     char *incoming_ip = inet_ntoa(address_.sin_addr);
     LOG(INFO) << "recieve a TCP connection from " << incoming_ip;

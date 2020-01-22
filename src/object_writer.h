@@ -20,10 +20,11 @@ public:
             LocalStoreClient &local_store_client,
             const std::string &server_ipaddr, int port);
 
-  inline std::thread Run() {
-    std::thread tcp_thread(&TCPServer::worker_loop, this);
-    return tcp_thread;
+  inline void Run() {
+    server_thread_ = std::thread(&TCPServer::worker_loop, this);
   }
+
+  void Shutdown();
 
 private:
   void worker_loop();
@@ -40,6 +41,7 @@ private:
   ObjectStoreState &state_;
 
   int server_fd_;
+  std::thread server_thread_;
   const std::string &server_ipaddr_;
   struct sockaddr_in address_;
 };
