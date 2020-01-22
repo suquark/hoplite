@@ -102,7 +102,7 @@ class ConvNet(nn.Module):
 
     def set_paramaters(self, parameters):
         for w, p in zip(self.parameters(), parameters):
-            w.data = p.data
+            w.data = torch.from_numpy(p)
 
     def set_weights(self, weights):
         self.load_state_dict(weights)

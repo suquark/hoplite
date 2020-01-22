@@ -51,6 +51,11 @@ class ParameterServer(object):
     def get_weights(self):
         return self.model.get_weights()
 
+    def set_paramaters(self, parameter_id):
+        parameter_buffer = self.store.get(parameter_id)
+        parameters = self.model.buffer_to_tensors(parameter_buffer)
+        self.model.set_parameters(parameters)
+
 
 ###########################################################################
 # Defining the Worker
@@ -71,8 +76,8 @@ class DataWorker(object):
     def compute_gradients(self, parameter_id):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
-        for w, p in zip(self.model.parameters(), parameters):
-            w.data = torch.from_numpy(p)
+        self.model.set_paramaters(parameters)
+
         try:
             data, target = next(self.data_iterator)
         except StopIteration:  # When the epoch ends, start a new epoch.
