@@ -93,8 +93,10 @@ TCPServer::TCPServer(ObjectStoreState &state,
 void TCPServer::Shutdown() {
   close(server_fd_);
   server_fd_ = -1;
-  // we still send a signal here because the client may eb
+  // we still send a signal here because the thread may be
+  // processing a task
   pthread_kill(server_thread_.native_handle(), SIGUSR1);
+  server_thread_.join();
 }
 
 void handle_signal(int sig) {
