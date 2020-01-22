@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from filelock import FileLock
-
+import numpy as np
 
 def criterion(output, target):
     return F.nll_loss(output, target)
@@ -68,6 +68,26 @@ class ConvNet(nn.Module):
         super(ConvNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 3, kernel_size=3)
         self.fc = nn.Linear(192, 10)
+
+        self.weights_info = []
+        for p in self.parameters():
+            self.weights_info.append(
+                (p.numel() * p.element_size(), tuple(p.shape)))
+        self.total_gradient_size = 0
+        for p in self.parameters():
+            if p.requires_grad:
+                self.total_gradient_size += p.numel() * p.element_size()
+
+    def buffer_to_tensors(self, buffer):
+        tensors = []
+        cursor = 0
+        view = memoryview(buffer)
+        for data_size, data_shape in self.weights_info:
+            tensor_view = view[cursor: cursor+data_size]
+            t = np.frombuffer(tensor_view, dtype=np.float32).reshape(data_shape)
+            tensors.append(t)
+            cursor += data_size
+        return tensors
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 3))
