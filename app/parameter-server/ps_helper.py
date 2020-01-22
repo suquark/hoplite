@@ -36,17 +36,17 @@ def get_data_loader():
     # We add FileLock here because multiple workers will want to
     # download data, and this may cause overwrites since
     # DataLoader is not threadsafe.
-    with FileLock(os.path.expanduser("~/data.lock")):
+    with FileLock(os.path.expanduser("~/efs/data.lock")):
         train_loader = torch.utils.data.DataLoader(
             datasets.MNIST(
-                "~/data",
+                "~/efs/dataset",
                 train=True,
                 download=True,
                 transform=mnist_transforms),
             batch_size=1,
             shuffle=True)
         test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST("~/data", train=False, transform=mnist_transforms),
+            datasets.MNIST("~/efs/dataset", train=False, transform=mnist_transforms),
             batch_size=1,
             shuffle=True)
     return train_loader, test_loader
