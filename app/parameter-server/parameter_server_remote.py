@@ -36,11 +36,12 @@ class ParameterServer(object):
             gradients, self.model.total_gradient_size, store_lib.ReduceOp.SUM)
         grad_buffer = self.store.get(reduced_gradient_id)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
-
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
+        return self.get_parameter_id()
 
+    def get_parameter_id(self):
         new_parameters = [p.cpu().numpy() for p in self.model.parameters()]
         cont_p = np.concatenate([p.ravel().view(np.uint8) for p in new_parameters])
         buffer = store_lib.Buffer.from_buffer(cont_p)

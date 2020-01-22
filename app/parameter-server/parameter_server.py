@@ -47,7 +47,7 @@ model = ConvNet()
 test_loader = get_data_loader()[1]
 
 # get initial weights
-current_weights = ps.get_weights.remote()
+current_weights = ps.get_parameter_id.remote()
 
 start = time.time()
 
