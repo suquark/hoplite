@@ -51,7 +51,7 @@ class ParameterServer(object):
     def get_weights(self):
         return self.model.get_weights()
 
-    def set_paramaters(self, parameter_id):
+    def set_parameters(self, parameter_id):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
         self.model.set_parameters(parameters)
@@ -76,7 +76,7 @@ class DataWorker(object):
     def compute_gradients(self, parameter_id):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
-        self.model.set_paramaters(parameters)
+        self.model.set_parameters(parameters)
 
         try:
             data, target = next(self.data_iterator)
