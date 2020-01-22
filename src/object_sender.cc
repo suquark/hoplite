@@ -136,7 +136,7 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   close(conn_fd);
 
-  gcs_client_.WriteLocation(object_id, my_address_, true);
+  gcs_client_.WriteLocation(object_id, my_address_, true, object_size);
 
   LOG(DEBUG) << "function returned";
 }
@@ -183,7 +183,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   for (auto &oid_str : request->dst_object_ids()) {
-    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true);
+    //TODO: change 0 to the actual size
+    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true, 0);
   }
 
   close(conn_fd);
