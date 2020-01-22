@@ -84,23 +84,13 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
   DCHECK(object_ids.size() > 0);
   // TODO: get size by checking the size of ObjectIDs
 
-  // create the endpoint buffer
-  std::shared_ptr<Buffer> buffer;
-  auto pstatus =
-      local_store_client_.Create(reduction_id, _expected_size, &buffer);
-  DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
-                       << reduction_id.Hex() << " size = " << _expected_size
-                       << ", status = " << pstatus.ToString();
-
-  auto reduction_endpoint =
-      state_.create_progressive_stream(reduction_id, buffer);
-
   // starting a thread
   std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
                                object_ids, reduction_id);
-
-  reduction_tasks_[reduction_id] =
-      std::make_pair(reduction_endpoint, std::move(reduction_thread));
+  {
+    std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
+    reduction_tasks_[reduction_id] = {nullptr, std::move(reduction_thread)};
+  }
 }
 
 void DistributedObjectStore::poll_and_reduce(
@@ -140,7 +130,21 @@ void DistributedObjectStore::poll_and_reduce(
       } else {
         // wait until at lease 2 objects in nodes except the master node are
         // ready.
-        if (node_index == 1) {
+        if (node_index == 0) {
+          // create the endpoint buffer
+          std::shared_ptr<Buffer> buffer;
+          auto pstatus =
+              local_store_client_.Create(reduction_id, object_size, &buffer);
+          DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
+                              << reduction_id.Hex() << " size = " << object_size
+                              << ", status = " << pstatus.ToString();
+          auto reduction_endpoint =
+              state_.create_progressive_stream(reduction_id, buffer);
+          {
+            std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
+            reduction_tasks_[reduction_id].stream = reduction_endpoint;
+          }
+        } else if (node_index == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
           bool reply_ok = object_control_.InvokeReduceTo(
               tail_address, reduction_id, {ready_id}, address, false,
@@ -189,16 +193,22 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   // exists even before 'Seal' is called. This will cause the problem
   // that an on-going reduction task could be skipped. Here we just
   // reorder the checking process as a workaround.
+  std::unique_lock<std::mutex> l(reduction_tasks_mutex_);
   auto search = reduction_tasks_.find(object_id);
   if (search != reduction_tasks_.end()) {
+    l.unlock();
     // ==> This ObjectID belongs to a reduction task.
     auto &reduction_task_pair = search->second;
     reduction_task_pair.second.join();
     // wait until the object is fully reduced
+    DCHECK(reduction_task_pair->first != nullptr);
     reduction_task_pair.first->wait();
+    l.lock();
     reduction_tasks_.erase(object_id);
+    l.unlock();
     local_store_client_.Seal(object_id);
   } else {
+    l.unlock();
     if (!local_store_client_.ObjectExists(object_id)) {
       // ==> This ObjectID refers to a remote object.
       SyncReply reply_pair = gcs_client_.GetLocationSync(object_id);

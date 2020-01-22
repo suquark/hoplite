@@ -131,7 +131,7 @@ GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
   notification_stub_->GetLocationSync(&context, request, &reply);
-  return (SyncReply){std::string(reply.sender_ip()), reply.object_size()};
+  return {std::string(reply.sender_ip()), reply.object_size()};
 }
 
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
