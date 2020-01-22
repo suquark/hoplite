@@ -41,7 +41,6 @@ public:
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
   inline void join_tasks() {
-    object_writer_thread_.join();
     object_sender_thread_.join();
     object_control_thread_.join();
     notification_thread_.join();
@@ -64,7 +63,6 @@ private:
   std::unordered_map<ObjectID,
                      std::pair<std::shared_ptr<ProgressiveStream>, std::thread>>
       reduction_tasks_;
-  std::thread object_writer_thread_;
   std::thread object_sender_thread_;
   std::thread object_control_thread_;
   std::thread notification_thread_;

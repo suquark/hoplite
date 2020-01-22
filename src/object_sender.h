@@ -26,9 +26,7 @@ public:
 
   void send_object(const objectstore::PullRequest *request);
 
-  inline void Shutdown() {
-    exit_ = true;
-  }
+  inline void Shutdown() { exit_ = true; }
 
 private:
   void worker_loop();

@@ -15,15 +15,15 @@ DistributedObjectStore::DistributedObjectStore(
                                            my_address_,
                                            notification_server_port,
                                            notification_listen_port},
+      local_store_client_{false, plasma_socket},
       object_control_{object_sender_, local_store_client_, state_, my_address_,
                       grpc_port},
       object_writer_{state_, gcs_client_, local_store_client_, my_address_,
                      object_writer_port},
-      object_sender_{state_, gcs_client_, local_store_client_, my_address_},
-      local_store_client_{false, plasma_socket} {
+      object_sender_{state_, gcs_client_, local_store_client_, my_address_} {
   TIMELINE("DistributedObjectStore construction function");
   // create a thread to receive remote object
-  object_writer_thread_ = object_writer_.Run();
+  object_writer_.Run();
   // create a thread to send object
   object_sender_thread_ = object_sender_.Run();
   // create a thread to process pull requests
@@ -34,14 +34,14 @@ DistributedObjectStore::DistributedObjectStore(
 
 DistributedObjectStore::~DistributedObjectStore() {
   TIMELINE("~DistributedObjectStore");
-  pthread_kill(object_writer_thread_.native_handle(), SIGUSR1);
-  object_writer_thread_.join();
+  object_writer_.Shutdown();
   object_sender_.Shutdown();
   object_sender_thread_.join();
   object_control_.Shutdown();
   object_control_thread_.join();
   gcs_client_.Shutdown();
   notification_thread_.join();
+  LOG(INFO) << "Object store has been shutdown.";
 }
 
 void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
