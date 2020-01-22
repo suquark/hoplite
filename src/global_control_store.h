@@ -22,14 +22,15 @@ struct NotificationMessage {
 struct SyncReply {
   std::string sender_ip;
   size_t object_size;
-}
+};
 
 class ObjectNotifications {
 public:
   std::vector<NotificationMessage> GetNotifications();
 
   void ReceiveObjectNotification(const ObjectID &object_id,
-                                 const std::string &sender_ip);
+                                 const std::string &sender_ip,
+                                 size_t object_size);
 
 private:
   std::mutex notification_mutex_;
@@ -46,7 +47,7 @@ public:
 
   // Write object location to the notification server.
   void WriteLocation(const ObjectID &object_id, const std::string &my_address,
-                     bool finished);
+                     bool finished, size_t object_size);
 
   // Get object location from the notification server.
   SyncReply GetLocationSync(const ObjectID &object_id);
