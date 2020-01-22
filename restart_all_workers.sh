@@ -12,7 +12,8 @@ if [ "$#" -eq 0 ]; then
     all_nodes=($my_address ${slaves[@]})
     for node in ${all_nodes[@]}; do
         echo "=> $node"
-        ssh $node $(realpath -s $0) restart
+        ssh $node $(realpath -s $0) restart &
+        wait
     done
 else 
     for pid in $(ps aux | grep 'default_worker.py' | grep -v 'object_manager_port' | grep -v grep | awk '{print $2}'); do 
