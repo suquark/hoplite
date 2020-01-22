@@ -100,7 +100,7 @@ class ConvNet(nn.Module):
     def get_weights(self):
         return {k: v.cpu() for k, v in self.state_dict().items()}
 
-    def set_paramaters(self, parameters):
+    def set_parameters(self, parameters):
         for w, p in zip(self.parameters(), parameters):
             w.data = torch.from_numpy(p)
 
