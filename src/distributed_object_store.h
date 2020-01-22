@@ -41,7 +41,6 @@ public:
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
   inline void join_tasks() {
-    object_writer_thread_.join();
     object_sender_thread_.join();
     object_control_thread_.join();
     notification_thread_.join();
