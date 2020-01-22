@@ -87,7 +87,7 @@ else:
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 
 ps.set_paramaters.remote(current_weights)
-model.set_weights(ray.get(ps.get_weights()))
+model.set_weights(ray.get(ps.get_weights.remote()))
 during = time.time() - start
 accuracy = evaluate(model, test_loader)
 print("Final accuracy is {:.1f}.".format(accuracy), f"during = {during}s")
