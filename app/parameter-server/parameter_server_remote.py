@@ -42,7 +42,7 @@ class ParameterServer(object):
         return self.get_parameter_id()
 
     def get_parameter_id(self):
-        new_parameters = [p.cpu().numpy() for p in self.model.parameters()]
+        new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
         cont_p = np.concatenate([p.ravel().view(np.uint8) for p in new_parameters])
         buffer = store_lib.Buffer.from_buffer(cont_p)
         parameter_id = self.store.put(buffer)
