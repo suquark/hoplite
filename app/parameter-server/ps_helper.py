@@ -43,11 +43,11 @@ def get_data_loader():
                 train=True,
                 download=True,
                 transform=mnist_transforms),
-            batch_size=8,
+            batch_size=1,
             shuffle=True)
         test_loader = torch.utils.data.DataLoader(
             datasets.MNIST("~/data", train=False, transform=mnist_transforms),
-            batch_size=8,
+            batch_size=1,
             shuffle=True)
     return train_loader, test_loader
 
@@ -66,8 +66,9 @@ class ConvNet(nn.Module):
 
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 3, kernel_size=3)
-        self.fc = nn.Linear(192, 10)
+        self.conv1 = nn.Conv2d(1, 3 * 64, kernel_size=3)
+        self.fc1 = nn.Linear(192 * 64, 1024)
+        self.fc2 = nn.Linear(1024, 10)
 
         self.weights_info = []
         for p in self.parameters():
@@ -91,8 +92,9 @@ class ConvNet(nn.Module):
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 3))
-        x = x.view(-1, 192)
-        x = self.fc(x)
+        x = x.view(-1, 192 * 64)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
     def get_weights(self):

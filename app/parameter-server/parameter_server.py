@@ -36,7 +36,7 @@ utils.start_location_server()
 args = parser.parse_args()
 args_dict = utils.extract_dict_from_args(args)
 
-iterations = 200
+iterations = 20
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
