@@ -43,11 +43,11 @@ def get_data_loader():
                 train=True,
                 download=True,
                 transform=mnist_transforms),
-            batch_size=1,
+            batch_size=8,
             shuffle=True)
         test_loader = torch.utils.data.DataLoader(
             datasets.MNIST("~/efs/dataset", train=False, transform=mnist_transforms),
-            batch_size=1,
+            batch_size=8,
             shuffle=True)
     return train_loader, test_loader
 
@@ -78,6 +78,7 @@ class ConvNet(nn.Module):
         for p in self.parameters():
             if p.requires_grad:
                 self.total_gradient_size += p.numel() * p.element_size()
+        print("model size:", self.total_gradient_size)
 
     def buffer_to_tensors(self, buffer):
         tensors = []
