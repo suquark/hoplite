@@ -33,22 +33,24 @@ class ParameterServer(object):
         for p in self.model.parameters():
             self.weights_info.append(
                 (p.numel() * p.element_size(), tuple(p.shape)))
+        self.total_gradient_size = 0
+        for p in self.model.parameters():
+            if p.requires_grad:
+                self.total_gradient_size += p.numel() * p.element_size()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
-        grouped_gradients = list(zip(*gradients))
-
-        reduced_weights_ids = []
-        for gradients_per_layer, (data_size, _) in zip(grouped_gradients, self.weights_info):
-            reduced_weights_id = self.store.reduce_async(
-                gradients_per_layer, data_size, store_lib.ReduceOp.SUM)
-            reduced_weights_ids.append(reduced_weights_id)
-
+        reduced_gradient_id = self.store.reduce_async(
+            gradients, self.total_gradient_size, store_lib.ReduceOp.SUM)
+        grad_buffer = self.store.get(reduced_gradient_id)
         summed_gradients = []
-        for reduction_id, (_, shape) in zip(reduced_weights_ids, self.weights_info):
-            grad_buffer = self.store.get(reduction_id)
-            summed_gradients.append(np.frombuffer(
-                grad_buffer, dtype=np.float32).reshape(shape))
+        cursor = 0
+        view = memoryview(grad_buffer)
+        for data_size, data_shape in self.weights_info:
+            grad_view = view[cursor: cursor+data_size]
+            grad = np.frombuffer(grad_view, dtype=np.float32).reshape(data_shape)
+            summed_gradients.append(grad)
+            cursor += data_size
 
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
@@ -87,8 +89,7 @@ class DataWorker(object):
         loss = criterion(output, target)
         loss.backward()
         gradients = self.model.get_gradients()
-        gradient_ids = []
-        for g in gradients:
-            buffer = store_lib.Buffer.from_buffer(g)
-            gradient_ids.append(self.store.put(buffer))
-        return gradient_ids
+        cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
+        buffer = store_lib.Buffer.from_buffer(cont_g)
+        gradient_id = self.store.put(buffer)
+        return gradient_id

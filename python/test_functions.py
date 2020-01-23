@@ -30,8 +30,11 @@ def is_ready(notification_address, notification_port, my_address):
 
 def barrier(world_rank, notification_address, notification_port, world_size):
     my_address = utils.get_my_address()
-    if (world_rank == 0):
+    if world_rank == 0:
         register_group(notification_address, notification_port, world_size)
+    else:
+        # we must ensure that the master will register group first.
+        time.sleep(5)
     is_ready(notification_address, notification_port, my_address)
 
 @ray.remote(resources={'node': 1}, max_calls=1)
@@ -257,4 +260,80 @@ def reduce(args_dict, notification_address, world_size, world_rank, object_size)
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
 
+    time.sleep(30)
+
+
+@ray.remote(resources={'node': 1}, max_calls=1)
+def allreduce(args_dict, notification_address, world_size, world_rank, object_size):
+    store = utils.create_store_using_dict(args_dict)
+    object_id = utils.object_id_from_int(world_rank)
+    array = np.random.rand(object_size//4).astype(np.float32)
+    buffer = store_lib.Buffer.from_buffer(array)
+    store.put(buffer, object_id)
+
+    print("Buffer created, hash =", hash(buffer))
+    object_ids = []
+    for i in range(0, world_size):
+        object_ids.append(utils.object_id_from_int(i))
+    reduction_id = utils.object_id_from_int(99999999999)
+    barrier(world_rank, notification_address, notification_port, world_size)
+
+    start = time.time()
+    if world_rank == 0:
+        store.reduce_async(object_ids, object_size, store_lib.ReduceOp.SUM, reduction_id=reduction_id)
+    reduced_buffer = store.get(reduction_id)
+    duration = time.time() - start
+
+    reduce_result = np.frombuffer(reduced_buffer)
+    print("AllReduce completed, hash =", hash(reduced_buffer), "duration =", duration)
+    print(reduce_result)
+    time.sleep(30)
+
+
+@ray.remote(resources={'node': 1}, max_calls=1)
+def gather(args_dict, notification_address, world_size, world_rank, object_size):
+    store = utils.create_store_using_dict(args_dict)
+    object_id = utils.object_id_from_int(world_rank)
+    array = np.random.rand(object_size//4).astype(np.float32)
+    buffer = store_lib.Buffer.from_buffer(array)
+    store.put(buffer, object_id)
+
+    print("Buffer created, hash =", hash(buffer))
+    object_ids = []
+    for i in range(0, world_size):
+        object_ids.append(utils.object_id_from_int(i))
+    barrier(world_rank, notification_address, notification_port, world_size)
+
+    buffers = []
+    start = time.time()
+    if world_rank == 0:
+        for object_id in object_ids:
+            buffers.append(store.get(object_id))
+    duration = time.time() - start
+
+    print("Gather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
+    time.sleep(30)
+
+
+@ray.remote(resources={'node': 1}, max_calls=1)
+def allgather(args_dict, notification_address, world_size, world_rank, object_size):
+    store = utils.create_store_using_dict(args_dict)
+    object_id = utils.object_id_from_int(world_rank)
+    array = np.random.rand(object_size//4).astype(np.float32)
+    buffer = store_lib.Buffer.from_buffer(array)
+    store.put(buffer, object_id)
+
+    print("Buffer created, hash =", hash(buffer))
+    object_ids = []
+    for i in range(0, world_size):
+        object_ids.append(utils.object_id_from_int(i))
+    barrier(world_rank, notification_address, notification_port, world_size)
+
+    buffers = []
+    start = time.time()
+    for object_id in object_ids:
+        buffers.append(store.get(object_id))
+    duration = time.time() - start
+
+    print("AllGather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
     time.sleep(30)

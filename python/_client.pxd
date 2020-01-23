@@ -19,6 +19,10 @@ cdef extern from "util/logging.h" namespace "ray" nogil:
 
 cdef extern from "util/logging.h" namespace "ray::RayLogLevel" nogil:
     cdef CRayLogLevel CRayLogDEBUG "ray::RayLogLevel::DEBUG"
+    cdef CRayLogLevel CRayLogINFO "ray::RayLogLevel::INFO"
+    cdef CRayLogLevel CRayLogWARNING "ray::RayLogLevel::WARNING"
+    cdef CRayLogLevel CRayLogERROR "ray::RayLogLevel::ERROR"
+    cdef CRayLogLevel CRayLogFATAL "ray::RayLogLevel::FATAL"
 
 
 cdef extern from "common/id.h" namespace "" nogil:
