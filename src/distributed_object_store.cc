@@ -199,10 +199,10 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     l.unlock();
     // ==> This ObjectID belongs to a reduction task.
     auto &reduction_task_pair = search->second;
-    reduction_task_pair.second.join();
+    reduction_task_pair.reduction_thread.join();
     // wait until the object is fully reduced
-    DCHECK(reduction_task_pair->first != nullptr);
-    reduction_task_pair.first->wait();
+    DCHECK(reduction_task_pair.stream != nullptr);
+    reduction_task_pair.stream->wait();
     l.lock();
     reduction_tasks_.erase(object_id);
     l.unlock();
