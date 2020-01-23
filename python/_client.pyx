@@ -135,22 +135,21 @@ cdef class DistributedObjectStore:
         self.store.get().Get(object_id.data, &buf)
         return Buffer.from_native(buf)
 
-    def reduce_async(self, object_ids, expected_size, reduce_op, reduction_id=None):
+    def reduce_async(self, object_ids, reduce_op, reduction_id=None):
         cdef:
             ObjectID _created_reduction_id = ObjectID(b'\0' * 20)
             c_vector[CObjectID] raw_object_ids
 
         if reduce_op == ReduceOp.SUM:
-            assert isinstance(expected_size, int) and expected_size > 0
             for oid in object_ids:
                 raw_object_ids.push_back((<ObjectID>oid).data)
             if reduction_id is not None:
                 self.store.get().Reduce(
-                    raw_object_ids, <int64_t>expected_size, (<ObjectID>reduction_id).data)
+                    raw_object_ids, (<ObjectID>reduction_id).data)
                 return reduction_id
             else:
                 self.store.get().Reduce(
-                    raw_object_ids, <int64_t>expected_size, &_created_reduction_id.data)
+                    raw_object_ids, &_created_reduction_id.data)
                 return _created_reduction_id
         else:
             raise NotImplementedError("Unsupported reduce_op")

@@ -32,8 +32,7 @@ class ParameterServer(object):
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
-        reduced_gradient_id = self.store.reduce_async(
-            gradients, self.model.total_gradient_size, store_lib.ReduceOp.SUM)
+        reduced_gradient_id = self.store.reduce_async(gradients, store_lib.ReduceOp.SUM)
         grad_buffer = self.store.get(reduced_gradient_id)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()

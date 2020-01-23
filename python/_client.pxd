@@ -57,10 +57,10 @@ cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
         CObjectID Put(const shared_ptr[CBuffer] &buffer)
 
         void Reduce(const c_vector[CObjectID] &object_ids,
-                    size_t _expected_size, CObjectID *created_reduction_id)
+                    CObjectID *created_reduction_id)
 
         void Reduce(const c_vector[CObjectID] &object_ids,
-                    size_t _expected_size, const CObjectID &reduction_id)
+                    const CObjectID &reduction_id)
 
         void Get(const CObjectID &object_id,
                  shared_ptr[CBuffer] *result)
