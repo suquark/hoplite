@@ -71,7 +71,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
                                     ObjectID *created_reduction_id) {
   const auto reduction_id = ObjectID::FromRandom();
   *created_reduction_id = reduction_id;
-  Reduce(object_ids, _expected_size, reduction_id);
+  Reduce(object_ids, reduction_id);
 }
 
 void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
