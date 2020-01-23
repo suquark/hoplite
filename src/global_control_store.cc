@@ -37,12 +37,13 @@ public:
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
+    size_t object_size = request->object_size();
     std::shared_ptr<ObjectNotifications> notifications;
     {
       std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
       notifications = object_notifications_pool_[query_id];
     }
-    notifications->ReceiveObjectNotification(object_id, sender_ip);
+    notifications->ReceiveObjectNotification(object_id, sender_ip, object_size);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -53,19 +54,19 @@ private:
   std::shared_ptr<std::mutex> notifications_pool_mutex_;
 };
 
-std::vector<std::pair<ObjectID, std::string>>
-ObjectNotifications::GetNotifications() {
+std::vector<NotificationMessage> ObjectNotifications::GetNotifications() {
   std::unique_lock<std::mutex> l(notification_mutex_);
   notification_cv_.wait(l, [this]() { return !ready_.empty(); });
-  std::vector<std::pair<ObjectID, std::string>> notifications = ready_;
+  std::vector<NotificationMessage> notifications = ready_;
   ready_.clear();
   return notifications;
 }
 
 void ObjectNotifications::ReceiveObjectNotification(
-    const ObjectID &object_id, const std::string &sender_ip) {
+    const ObjectID &object_id, const std::string &sender_ip,
+    size_t object_size) {
   std::unique_lock<std::mutex> l(notification_mutex_);
-  ready_.push_back(std::make_pair(object_id, sender_ip));
+  ready_.push_back({object_id, sender_ip, object_size});
   l.unlock();
   notification_cv_.notify_one();
 }
@@ -104,7 +105,8 @@ GlobalControlStoreClient::GlobalControlStoreClient(
 
 void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                                              const std::string &sender_ip,
-                                             bool finished) {
+                                             bool finished,
+                                             size_t object_size) {
   TIMELINE("GlobalControlStoreClient::WriteLocation");
   LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip << ".";
@@ -114,21 +116,21 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
   request.set_object_id(object_id.Binary());
   request.set_sender_ip(sender_ip);
   request.set_finished(finished);
+  request.set_object_size(object_size);
   auto status = notification_stub_->WriteLocation(&context, request, &reply);
   DCHECK(status.ok()) << status.error_message();
   DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
                      << " failed.";
 }
 
-std::string
-GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
+SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
   TIMELINE("GetLocationSync");
   grpc::ClientContext context;
   GetLocationSyncRequest request;
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
   notification_stub_->GetLocationSync(&context, request, &reply);
-  return std::string(reply.sender_ip());
+  return {std::string(reply.sender_ip()), reply.object_size()};
 }
 
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(

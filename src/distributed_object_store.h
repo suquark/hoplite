@@ -1,8 +1,10 @@
 #ifndef DISTRIBUTED_OBJECT_STORE_H
 #define DISTRIBUTED_OBJECT_STORE_H
 
+#include <condition_variable>
 #include <cstdint>
 #include <ctime>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -60,9 +62,13 @@ private:
   ObjectSender object_sender_;
   GrpcServer object_control_;
   // A map for currently working reduction tasks.
-  std::unordered_map<ObjectID,
-                     std::pair<std::shared_ptr<ProgressiveStream>, std::thread>>
-      reduction_tasks_;
+  std::mutex reduction_tasks_mutex_;
+  struct reduction_task {
+    std::shared_ptr<ProgressiveStream> stream;
+    std::thread reduction_thread;
+  };
+  std::unordered_map<ObjectID, reduction_task> reduction_tasks_;
+  std::thread object_writer_thread_;
   std::thread object_sender_thread_;
   std::thread object_control_thread_;
   std::thread notification_thread_;

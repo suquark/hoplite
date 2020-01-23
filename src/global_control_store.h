@@ -14,17 +14,28 @@
 
 struct NotificationListenerImpl;
 
+struct NotificationMessage {
+  ObjectID object_id;
+  std::string sender_ip;
+  size_t object_size;
+};
+struct SyncReply {
+  std::string sender_ip;
+  size_t object_size;
+};
+
 class ObjectNotifications {
 public:
-  std::vector<std::pair<ObjectID, std::string>> GetNotifications();
+  std::vector<NotificationMessage> GetNotifications();
 
   void ReceiveObjectNotification(const ObjectID &object_id,
-                                 const std::string &sender_ip);
+                                 const std::string &sender_ip,
+                                 size_t object_size);
 
 private:
   std::mutex notification_mutex_;
   std::condition_variable notification_cv_;
-  std::vector<std::pair<ObjectID, std::string>> ready_;
+  std::vector<NotificationMessage> ready_;
 };
 
 class GlobalControlStoreClient {
@@ -36,10 +47,10 @@ public:
 
   // Write object location to the notification server.
   void WriteLocation(const ObjectID &object_id, const std::string &my_address,
-                     bool finished);
+                     bool finished, size_t object_size);
 
   // Get object location from the notification server.
-  std::string GetLocationSync(const ObjectID &object_id);
+  SyncReply GetLocationSync(const ObjectID &object_id);
 
   std::shared_ptr<ObjectNotifications>
   GetLocationAsync(const std::vector<ObjectID> &object_ids,

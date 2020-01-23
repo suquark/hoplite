@@ -136,7 +136,7 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   close(conn_fd);
 
-  gcs_client_.WriteLocation(object_id, my_address_, true);
+  gcs_client_.WriteLocation(object_id, my_address_, true, object_size);
 
   LOG(DEBUG) << "function returned";
 }
@@ -157,6 +157,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   ow_request.set_allocated_receive_and_reduce_object(ro_request);
   SendMessage(conn_fd, ow_request);
 
+  size_t object_size = 0;
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
     LOG(INFO) << "[GrpcServer] fetching a complete object from local store";
     // TODO: there could be multiple source objects.
@@ -166,6 +167,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     auto &buffer_ptr = object_buffers[0].data;
     int status = send_all(conn_fd, buffer_ptr->Data(), buffer_ptr->Size());
     DCHECK(!status) << "Failed to send object";
+    object_size = buffer_ptr->Size();
   } else {
     LOG(INFO)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
@@ -173,6 +175,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     auto stream = state_.get_reduction_stream(reduction_id);
     DCHECK(stream != nullptr) << "Stream should not be nullptr";
     stream_send<ReductionStream>(conn_fd, stream.get());
+    object_size = stream->size();
   }
 
   // receive ack
@@ -183,7 +186,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   for (auto &oid_str : request->dst_object_ids()) {
-    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true);
+    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true,
+                              object_size);
   }
 
   close(conn_fd);
