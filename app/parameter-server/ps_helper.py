@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from filelock import FileLock
-
+import numpy as np
 
 def criterion(output, target):
     return F.nll_loss(output, target)
@@ -36,17 +36,17 @@ def get_data_loader():
     # We add FileLock here because multiple workers will want to
     # download data, and this may cause overwrites since
     # DataLoader is not threadsafe.
-    with FileLock(os.path.expanduser("~/data.lock")):
+    with FileLock(os.path.expanduser("~/efs/data.lock")):
         train_loader = torch.utils.data.DataLoader(
             datasets.MNIST(
-                "~/data",
+                "~/efs/dataset",
                 train=True,
                 download=True,
                 transform=mnist_transforms),
             batch_size=8,
             shuffle=True)
         test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST("~/data", train=False, transform=mnist_transforms),
+            datasets.MNIST("~/efs/dataset", train=False, transform=mnist_transforms),
             batch_size=8,
             shuffle=True)
     return train_loader, test_loader
@@ -66,17 +66,44 @@ class ConvNet(nn.Module):
 
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 3, kernel_size=3)
-        self.fc = nn.Linear(192, 10)
+        self.conv1 = nn.Conv2d(1, 3 * 64, kernel_size=3)
+        self.fc1 = nn.Linear(192 * 64, 1024)
+        self.fc2 = nn.Linear(1024, 10)
+
+        self.weights_info = []
+        for p in self.parameters():
+            self.weights_info.append(
+                (p.numel() * p.element_size(), tuple(p.shape)))
+        self.total_gradient_size = 0
+        for p in self.parameters():
+            if p.requires_grad:
+                self.total_gradient_size += p.numel() * p.element_size()
+        print("model size:", self.total_gradient_size)
+
+    def buffer_to_tensors(self, buffer):
+        tensors = []
+        cursor = 0
+        view = memoryview(buffer)
+        for data_size, data_shape in self.weights_info:
+            tensor_view = view[cursor: cursor+data_size]
+            t = np.frombuffer(tensor_view, dtype=np.float32).reshape(data_shape)
+            tensors.append(t)
+            cursor += data_size
+        return tensors
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 3))
-        x = x.view(-1, 192)
-        x = self.fc(x)
+        x = x.view(-1, 192 * 64)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
     def get_weights(self):
         return {k: v.cpu() for k, v in self.state_dict().items()}
+
+    def set_parameters(self, parameters):
+        for w, p in zip(self.parameters(), parameters):
+            w.data = torch.from_numpy(p)
 
     def set_weights(self, weights):
         self.load_state_dict(weights)

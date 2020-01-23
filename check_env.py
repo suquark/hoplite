@@ -7,7 +7,7 @@ ray.init(address='auto')
 
 tasks = []
 
-for _ in range(5):
+for _ in ray.nodes():
     tasks.append(check_env_remote.check_env.remote())
 
 ray.get(tasks)

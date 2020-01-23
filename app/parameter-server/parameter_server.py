@@ -36,7 +36,7 @@ utils.start_location_server()
 args = parser.parse_args()
 args_dict = utils.extract_dict_from_args(args)
 
-iterations = 200
+iterations = 20
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
@@ -47,7 +47,7 @@ model = ConvNet()
 test_loader = get_data_loader()[1]
 
 # get initial weights
-current_weights = ps.get_weights.remote()
+current_weights = ps.get_parameter_id.remote()
 
 start = time.time()
 
@@ -86,7 +86,8 @@ else:
             accuracy = evaluate(model, test_loader)
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 
-model.set_weights(ray.get(current_weights))
+ps.set_parameters.remote(current_weights)
+model.set_weights(ray.get(ps.get_weights.remote()))
 during = time.time() - start
 accuracy = evaluate(model, test_loader)
 print("Final accuracy is {:.1f}.".format(accuracy), f"during = {during}s")

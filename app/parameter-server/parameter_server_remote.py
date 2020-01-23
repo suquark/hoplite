@@ -29,36 +29,32 @@ class ParameterServer(object):
     def __init__(self, args_dict, lr):
         self.store = utils.create_store_using_dict(args_dict)
         self.model = ConvNet()
-        self.weights_info = []
-        for p in self.model.parameters():
-            self.weights_info.append(
-                (p.numel() * p.element_size(), tuple(p.shape)))
-        self.total_gradient_size = 0
-        for p in self.model.parameters():
-            if p.requires_grad:
-                self.total_gradient_size += p.numel() * p.element_size()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
         reduced_gradient_id = self.store.reduce_async(
-            gradients, self.total_gradient_size, store_lib.ReduceOp.SUM)
+            gradients, self.model.total_gradient_size, store_lib.ReduceOp.SUM)
         grad_buffer = self.store.get(reduced_gradient_id)
-        summed_gradients = []
-        cursor = 0
-        view = memoryview(grad_buffer)
-        for data_size, data_shape in self.weights_info:
-            grad_view = view[cursor: cursor+data_size]
-            grad = np.frombuffer(grad_view, dtype=np.float32).reshape(data_shape)
-            summed_gradients.append(grad)
-            cursor += data_size
-
+        summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
-        return self.model.get_weights()
+        return self.get_parameter_id()
+
+    def get_parameter_id(self):
+        new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
+        cont_p = np.concatenate([p.ravel().view(np.uint8) for p in new_parameters])
+        buffer = store_lib.Buffer.from_buffer(cont_p)
+        parameter_id = self.store.put(buffer)
+        return parameter_id
 
     def get_weights(self):
         return self.model.get_weights()
+
+    def set_parameters(self, parameter_id):
+        parameter_buffer = self.store.get(parameter_id)
+        parameters = self.model.buffer_to_tensors(parameter_buffer)
+        self.model.set_parameters(parameters)
 
 
 ###########################################################################
@@ -77,8 +73,11 @@ class DataWorker(object):
         self.model = ConvNet()
         self.data_iterator = iter(get_data_loader()[0])
 
-    def compute_gradients(self, weights):
-        self.model.set_weights(weights)
+    def compute_gradients(self, parameter_id):
+        parameter_buffer = self.store.get(parameter_id)
+        parameters = self.model.buffer_to_tensors(parameter_buffer)
+        self.model.set_parameters(parameters)
+
         try:
             data, target = next(self.data_iterator)
         except StopIteration:  # When the epoch ends, start a new epoch.
