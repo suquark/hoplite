@@ -251,7 +251,7 @@ def reduce(args_dict, notification_address, world_size, world_rank, object_size)
             object_ids.append(utils.object_id_from_int(i))
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
-        reduction_id = store.reduce_async(object_ids, object_size, store_lib.ReduceOp.SUM)
+        reduction_id = store.reduce_async(object_ids, store_lib.ReduceOp.SUM)
         reduced_buffer = store.get(reduction_id)
         duration = time.time() - start
         reduce_result = np.frombuffer(reduced_buffer)
@@ -280,7 +280,7 @@ def allreduce(args_dict, notification_address, world_size, world_rank, object_si
 
     start = time.time()
     if world_rank == 0:
-        store.reduce_async(object_ids, object_size, store_lib.ReduceOp.SUM, reduction_id=reduction_id)
+        store.reduce_async(object_ids, store_lib.ReduceOp.SUM, reduction_id=reduction_id)
     reduced_buffer = store.get(reduction_id)
     duration = time.time() - start
 

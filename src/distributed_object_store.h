@@ -34,10 +34,10 @@ public:
 
   ObjectID Put(const std::shared_ptr<Buffer> &buffer);
 
-  void Reduce(const std::vector<ObjectID> &object_ids, size_t _expected_size,
+  void Reduce(const std::vector<ObjectID> &object_ids,
               ObjectID *created_reduction_id);
 
-  void Reduce(const std::vector<ObjectID> &object_ids, size_t _expected_size,
+  void Reduce(const std::vector<ObjectID> &object_ids,
               const ObjectID &reduction_id);
 
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);

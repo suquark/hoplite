@@ -68,22 +68,17 @@ ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
 }
 
 void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
-                                    size_t _expected_size,
                                     ObjectID *created_reduction_id) {
   const auto reduction_id = ObjectID::FromRandom();
   *created_reduction_id = reduction_id;
-  Reduce(object_ids, _expected_size, reduction_id);
+  Reduce(object_ids, reduction_id);
 }
 
 void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
-                                    size_t _expected_size,
                                     const ObjectID &reduction_id) {
   // TODO: support different reduce op and types.
-  TIMELINE("DistributedObjectStore Get multiple objects");
-
+  TIMELINE("DistributedObjectStore Async Reduce");
   DCHECK(object_ids.size() > 0);
-  // TODO: get size by checking the size of ObjectIDs
-
   // starting a thread
   std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
                                object_ids, reduction_id);
@@ -95,6 +90,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
 
 void DistributedObjectStore::poll_and_reduce(
     const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
+  TIMELINE("DistributedObjectStore Reduce Thread");
   // we do not use reference for its parameters because it will be executed
   // in a thread.
 
