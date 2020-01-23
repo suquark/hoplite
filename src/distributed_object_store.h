@@ -1,13 +1,13 @@
 #ifndef DISTRIBUTED_OBJECT_STORE_H
 #define DISTRIBUTED_OBJECT_STORE_H
 
+#include <condition_variable>
 #include <cstdint>
 #include <ctime>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
-#include <mutex>
-#include <condition_variable>
 
 #include "common/buffer.h"
 #include "common/id.h"

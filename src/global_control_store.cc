@@ -54,8 +54,7 @@ private:
   std::shared_ptr<std::mutex> notifications_pool_mutex_;
 };
 
-std::vector<NotificationMessage>
-ObjectNotifications::GetNotifications() {
+std::vector<NotificationMessage> ObjectNotifications::GetNotifications() {
   std::unique_lock<std::mutex> l(notification_mutex_);
   notification_cv_.wait(l, [this]() { return !ready_.empty(); });
   std::vector<NotificationMessage> notifications = ready_;
@@ -64,7 +63,8 @@ ObjectNotifications::GetNotifications() {
 }
 
 void ObjectNotifications::ReceiveObjectNotification(
-    const ObjectID &object_id, const std::string &sender_ip, size_t object_size) {
+    const ObjectID &object_id, const std::string &sender_ip,
+    size_t object_size) {
   std::unique_lock<std::mutex> l(notification_mutex_);
   ready_.push_back({object_id, sender_ip, object_size});
   l.unlock();
@@ -123,8 +123,7 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                      << " failed.";
 }
 
-SyncReply
-GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
+SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
   TIMELINE("GetLocationSync");
   grpc::ClientContext context;
   GetLocationSyncRequest request;

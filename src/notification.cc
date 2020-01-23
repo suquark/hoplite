@@ -84,10 +84,9 @@ public:
     int weight = (rand() % 100) + (finished ? 100 : 0);
     if (object_size_.find(object_id) == object_size_.end()) {
       object_size_[object_id] = object_size;
-    }
-    else {
-      DCHECK(object_size_[object_id] == object_size) 
-        << "Size of object " << object_id.Hex() << " has changed.";
+    } else {
+      DCHECK(object_size_[object_id] == object_size)
+          << "Size of object " << object_id.Hex() << " has changed.";
     }
     object_location_store_ready_[object_id].push(
         std::make_pair(weight, sender_ip));

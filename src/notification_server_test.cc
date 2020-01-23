@@ -42,7 +42,7 @@ public:
     size_t object_size = request->object_size();
     LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID: "
               << object_id.Hex() << " IP: " << sender_ip
-              << " Query: " << query_id <<" Size: " << object_size;
+              << " Query: " << query_id << " Size: " << object_size;
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -81,7 +81,8 @@ private:
 std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
-void write_location(const ObjectID &object_id, const std::string &sender_ip, size_t object_size) {
+void write_location(const ObjectID &object_id, const std::string &sender_ip,
+                    size_t object_size) {
   TIMELINE("write_location");
   LOG(INFO) << "Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip;
@@ -120,7 +121,8 @@ void getlocationsync(const ObjectID &object_id) {
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
   stub->GetLocationSync(&context, request, &reply);
-  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip() << " Size: " << reply.object_size();
+  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip()
+            << " Size: " << reply.object_size();
 }
 
 void TEST1() {

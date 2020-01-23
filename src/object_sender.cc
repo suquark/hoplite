@@ -186,7 +186,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     LOG(FATAL) << "ack is wrong";
 
   for (auto &oid_str : request->dst_object_ids()) {
-    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true, object_size);
+    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true,
+                              object_size);
   }
 
   close(conn_fd);

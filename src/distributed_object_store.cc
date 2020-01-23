@@ -135,9 +135,10 @@ void DistributedObjectStore::poll_and_reduce(
           std::shared_ptr<Buffer> buffer;
           auto pstatus =
               local_store_client_.Create(reduction_id, object_size, &buffer);
-          DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
-                              << reduction_id.Hex() << " size = " << object_size
-                              << ", status = " << pstatus.ToString();
+          DCHECK(pstatus.ok())
+              << "Plasma failed to create reduction_id = " << reduction_id.Hex()
+              << " size = " << object_size
+              << ", status = " << pstatus.ToString();
           auto reduction_endpoint =
               state_.create_progressive_stream(reduction_id, buffer);
           {
