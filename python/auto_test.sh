@@ -7,7 +7,7 @@ mkdir -p log
 for num_nodes in 8
 do
 
-for test_name in multicast reduce allreduce; do
+for test_name in multicast reduce allreduce gather allgather; do
   for i in `seq 20 30`; do
     for test_index in `seq 1 $1`; do
       obj_size=$((2**$i))
