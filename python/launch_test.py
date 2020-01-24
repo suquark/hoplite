@@ -23,6 +23,8 @@ parser.add_argument('-s', '--object-size', type=int, required=True,
 args = parser.parse_args()
 args_dict = utils.extract_dict_from_args(args)
 
+os.system('../check_env.py')
+
 import test_functions
 
 utils.start_location_server()
