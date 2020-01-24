@@ -116,7 +116,7 @@ void DistributedObjectStore::poll_and_reduce(
       std::string address = ready_id_message.sender_ip;
       size_t object_size = ready_id_message.object_size;
       const std::string &inband_data = ready_id_message.inband_data;
-      if (check_and_store_inband_data(object_id, object_size, inband_data)) {
+      if (check_and_store_inband_data(ready_id, object_size, inband_data)) {
         // mark this object as local
         address = my_address_;
       }
@@ -237,12 +237,12 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
 bool DistributedObjectStore::check_and_store_inband_data(
     const ObjectID &object_id, int64_t object_size,
     const std::string &inband_data) {
-  if (reply.inband_data.size() > 0) {
-    DCHECK(reply.inband_data.length() <= inband_data_size_limit)
+  if (inband_data.size() > 0) {
+    DCHECK(inband_data.size() <= inband_data_size_limit)
         << "unexpected inband data size";
     std::shared_ptr<Buffer> data;
     local_store_client_.Create(object_id, object_size, &data);
-    data->CopyFrom(reply.inband_data);
+    data->CopyFrom(inband_data);
     local_store_client_.Seal(object_id);
     return true;
   }
