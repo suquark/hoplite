@@ -73,14 +73,19 @@ else:
     for worker in workers:
         gradients[worker.compute_gradients.remote(current_weights)] = worker
 
-    for i in range(iterations * num_workers):
-        ready_gradient_list, _ = ray.wait(list(gradients), num_returns=int(num_workers * n_async_workers_fraction))
-        ready_gradient_id = ready_gradient_list[0]
-        worker = gradients.pop(ready_gradient_id)
+    total_iterations = iterations * num_workers
+    current_iterations = 0
+    i = 0
 
+    while current_iterations < total_iterations:
+        ready_gradient_list, _ = ray.wait(list(gradients), num_returns=int(num_workers * n_async_workers_fraction))
+        ready_workers = [gradients.pop(wid) for wid in ready_gradient_list]
+        current_iterations += len(ready_workers)
+        i += 1
         # Compute and apply gradients.
-        current_weights = ps.apply_gradients.remote(*[ready_gradient_id])
-        gradients[worker.compute_gradients.remote(current_weights)] = worker
+        current_weights = ps.apply_gradients.remote(*ready_gradient_list)
+        for worker in ready_workers:
+            gradients[worker.compute_gradients.remote(current_weights)] = worker
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model after every 10 updates.
