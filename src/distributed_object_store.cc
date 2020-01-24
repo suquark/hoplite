@@ -237,7 +237,9 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
 bool DistributedObjectStore::check_and_store_inband_data(
     const ObjectID &object_id, int64_t object_size,
     const std::string &inband_data) {
+  TIMELINE("DistributedObjectStore::check_and_store_inband_data");
   if (inband_data.size() > 0) {
+    LOG(DEBUG) << "fetching object directly from inband data";
     DCHECK(inband_data.size() <= inband_data_size_limit)
         << "unexpected inband data size";
     std::shared_ptr<Buffer> data;
