@@ -34,7 +34,8 @@ public:
 
   void ReceiveObjectNotification(const ObjectID &object_id,
                                  const std::string &sender_ip,
-                                 size_t object_size);
+                                 size_t object_size,
+                                 const std::string &inband_data);
 
 private:
   std::mutex notification_mutex_;
