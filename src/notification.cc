@@ -125,7 +125,7 @@ public:
   grpc::Status GetLocationAsync(grpc::ServerContext *context,
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
-    std::lock_guard<std::mutex> guard(notification_mutex_);
+    std::lock_guard<std::mutex> guard(object_location_mutex_);
     std::string receiver_ip = request->receiver_ip();
     std::string query_id = request->query_id();
     // TODO: pass in repeated object ids will send twice.
@@ -188,7 +188,6 @@ private:
   int number_of_nodes_;
   std::unordered_set<std::string> participants_;
   const int port_;
-  std::mutex notification_mutex_;
   struct receiver_queue_element {
     bool sync;
     std::shared_ptr<std::mutex> sync_mutex;
