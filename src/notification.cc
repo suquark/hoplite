@@ -79,7 +79,7 @@ public:
     bool finished = request->finished();
     size_t object_size = request->object_size();
     if (request->has_inband_data_case() == WriteLocationRequest::kInbandData) {
-      PutInBandData(object_id, request->inband_data());
+      put_inband_data(object_id, request->inband_data());
     }
     // Weights of finished objects will be always larger than the weights of
     // unfinished objects. All finished objects as well as unfinished objects
@@ -122,7 +122,7 @@ public:
         << "result_sender_ip memory leak detected";
     reply->set_sender_ip(*result_sender_ip);
     reply->set_object_size(object_size_[object_id]);
-    reply->set_inband_data(GetInbandData(object_id));
+    reply->set_inband_data(get_inband_data(object_id));
     return grpc::Status::OK;
   }
 
@@ -144,6 +144,23 @@ public:
   }
 
 private:
+  void put_inband_data(const ObjectID &key, const std::string &value) {
+    while (directory_lock_.test_and_set(std::memory_order_acquire))
+      ;
+    inband_data_directory_[key] = value;
+    directory_lock_.clear(std::memory_order_release);
+  }
+
+  std::string get_inband_data(const ObjectID &key) {
+    while (directory_lock_.test_and_set(std::memory_order_acquire))
+      ;
+    // we will return an empty string if it does not exist
+    auto data = inband_data_directory_[key];
+    directory_lock_.clear(std::memory_order_release);
+    // it's likely that return copy will be avoided by the compiler.
+    return data;
+  }
+
   void try_send_notification(const ObjectID &object_id) {
     if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
         object_location_store_ready_.find(object_id) !=
@@ -183,11 +200,18 @@ private:
     request.set_sender_ip(sender_ip);
     request.set_query_id(query_id);
     request.set_object_size(object_size_[object_id]);
-    request.set_inband_data(GetInbandData(object_id));
+    request.set_inband_data(get_inband_data(object_id));
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
   }
+
+  // Inband data directory and its atomic lock.
+  // TODO: We should implement LRU gabage collection for the inband data
+  // storage. But it doesn't matter now because these data take too few
+  // space.
+  std::unordered_map<ObjectID, std::string> inband_data_directory_;
+  std::atomic_flag directory_lock_ = ATOMIC_FLAG_INIT;
 
   std::mutex barrier_mutex_;
   int number_of_nodes_;
