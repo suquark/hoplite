@@ -217,10 +217,12 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     // pointer could still be nullptr at creation.
     reduction_task_pair.reduction_thread.join();
     auto &stream = reduction_task_pair.stream;
-    DCHECK(stream != nullptr);
-    // wait until the object is fully reduced
-    stream->wait();
-    local_store_client_.Seal(object_id);
+    if (stream) {
+      LOG(DEBUG) << "waiting the reduction stream";
+      // wait until the object is fully reduced
+      stream->wait();
+      local_store_client_.Seal(object_id);
+    }
     // TODO: should we add this line?
     // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
     //                           stream->data());
