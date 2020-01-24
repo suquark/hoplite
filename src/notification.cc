@@ -115,6 +115,7 @@ public:
         {true, sync_mutex, result_sender_ip, "", ""});
     try_send_notification(object_id);
     l.unlock();
+    // deadlock here!!!!!!!!
     sync_mutex->lock();
     l.lock();
     DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
