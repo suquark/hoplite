@@ -68,12 +68,13 @@ if not args.enable_async:
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 else:
     print("Running Asynchronous Parameter Server Training.")
+    n_async_workers_fraction = 0.5
     gradients = {}
     for worker in workers:
         gradients[worker.compute_gradients.remote(current_weights)] = worker
 
     for i in range(iterations * num_workers):
-        ready_gradient_list, _ = ray.wait(list(gradients))
+        ready_gradient_list, _ = ray.wait(list(gradients), num_returns=int(num_workers * n_async_workers_fraction))
         ready_gradient_id = ready_gradient_list[0]
         worker = gradients.pop(ready_gradient_id)
 
