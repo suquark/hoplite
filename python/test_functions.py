@@ -42,11 +42,10 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
     store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed']).encode().rjust(20, b'\0'))
     if world_rank == 0:
-        # ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
         buffer = store_lib.Buffer.from_buffer(array)
         print("Buffer created, hash =", hash(buffer))
-        ray.worker.global_worker.put_object(object_id, array)
+        ray.worker.global_worker.put_object(array, object_id=object_id)
         barrier(world_rank, notification_address, notification_port, world_size)
     else:
         time.sleep(20)
@@ -65,10 +64,9 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
 def ray_reduce(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
-    # ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
-    ray.worker.global_worker.put_object(object_id, array)
+    ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
     time.sleep(5)
@@ -105,12 +103,9 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
     store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     reduce_id = ray.ObjectID(str(args_dict['seed'] + world_size).encode().rjust(20, b'\0'))
-    # if world_rank == 0:
-    #    ray.worker.global_worker.core_worker.free_objects([reduce_id], False, True)
-    # ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
-    ray.worker.global_worker.put_object(object_id, array)
+    ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
     time.sleep(5)
@@ -133,7 +128,7 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
             if not unready_set:
                 break
             ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
-        ray.worker.global_worker.put_object(reduce_id, reduce_result)
+        ray.worker.global_worker.put_object(reduce_result, object_id=reduce_id)
 
     ready_set, unready_set = ray.wait([reduce_id], num_returns=1, timeout=20)
     allreduce_result = ray.get(ready_set[0])
@@ -148,10 +143,9 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
 def ray_gather(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
-    # ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
-    ray.worker.global_worker.put_object(object_id, array)
+    ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
     time.sleep(5)
@@ -185,10 +179,9 @@ def ray_gather(args_dict, notification_address, world_size, world_rank, object_s
 def ray_allgather(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
-    #ray.worker.global_worker.core_worker.free_objects([object_id], False, True)
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
-    ray.worker.global_worker.put_object(object_id, array)
+    ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
     time.sleep(5)
