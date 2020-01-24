@@ -61,6 +61,7 @@ Status LocalStoreClient::Get(const ObjectID &object_id,
   object_buffer->data = buffers_[object_id];
   object_buffer->metadata = nullptr;
   object_buffer->device_num = 0;
+  return Status::OK();
 }
 
 Status LocalStoreClient::Delete(const ObjectID &object_id) {
