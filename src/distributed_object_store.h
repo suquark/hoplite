@@ -62,7 +62,7 @@ private:
     DCHECK(output->Size() % sizeof(T) == 0)
         << "Buffer size cannot be divide whole by the element size";
     auto num_elements = output->Size() / sizeof(T);
-    T *target = output->MutableData();
+    T *target = (T *)output->MutableData();
     bool first = true;
     // TODO: implement parallel reducing
     for (const auto &object_id : object_ids) {
