@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import subprocess
+import numpy as np
 import os
 import socket
 import sys
@@ -30,6 +31,8 @@ notification_address = utils.get_my_address()
 ray.init(address='auto', load_code_from_local=True)
 
 tasks = []
+
+args_dict['seed'] = np.random.randint(0, 2**30)
 
 for rank in range(args.world_size):
     if args.type_of_test == 'ray-multicast':
