@@ -189,12 +189,13 @@ void DistributedObjectStore::poll_and_reduce(
     reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
                                               local_object_ids, my_address_,
                                               true, &tail_objectid);
+    DCHECK(reply_ok);
   } else {
     // more than 2 nodes
     reply_ok = object_control_.InvokeReduceTo(
         tail_address, reduction_id, local_object_ids, my_address_, true);
+    DCHECK(reply_ok);
   }
-  DCHECK(reply_ok);
 }
 
 void DistributedObjectStore::Get(const ObjectID &object_id,
