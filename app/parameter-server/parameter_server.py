@@ -62,7 +62,8 @@ if not args.enable_async:
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model.
-            model.set_weights(ray.get(current_weights))
+            ps.set_parameters.remote(current_weights)
+            model.set_weights(ray.get(ps.get_weights.remote()))
             accuracy = evaluate(model, test_loader)
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 else:
@@ -82,7 +83,8 @@ else:
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model after every 10 updates.
-            model.set_weights(ray.get(current_weights))
+            ps.set_parameters.remote(current_weights)
+            model.set_weights(ray.get(ps.get_weights.remote()))
             accuracy = evaluate(model, test_loader)
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 
