@@ -23,6 +23,9 @@ public:
   Status Get(const std::vector<ObjectID> &object_ids,
              std::vector<ObjectBuffer> *object_buffers);
 
+  // Get single object from the store.
+  Status Get(const ObjectID &object_id, ObjectBuffer *object_buffer);
+
   Status Delete(const ObjectID &object_id);
 
 private:

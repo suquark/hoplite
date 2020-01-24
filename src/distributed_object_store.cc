@@ -106,6 +106,9 @@ void DistributedObjectStore::poll_and_reduce(
   ObjectID tail_objectid;
   std::string tail_address;
 
+  // the buffer for reduction results
+  std::shared_ptr<Buffer> buffer;
+
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
     std::vector<NotificationMessage> ready_ids =
@@ -125,6 +128,16 @@ void DistributedObjectStore::poll_and_reduce(
           << " location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
                 << ", object_id = " << ready_id.ToString();
+
+      if (!buffer) {
+        // create the endpoint buffer
+        auto pstatus =
+            local_store_client_.Create(reduction_id, object_size, &buffer);
+        DCHECK(pstatus.ok())
+            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
+            << " size = " << object_size << ", status = " << pstatus.ToString();
+      }
+
       if (address == my_address_) {
         // move local objects to another address, because there's no
         // necessary to transfer them through the network.
@@ -133,14 +146,6 @@ void DistributedObjectStore::poll_and_reduce(
         // wait until at lease 2 objects in nodes except the master node are
         // ready.
         if (node_index == 0) {
-          // create the endpoint buffer
-          std::shared_ptr<Buffer> buffer;
-          auto pstatus =
-              local_store_client_.Create(reduction_id, object_size, &buffer);
-          DCHECK(pstatus.ok())
-              << "Plasma failed to create reduction_id = " << reduction_id.Hex()
-              << " size = " << object_size
-              << ", status = " << pstatus.ToString();
           auto reduction_endpoint =
               state_.create_progressive_stream(reduction_id, buffer);
           {
@@ -171,9 +176,14 @@ void DistributedObjectStore::poll_and_reduce(
   // send the reduced object back to the master node.
   bool reply_ok = false;
   if (node_index == 0) {
-    // all the objects are local
-    // TODO: add support when all the objects are local
-    LOG(FATAL) << "All the objects are local";
+    // all the objects are local, we just reduce them locally
+    LOG(INFO) << "All the objects to be reduced are local";
+    // TODO: support more reduction types & ops
+    reduce_local_objects<float>(local_object_ids, buffer.get());
+    local_store_client_.Seal(reduction_id);
+    // write the location just like in 'Put()'
+    gcs_client_.WriteLocation(reduction_id, my_address_, true, buffer->Size(),
+                              buffer->Data());
   } else if (node_index == 1) {
     // only two nodes, no streaming needed
     reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
@@ -202,6 +212,8 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     l.unlock();
     // ==> This ObjectID belongs to a reduction task.
     auto &reduction_task_pair = search->second;
+    // we must join the thread first, because the stream
+    // pointer could still be nullptr at creation.
     reduction_task_pair.reduction_thread.join();
     auto &stream = reduction_task_pair.stream;
     DCHECK(stream != nullptr);
@@ -229,9 +241,9 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   }
 
   // get object from local store
-  std::vector<ObjectBuffer> object_buffers;
-  local_store_client_.Get({object_id}, &object_buffers);
-  *result = object_buffers[0].data;
+  ObjectBuffer object_buffer;
+  local_store_client_.Get(object_id, &object_buffer);
+  *result = object_buffer.data;
 }
 
 bool DistributedObjectStore::check_and_store_inband_data(
