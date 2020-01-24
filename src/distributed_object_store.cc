@@ -56,7 +56,8 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                        << ", status = " << pstatus.ToString();
   ptr->CopyFrom(*buffer);
   local_store_client_.Seal(object_id);
-  gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size());
+  gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
+                            buffer->Data());
 }
 
 ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
@@ -114,6 +115,11 @@ void DistributedObjectStore::poll_and_reduce(
       ObjectID ready_id = ready_id_message.object_id;
       std::string address = ready_id_message.sender_ip;
       size_t object_size = ready_id_message.object_size;
+      const std::string &inband_data = ready_id_message.inband_data;
+      if (check_and_store_inband_data(object_id, object_size, inband_data)) {
+        // mark this object as local
+        address = my_address_;
+      }
       DCHECK(address != "")
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
@@ -197,23 +203,28 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     // ==> This ObjectID belongs to a reduction task.
     auto &reduction_task_pair = search->second;
     reduction_task_pair.reduction_thread.join();
+    auto &stream = reduction_task_pair.stream;
+    DCHECK(stream != nullptr);
     // wait until the object is fully reduced
-    DCHECK(reduction_task_pair.stream != nullptr);
-    reduction_task_pair.stream->wait();
+    stream->wait();
+    local_store_client_.Seal(object_id);
+    // TODO: should we add this line?
+    // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
+    //                           stream->data());
     l.lock();
     reduction_tasks_.erase(object_id);
     l.unlock();
-    local_store_client_.Seal(object_id);
   } else {
     l.unlock();
     if (!local_store_client_.ObjectExists(object_id)) {
       // ==> This ObjectID refers to a remote object.
-      SyncReply reply_pair = gcs_client_.GetLocationSync(object_id);
-      std::string address = reply_pair.sender_ip;
-      size_t object_size = reply_pair.object_size;
-      // send pull request to one of the location
-      DCHECK(object_control_.PullObject(address, object_id))
-          << "Failed to pull object";
+      SyncReply reply = gcs_client_.GetLocationSync(object_id);
+      if (!check_and_store_inband_data(object_id, reply.object_size,
+                                       reply.inband_data)) {
+        // send pull request to one of the location
+        DCHECK(object_control_.PullObject(reply.sender_ip, object_id))
+            << "Failed to pull object";
+      }
     }
   }
 
@@ -221,4 +232,19 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   std::vector<ObjectBuffer> object_buffers;
   local_store_client_.Get({object_id}, &object_buffers);
   *result = object_buffers[0].data;
+}
+
+bool DistributedObjectStore::check_and_store_inband_data(
+    const ObjectID &object_id, int64_t object_size,
+    const std::string &inband_data) {
+  if (reply.inband_data.size() > 0) {
+    DCHECK(reply.inband_data.length() <= inband_data_size_limit)
+        << "unexpected inband data size";
+    std::shared_ptr<Buffer> data;
+    local_store_client_.Create(object_id, object_size, &data);
+    data->CopyFrom(reply.inband_data);
+    local_store_client_.Seal(object_id);
+    return true;
+  }
+  return false;
 }

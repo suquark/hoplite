@@ -100,6 +100,8 @@ void ObjectSender::send_object(const PullRequest *request) {
     // fetch partial object in memory
     LOG(DEBUG) << "[GrpcServer] fetching a partial object";
     object_size = stream->size();
+    // we need this data pointer for 'WriteLocation'
+    object_buffer = stream->data();
   } else {
     // fetch object from Plasma
     LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
@@ -136,9 +138,8 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   close(conn_fd);
 
-  gcs_client_.WriteLocation(object_id, my_address_, true, object_size);
-
-  LOG(DEBUG) << "function returned";
+  gcs_client_.WriteLocation(object_id, my_address_, true, object_size,
+                            object_buffer);
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
@@ -185,6 +186,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   if (strcmp(ack, "OK") != 0)
     LOG(FATAL) << "ack is wrong";
 
+  // TODO: what does this piece of code mean? I think it shouldn't work
+  // because 'dst_object_ids' are not in this node.
   for (auto &oid_str : request->dst_object_ids()) {
     gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true,
                               object_size);

@@ -38,12 +38,14 @@ public:
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
     size_t object_size = request->object_size();
+    std::string inband_data = request->inband_data();
     std::shared_ptr<ObjectNotifications> notifications;
     {
       std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
       notifications = object_notifications_pool_[query_id];
     }
-    notifications->ReceiveObjectNotification(object_id, sender_ip, object_size);
+    notifications->ReceiveObjectNotification(object_id, sender_ip, object_size,
+                                             inband_data);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -63,10 +65,10 @@ std::vector<NotificationMessage> ObjectNotifications::GetNotifications() {
 }
 
 void ObjectNotifications::ReceiveObjectNotification(
-    const ObjectID &object_id, const std::string &sender_ip,
-    size_t object_size) {
+    const ObjectID &object_id, const std::string &sender_ip, size_t object_size,
+    const std::string &inband_data) {
   std::unique_lock<std::mutex> l(notification_mutex_);
-  ready_.push_back({object_id, sender_ip, object_size});
+  ready_.push_back({object_id, sender_ip, object_size, inband_data});
   l.unlock();
   notification_cv_.notify_one();
 }
@@ -105,8 +107,8 @@ GlobalControlStoreClient::GlobalControlStoreClient(
 
 void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                                              const std::string &sender_ip,
-                                             bool finished,
-                                             size_t object_size) {
+                                             bool finished, size_t object_size,
+                                             const uint8_t *inband_data) {
   TIMELINE("GlobalControlStoreClient::WriteLocation");
   LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip << ".";
@@ -117,6 +119,11 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
   request.set_sender_ip(sender_ip);
   request.set_finished(finished);
   request.set_object_size(object_size);
+  // inline small data buffer into the message
+  if (finished && object_size <= inband_data_size_limit &&
+      inband_data != nullptr) {
+    request.set_inband_data(inband_data, object_size);
+  }
   auto status = notification_stub_->WriteLocation(&context, request, &reply);
   DCHECK(status.ok()) << status.error_message();
   DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
@@ -130,7 +137,8 @@ SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
   notification_stub_->GetLocationSync(&context, request, &reply);
-  return {std::string(reply.sender_ip()), reply.object_size()};
+  return {std::string(reply.sender_ip()), reply.object_size(),
+          reply.inband_data()};
 }
 
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(

@@ -78,6 +78,9 @@ public:
     std::string sender_ip = request->sender_ip();
     bool finished = request->finished();
     size_t object_size = request->object_size();
+    if (request->has_inband_data_case() == WriteLocationRequest::kInbandData) {
+      PutInBandData(object_id, request->inband_data());
+    }
     // Weights of finished objects will be always larger than the weights of
     // unfinished objects. All finished objects as well as unfinished objects
     // will have random weights.
@@ -119,6 +122,7 @@ public:
         << "result_sender_ip memory leak detected";
     reply->set_sender_ip(*result_sender_ip);
     reply->set_object_size(object_size_[object_id]);
+    reply->set_inband_data(GetInbandData(object_id));
     return grpc::Status::OK;
   }
 
@@ -179,6 +183,7 @@ private:
     request.set_sender_ip(sender_ip);
     request.set_query_id(query_id);
     request.set_object_size(object_size_[object_id]);
+    request.set_inband_data(GetInbandData(object_id));
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();

@@ -75,6 +75,9 @@ message WriteLocationRequest {
   bytes sender_ip = 2;
   bool finished = 3;
   uint64 object_size = 4;
+  oneof has_inband_data {
+    bytes inband_data = 5;
+  }
 }
 
 message WriteLocationReply {
@@ -88,6 +91,7 @@ message GetLocationSyncRequest {
 message GetLocationSyncReply {
   bytes sender_ip = 1;
   uint64 object_size = 2;
+  bytes inband_data = 3;
 }
 
 message GetLocationAsyncRequest {
@@ -105,6 +109,7 @@ message GetLocationAsyncAnswerRequest {
   bytes sender_ip = 2;
   bytes query_id = 3;
   int64 object_size = 4;
+  bytes inband_data = 5;
 }
 
 message GetLocationAsyncAnswerReply {

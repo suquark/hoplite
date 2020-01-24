@@ -14,14 +14,18 @@
 
 struct NotificationListenerImpl;
 
+constexpr int64_t inband_data_size_limit = 4096;
+
 struct NotificationMessage {
   ObjectID object_id;
   std::string sender_ip;
   size_t object_size;
+  std::string inband_data;
 };
 struct SyncReply {
   std::string sender_ip;
   size_t object_size;
+  std::string inband_data;
 };
 
 class ObjectNotifications {
@@ -47,7 +51,8 @@ public:
 
   // Write object location to the notification server.
   void WriteLocation(const ObjectID &object_id, const std::string &my_address,
-                     bool finished, size_t object_size);
+                     bool finished, size_t object_size,
+                     const uint8_t *inband_data = nullptr);
 
   // Get object location from the notification server.
   SyncReply GetLocationSync(const ObjectID &object_id);

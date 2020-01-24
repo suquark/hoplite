@@ -52,6 +52,10 @@ private:
   void poll_and_reduce(const std::vector<ObjectID> object_ids,
                        const ObjectID reduction_id);
 
+  bool check_and_store_inband_data(const ObjectID &object_id,
+                                   int64_t object_size,
+                                   const std::string &inband_data);
+
   // order of fields should be kept for proper initialization order
   std::string my_address_;
   std::string redis_address_;

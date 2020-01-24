@@ -13,6 +13,7 @@ class Buffer {
     void CopyFrom(const std::vector<uint8_t> &data);
     void CopyFrom(const uint8_t *data, size_t size);
     void CopyFrom(const Buffer &buffer);
+    void CopyFrom(const std::string &data);
 
     uint8_t* MutableData();
     const uint8_t* Data() const;
