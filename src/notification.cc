@@ -167,7 +167,7 @@ private:
     std::string data;
     auto search = inband_data_directory_.find(key);
     if (search != inband_data_directory_.end()) {
-      data = search.second;
+      data = search->second;
     }
     directory_lock_.clear(std::memory_order_release);
     // likely that return copy will be avoided by the compiler
