@@ -86,6 +86,7 @@ message WriteLocationReply {
 
 message GetLocationSyncRequest {
   bytes object_id = 1;
+  bool occupying = 2;
 }
 
 message GetLocationSyncReply {
@@ -98,6 +99,7 @@ message GetLocationAsyncRequest {
   repeated bytes object_ids = 1;
   bytes receiver_ip = 2;
   bytes query_id = 3;
+  bool occupying = 4;
 }
 
 message GetLocationAsyncReply {

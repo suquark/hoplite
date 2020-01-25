@@ -138,6 +138,11 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   close(conn_fd);
 
+  // TODO: this is for reference counting in the notification service.
+  // When we get an object's location from the server for broadcast, we
+  // reduce the reference count. This line is used to increase the ref count
+  // back after we finish the sending. It is better to move this line to the
+  // receiver side since the decrease is done by the receiver.
   gcs_client_.WriteLocation(object_id, my_address_, true, object_size,
                             object_buffer);
 }
@@ -185,13 +190,6 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   DCHECK(!status) << "socket recv error: ack, error code = " << errno;
   if (strcmp(ack, "OK") != 0)
     LOG(FATAL) << "ack is wrong";
-
-  // TODO: what does this piece of code mean? I think it shouldn't work
-  // because 'dst_object_ids' are not in this node.
-  for (auto &oid_str : request->dst_object_ids()) {
-    gcs_client_.WriteLocation(ObjectID::FromBinary(oid_str), my_address_, true,
-                              object_size);
-  }
 
   close(conn_fd);
 }

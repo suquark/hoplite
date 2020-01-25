@@ -56,11 +56,11 @@ public:
                      const uint8_t *inband_data = nullptr);
 
   // Get object location from the notification server.
-  SyncReply GetLocationSync(const ObjectID &object_id);
+  SyncReply GetLocationSync(const ObjectID &object_id, bool occupying);
 
   std::shared_ptr<ObjectNotifications>
   GetLocationAsync(const std::vector<ObjectID> &object_ids,
-                   const std::string &query_id);
+                   const std::string &query_id, bool occupying);
 
   inline std::thread Run() {
     std::thread notification_thread(&GlobalControlStoreClient::worker_loop,

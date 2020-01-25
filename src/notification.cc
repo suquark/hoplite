@@ -112,7 +112,7 @@ public:
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
     pending_receiver_ips_[object_id].push(
-        {true, sync_mutex, result_sender_ip, "", ""});
+        {true, sync_mutex, result_sender_ip, "", "", request->occupying()});
     try_send_notification(object_id);
     l.unlock();
     // deadlock here!!!!!!!!
@@ -136,8 +136,9 @@ public:
     // TODO: pass in repeated object ids will send twice.
     for (auto object_id_it : request->object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].push(
-          {false, nullptr, nullptr, receiver_ip, query_id});
+      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
+                                             receiver_ip, query_id,
+                                             request->occupying()});
       try_send_notification(object_id);
     }
     reply->set_ok(true);
@@ -185,7 +186,7 @@ private:
             object_location_store_ready_[object_id].top().second;
         receiver_queue_element receiver =
             pending_receiver_ips_[object_id].front();
-        if (!has_inband_data(object_id)) {
+        if (!has_inband_data(object_id) && receiver.occupying) {
           // In this case, the client will take the ownership
           // of the object transfer. Just pop it here so later
           // requests of this object ID will be pending.
@@ -242,6 +243,7 @@ private:
     std::shared_ptr<std::string> result_sender_ip;
     std::string receiver_ip;
     std::string query_id;
+    bool occupying;
   };
   std::unordered_map<ObjectID, std::queue<receiver_queue_element>>
       pending_receiver_ips_;
