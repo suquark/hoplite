@@ -155,7 +155,7 @@ private:
   bool has_inband_data(const ObjectID &key) {
     while (directory_lock_.test_and_set(std::memory_order_acquire))
       ;
-    bool exist = directory_lock_.count(key) > 0;
+    bool exist = inband_data_directory_.count(key) > 0;
     directory_lock_.clear(std::memory_order_release);
     return exist;
   }
