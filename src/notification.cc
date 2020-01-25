@@ -152,13 +152,25 @@ private:
     directory_lock_.clear(std::memory_order_release);
   }
 
+  bool has_inband_data(onst ObjectID &key) {
+    while (directory_lock_.test_and_set(std::memory_order_acquire))
+      ;
+    bool exist = directory_lock_.count(key) > 0;
+    directory_lock_.clear(std::memory_order_release);
+    return exist;
+  }
+
   std::string get_inband_data(const ObjectID &key) {
     while (directory_lock_.test_and_set(std::memory_order_acquire))
       ;
-    // we will return an empty string if it does not exist
-    auto data = inband_data_directory_[key];
+    // return an empty string if the object ID does not exist
+    std::string data;
+    auto search = inband_data_directory_.find(key);
+    if (search != inband_data_directory_.end()) {
+      data = search.second;
+    }
     directory_lock_.clear(std::memory_order_release);
-    // it's likely that return copy will be avoided by the compiler.
+    // likely that return copy will be avoided by the compiler
     return data;
   }
 
@@ -172,7 +184,12 @@ private:
             object_location_store_ready_[object_id].top().second;
         receiver_queue_element receiver =
             pending_receiver_ips_[object_id].front();
-        object_location_store_ready_[object_id].pop();
+        if (!has_inband_data(object_id)) {
+          // In this case, the client will take the ownership
+          // of the object transfer. Just pop it here so later
+          // requests of this object ID will be pending.
+          object_location_store_ready_[object_id].pop();
+        }
         pending_receiver_ips_[object_id].pop();
         if (receiver.sync) {
           *receiver.result_sender_ip = sender_ip;
