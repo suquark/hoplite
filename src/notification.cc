@@ -175,6 +175,7 @@ private:
   }
 
   void try_send_notification(const ObjectID &object_id) {
+    TIMELINE("notification try_send_notification");
     if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
         object_location_store_ready_.find(object_id) !=
             object_location_store_ready_.end()) {
