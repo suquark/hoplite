@@ -178,7 +178,7 @@ void TEST4(const std::string &my_address) {
 }
 
 void TEST5(const std::string &my_address) {
-  LOG(INFO) << "=========== TEST3 ===========";
+  LOG(INFO) << "=========== TEST5 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
@@ -207,6 +207,7 @@ int main(int argc, char **argv) {
   TEST2(my_address);
   TEST3(my_address);
   TEST4(my_address);
+  TEST5(my_address);
   notification_listener_thread.join();
   return 0;
 }
