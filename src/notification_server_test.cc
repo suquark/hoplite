@@ -171,8 +171,8 @@ void TEST4(const std::string &my_address) {
   LOG(INFO) << "object_id: " << object_id.Hex()
             << " sender_ip_1: " << sender_ip_1
             << " sender_ip_2: " << sender_ip_2;
-  getlocationasync(object_id, my_address, "TEST4_query_id", true));
-  write_location(object_id, sender_ip_1, object_size;
+  getlocationasync(object_id, my_address, "TEST4_query_id", true);
+  write_location(object_id, sender_ip_1, object_size);
   write_location(object_id, sender_ip_2, object_size);
   getlocationsync(object_id, true);
 }
