@@ -95,7 +95,7 @@ void DistributedObjectStore::poll_and_reduce(
   // in a thread.
 
   std::shared_ptr<ObjectNotifications> notifications =
-      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary());
+      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
 
   // states for enumerating the chain
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
@@ -208,7 +208,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     l.unlock();
     if (!local_store_client_.ObjectExists(object_id)) {
       // ==> This ObjectID refers to a remote object.
-      SyncReply reply_pair = gcs_client_.GetLocationSync(object_id);
+      SyncReply reply_pair = gcs_client_.GetLocationSync(object_id, true);
       std::string address = reply_pair.sender_ip;
       size_t object_size = reply_pair.object_size;
       // send pull request to one of the location

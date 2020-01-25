@@ -136,6 +136,11 @@ void ObjectSender::send_object(const PullRequest *request) {
 
   close(conn_fd);
 
+  // TODO: this is for reference counting in the notification service. 
+  // When we get an object's location from the server for broadcast, we 
+  // reduce the reference count. This line is used to increase the ref count
+  // back after we finish the sending. It is better to move this line to the
+  // receiver side since the decrease is done by the receiver.
   gcs_client_.WriteLocation(object_id, my_address_, true, object_size);
 
   LOG(DEBUG) << "function returned";
