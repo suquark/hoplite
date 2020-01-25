@@ -109,7 +109,7 @@ public:
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
     pending_receiver_ips_[object_id].push(
-        {true, sync_mutex, result_sender_ip, "", ""});
+        {true, sync_mutex, result_sender_ip, "", "", request->occupying()});
     try_send_notification(object_id);
     l.unlock();
     sync_mutex->lock();
@@ -125,14 +125,15 @@ public:
   grpc::Status GetLocationAsync(grpc::ServerContext *context,
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
-    std::lock_guard<std::mutex> guard(notification_mutex_);
+    std::lock_guard<std::mutex> guard(object_location_mutex_);
     std::string receiver_ip = request->receiver_ip();
     std::string query_id = request->query_id();
     // TODO: pass in repeated object ids will send twice.
     for (auto object_id_it : request->object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].push(
-          {false, nullptr, nullptr, receiver_ip, query_id});
+      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
+                                             receiver_ip, query_id,
+                                             request->occupying()});
       try_send_notification(object_id);
     }
     reply->set_ok(true);
@@ -150,7 +151,9 @@ private:
             object_location_store_ready_[object_id].top().second;
         receiver_queue_element receiver =
             pending_receiver_ips_[object_id].front();
-        object_location_store_ready_[object_id].pop();
+        if (receiver.occupying) {
+          object_location_store_ready_[object_id].pop();
+        }
         pending_receiver_ips_[object_id].pop();
         if (receiver.sync) {
           *receiver.result_sender_ip = sender_ip;
@@ -188,13 +191,13 @@ private:
   int number_of_nodes_;
   std::unordered_set<std::string> participants_;
   const int port_;
-  std::mutex notification_mutex_;
   struct receiver_queue_element {
     bool sync;
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
     std::string receiver_ip;
     std::string query_id;
+    bool occupying;
   };
   std::unordered_map<ObjectID, std::queue<receiver_queue_element>>
       pending_receiver_ips_;

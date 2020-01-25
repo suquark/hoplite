@@ -123,18 +123,21 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                      << " failed.";
 }
 
-SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id) {
+SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
+                                                    bool occupying) {
   TIMELINE("GetLocationSync");
   grpc::ClientContext context;
   GetLocationSyncRequest request;
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
+  request.set_occupying(occupying);
   notification_stub_->GetLocationSync(&context, request, &reply);
   return {std::string(reply.sender_ip()), reply.object_size()};
 }
 
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
-    const std::vector<ObjectID> &object_ids, const std::string &query_id) {
+    const std::vector<ObjectID> &object_ids, const std::string &query_id,
+    bool occupying) {
   std::shared_ptr<ObjectNotifications> notifications =
       std::make_shared<ObjectNotifications>();
   {
@@ -146,6 +149,7 @@ std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
   GetLocationAsyncReply reply;
   request.set_receiver_ip(my_address_);
   request.set_query_id(query_id);
+  request.set_occupying(occupying);
   for (auto object_id : object_ids) {
     request.add_object_ids(object_id.Binary());
   }

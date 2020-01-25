@@ -99,7 +99,7 @@ void write_location(const ObjectID &object_id, const std::string &sender_ip,
 }
 
 void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip,
-                      const std::string &query_id) {
+                      const std::string &query_id, bool occupying) {
   TIMELINE("getlocationasync");
   LOG(INFO) << "Async get location of " << object_id.Hex();
   grpc::ClientContext context;
@@ -108,18 +108,20 @@ void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip,
   request.add_object_ids(object_id.Binary());
   request.set_receiver_ip(receiver_ip);
   request.set_query_id(query_id);
+  request.set_occupying(occupying);
   stub->GetLocationAsync(&context, request, &reply);
   DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
                      << " failed.";
 }
 
-void getlocationsync(const ObjectID &object_id) {
+void getlocationsync(const ObjectID &object_id, bool occupying) {
   TIMELINE("getlocationsync");
   LOG(INFO) << "Sync get location of " << object_id.Hex();
   grpc::ClientContext context;
   GetLocationSyncRequest request;
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
+  request.set_occupying(occupying);
   stub->GetLocationSync(&context, request, &reply);
   LOG(INFO) << "getlocationsync reply: " << reply.sender_ip()
             << " Size: " << reply.object_size();
@@ -132,7 +134,7 @@ void TEST1() {
   size_t object_size = 100;
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
   write_location(object_id, sender_ip, object_size);
-  getlocationsync(object_id);
+  getlocationsync(object_id, true);
 }
 
 void TEST2(const std::string &my_address) {
@@ -142,7 +144,7 @@ void TEST2(const std::string &my_address) {
   size_t object_size = 200;
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
   write_location(object_id, sender_ip, object_size);
-  getlocationasync(object_id, my_address, "TEST2_query_id");
+  getlocationasync(object_id, my_address, "TEST2_query_id", true);
 }
 
 void TEST3(const std::string &my_address) {
@@ -156,8 +158,8 @@ void TEST3(const std::string &my_address) {
             << " sender_ip_2: " << sender_ip_2;
   write_location(object_id, sender_ip_1, object_size);
   write_location(object_id, sender_ip_2, object_size);
-  getlocationasync(object_id, my_address, "TEST3_query_id");
-  getlocationsync(object_id);
+  getlocationasync(object_id, my_address, "TEST3_query_id", true);
+  getlocationsync(object_id, true);
 }
 
 void TEST4(const std::string &my_address) {
@@ -169,10 +171,26 @@ void TEST4(const std::string &my_address) {
   LOG(INFO) << "object_id: " << object_id.Hex()
             << " sender_ip_1: " << sender_ip_1
             << " sender_ip_2: " << sender_ip_2;
-  getlocationasync(object_id, my_address, "TEST4_query_id");
+  getlocationasync(object_id, my_address, "TEST4_query_id", true);
   write_location(object_id, sender_ip_1, object_size);
   write_location(object_id, sender_ip_2, object_size);
-  getlocationsync(object_id);
+  getlocationsync(object_id, true);
+}
+
+void TEST5(const std::string &my_address) {
+  LOG(INFO) << "=========== TEST5 ===========";
+  ObjectID object_id = ObjectID::FromRandom();
+  std::string sender_ip_1 = "1.2.3.4";
+  std::string sender_ip_2 = "2.3.4.5";
+  size_t object_size = 300;
+  LOG(INFO) << "object_id: " << object_id.Hex()
+            << " sender_ip_1: " << sender_ip_1
+            << " sender_ip_2: " << sender_ip_2;
+  write_location(object_id, sender_ip_1, object_size);
+  write_location(object_id, sender_ip_2, object_size);
+  getlocationasync(object_id, my_address, "TEST3_query_id1", false);
+  getlocationasync(object_id, my_address, "TEST3_query_id2", true);
+  getlocationsync(object_id, true);
 }
 
 int main(int argc, char **argv) {
@@ -189,6 +207,7 @@ int main(int argc, char **argv) {
   TEST2(my_address);
   TEST3(my_address);
   TEST4(my_address);
+  TEST5(my_address);
   notification_listener_thread.join();
   return 0;
 }
