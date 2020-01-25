@@ -78,6 +78,9 @@ public:
     std::string sender_ip = request->sender_ip();
     bool finished = request->finished();
     size_t object_size = request->object_size();
+    if (request->has_inband_data_case() == WriteLocationRequest::kInbandData) {
+      put_inband_data(object_id, request->inband_data());
+    }
     // Weights of finished objects will be always larger than the weights of
     // unfinished objects. All finished objects as well as unfinished objects
     // will have random weights.
@@ -119,6 +122,7 @@ public:
         << "result_sender_ip memory leak detected";
     reply->set_sender_ip(*result_sender_ip);
     reply->set_object_size(object_size_[object_id]);
+    reply->set_inband_data(get_inband_data(object_id));
     return grpc::Status::OK;
   }
 
@@ -141,7 +145,37 @@ public:
   }
 
 private:
+  void put_inband_data(const ObjectID &key, const std::string &value) {
+    while (directory_lock_.test_and_set(std::memory_order_acquire))
+      ;
+    inband_data_directory_[key] = value;
+    directory_lock_.clear(std::memory_order_release);
+  }
+
+  bool has_inband_data(const ObjectID &key) {
+    while (directory_lock_.test_and_set(std::memory_order_acquire))
+      ;
+    bool exist = inband_data_directory_.count(key) > 0;
+    directory_lock_.clear(std::memory_order_release);
+    return exist;
+  }
+
+  std::string get_inband_data(const ObjectID &key) {
+    while (directory_lock_.test_and_set(std::memory_order_acquire))
+      ;
+    // return an empty string if the object ID does not exist
+    std::string data;
+    auto search = inband_data_directory_.find(key);
+    if (search != inband_data_directory_.end()) {
+      data = search->second;
+    }
+    directory_lock_.clear(std::memory_order_release);
+    // likely that return copy will be avoided by the compiler
+    return data;
+  }
+
   void try_send_notification(const ObjectID &object_id) {
+    TIMELINE("notification try_send_notification");
     if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
         object_location_store_ready_.find(object_id) !=
             object_location_store_ready_.end()) {
@@ -151,7 +185,10 @@ private:
             object_location_store_ready_[object_id].top().second;
         receiver_queue_element receiver =
             pending_receiver_ips_[object_id].front();
-        if (receiver.occupying) {
+        if (!has_inband_data(object_id) && receiver.occupying) {
+          // In this case, the client will take the ownership
+          // of the object transfer. Just pop it here so later
+          // requests of this object ID will be pending.
           object_location_store_ready_[object_id].pop();
         }
         pending_receiver_ips_[object_id].pop();
@@ -182,10 +219,18 @@ private:
     request.set_sender_ip(sender_ip);
     request.set_query_id(query_id);
     request.set_object_size(object_size_[object_id]);
+    request.set_inband_data(get_inband_data(object_id));
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
   }
+
+  // Inband data directory and its atomic lock.
+  // TODO: We should implement LRU gabage collection for the inband data
+  // storage. But it doesn't matter now because these data take too few
+  // space.
+  std::unordered_map<ObjectID, std::string> inband_data_directory_;
+  std::atomic_flag directory_lock_ = ATOMIC_FLAG_INIT;
 
   std::mutex barrier_mutex_;
   int number_of_nodes_;

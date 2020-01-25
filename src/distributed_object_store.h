@@ -52,6 +52,35 @@ private:
   void poll_and_reduce(const std::vector<ObjectID> object_ids,
                        const ObjectID reduction_id);
 
+  bool check_and_store_inband_data(const ObjectID &object_id,
+                                   int64_t object_size,
+                                   const std::string &inband_data);
+
+  template <typename T>
+  void reduce_local_objects(const std::vector<ObjectID> &object_ids,
+                            Buffer *output) {
+    DCHECK(output->Size() % sizeof(T) == 0)
+        << "Buffer size cannot be divide whole by the element size";
+    auto num_elements = output->Size() / sizeof(T);
+    T *target = (T *)output->MutableData();
+    bool first = true;
+    // TODO: implement parallel reducing
+    for (const auto &object_id : object_ids) {
+      ObjectBuffer object_buffer;
+      local_store_client_.Get(object_id, &object_buffer);
+      std::shared_ptr<Buffer> buf = object_buffer.data;
+      const T *data_ptr = (const T *)buf->Data();
+      if (!first) {
+        for (int64_t i = 0; i < num_elements; i++)
+          target[i] += data_ptr[i];
+      } else {
+        for (int64_t i = 0; i < num_elements; i++)
+          target[i] = data_ptr[i];
+        first = false;
+      }
+    }
+  }
+
   // order of fields should be kept for proper initialization order
   std::string my_address_;
   std::string redis_address_;

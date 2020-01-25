@@ -56,7 +56,8 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                        << ", status = " << pstatus.ToString();
   ptr->CopyFrom(*buffer);
   local_store_client_.Seal(object_id);
-  gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size());
+  gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
+                            buffer->Data());
 }
 
 ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
@@ -105,6 +106,9 @@ void DistributedObjectStore::poll_and_reduce(
   ObjectID tail_objectid;
   std::string tail_address;
 
+  // the buffer for reduction results
+  std::shared_ptr<Buffer> buffer;
+
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
     std::vector<NotificationMessage> ready_ids =
@@ -114,11 +118,26 @@ void DistributedObjectStore::poll_and_reduce(
       ObjectID ready_id = ready_id_message.object_id;
       std::string address = ready_id_message.sender_ip;
       size_t object_size = ready_id_message.object_size;
+      const std::string &inband_data = ready_id_message.inband_data;
+      if (check_and_store_inband_data(ready_id, object_size, inband_data)) {
+        // mark this object as local
+        address = my_address_;
+      }
       DCHECK(address != "")
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
                 << ", object_id = " << ready_id.ToString();
+
+      if (!buffer) {
+        // create the endpoint buffer
+        auto pstatus =
+            local_store_client_.Create(reduction_id, object_size, &buffer);
+        DCHECK(pstatus.ok())
+            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
+            << " size = " << object_size << ", status = " << pstatus.ToString();
+      }
+
       if (address == my_address_) {
         // move local objects to another address, because there's no
         // necessary to transfer them through the network.
@@ -127,14 +146,6 @@ void DistributedObjectStore::poll_and_reduce(
         // wait until at lease 2 objects in nodes except the master node are
         // ready.
         if (node_index == 0) {
-          // create the endpoint buffer
-          std::shared_ptr<Buffer> buffer;
-          auto pstatus =
-              local_store_client_.Create(reduction_id, object_size, &buffer);
-          DCHECK(pstatus.ok())
-              << "Plasma failed to create reduction_id = " << reduction_id.Hex()
-              << " size = " << object_size
-              << ", status = " << pstatus.ToString();
           auto reduction_endpoint =
               state_.create_progressive_stream(reduction_id, buffer);
           {
@@ -165,20 +176,26 @@ void DistributedObjectStore::poll_and_reduce(
   // send the reduced object back to the master node.
   bool reply_ok = false;
   if (node_index == 0) {
-    // all the objects are local
-    // TODO: add support when all the objects are local
-    LOG(FATAL) << "All the objects are local";
+    // all the objects are local, we just reduce them locally
+    LOG(INFO) << "All the objects to be reduced are local";
+    // TODO: support more reduction types & ops
+    reduce_local_objects<float>(local_object_ids, buffer.get());
+    local_store_client_.Seal(reduction_id);
+    // write the location just like in 'Put()'
+    gcs_client_.WriteLocation(reduction_id, my_address_, true, buffer->Size(),
+                              buffer->Data());
   } else if (node_index == 1) {
     // only two nodes, no streaming needed
     reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
                                               local_object_ids, my_address_,
                                               true, &tail_objectid);
+    DCHECK(reply_ok);
   } else {
     // more than 2 nodes
     reply_ok = object_control_.InvokeReduceTo(
         tail_address, reduction_id, local_object_ids, my_address_, true);
+    DCHECK(reply_ok);
   }
-  DCHECK(reply_ok);
 }
 
 void DistributedObjectStore::Get(const ObjectID &object_id,
@@ -196,29 +213,55 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     l.unlock();
     // ==> This ObjectID belongs to a reduction task.
     auto &reduction_task_pair = search->second;
+    // we must join the thread first, because the stream
+    // pointer could still be nullptr at creation.
     reduction_task_pair.reduction_thread.join();
-    // wait until the object is fully reduced
-    DCHECK(reduction_task_pair.stream != nullptr);
-    reduction_task_pair.stream->wait();
+    auto &stream = reduction_task_pair.stream;
+    if (stream) {
+      LOG(DEBUG) << "waiting the reduction stream";
+      // wait until the object is fully reduced
+      stream->wait();
+      local_store_client_.Seal(object_id);
+    }
+    // TODO: should we add this line?
+    // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
+    //                           stream->data());
     l.lock();
     reduction_tasks_.erase(object_id);
     l.unlock();
-    local_store_client_.Seal(object_id);
   } else {
     l.unlock();
     if (!local_store_client_.ObjectExists(object_id)) {
       // ==> This ObjectID refers to a remote object.
-      SyncReply reply_pair = gcs_client_.GetLocationSync(object_id, true);
-      std::string address = reply_pair.sender_ip;
-      size_t object_size = reply_pair.object_size;
-      // send pull request to one of the location
-      DCHECK(object_control_.PullObject(address, object_id))
-          << "Failed to pull object";
+      SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
+      if (!check_and_store_inband_data(object_id, reply.object_size,
+                                       reply.inband_data)) {
+        // send pull request to one of the location
+        DCHECK(object_control_.PullObject(reply.sender_ip, object_id))
+            << "Failed to pull object";
+      }
     }
   }
 
   // get object from local store
-  std::vector<ObjectBuffer> object_buffers;
-  local_store_client_.Get({object_id}, &object_buffers);
-  *result = object_buffers[0].data;
+  ObjectBuffer object_buffer;
+  local_store_client_.Get(object_id, &object_buffer);
+  *result = object_buffer.data;
+}
+
+bool DistributedObjectStore::check_and_store_inband_data(
+    const ObjectID &object_id, int64_t object_size,
+    const std::string &inband_data) {
+  TIMELINE("DistributedObjectStore::check_and_store_inband_data");
+  if (inband_data.size() > 0) {
+    LOG(DEBUG) << "fetching object directly from inband data";
+    DCHECK(inband_data.size() <= inband_data_size_limit)
+        << "unexpected inband data size";
+    std::shared_ptr<Buffer> data;
+    local_store_client_.Create(object_id, object_size, &data);
+    data->CopyFrom(inband_data);
+    local_store_client_.Seal(object_id);
+    return true;
+  }
+  return false;
 }

@@ -34,6 +34,10 @@ void Buffer::CopyFrom(const Buffer &buffer) {
   std::memcpy(data_ptr_, buffer.Data(), buffer.Size());
 }
 
+void Buffer::CopyFrom(const std::string &data) {
+  CopyFrom((const uint8_t *)data.data(), data.size());
+}
+
 Buffer::~Buffer() {
   if (is_data_owner_) {
     delete[] data_ptr_;

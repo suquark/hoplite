@@ -55,6 +55,15 @@ Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
   return Status::OK();
 }
 
+Status LocalStoreClient::Get(const ObjectID &object_id,
+                             ObjectBuffer *object_buffer) {
+  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
+  object_buffer->data = buffers_[object_id];
+  object_buffer->metadata = nullptr;
+  object_buffer->device_num = 0;
+  return Status::OK();
+}
+
 Status LocalStoreClient::Delete(const ObjectID &object_id) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma_) {

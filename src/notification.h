@@ -2,6 +2,8 @@
 #define NOTIFICATION_H
 
 #include "common/id.h"
+#include "logging.h"
+#include <atomic>
 #include <grpcpp/server.h>
 #include <string>
 #include <thread>
@@ -13,7 +15,7 @@ public:
   NotificationServer(const std::string &my_address, const int grpc_port,
                      const int notification_port);
 
-  inline std::thread Run() {
+  std::thread Run() {
     std::thread notification_thread(&NotificationServer::worker_loop, this);
     return notification_thread;
   }

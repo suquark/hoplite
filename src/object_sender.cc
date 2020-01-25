@@ -100,6 +100,8 @@ void ObjectSender::send_object(const PullRequest *request) {
     // fetch partial object in memory
     LOG(DEBUG) << "[GrpcServer] fetching a partial object";
     object_size = stream->size();
+    // we need this data pointer for 'WriteLocation'
+    object_buffer = stream->data();
   } else {
     // fetch object from Plasma
     LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
@@ -141,9 +143,8 @@ void ObjectSender::send_object(const PullRequest *request) {
   // reduce the reference count. This line is used to increase the ref count
   // back after we finish the sending. It is better to move this line to the
   // receiver side since the decrease is done by the receiver.
-  gcs_client_.WriteLocation(object_id, my_address_, true, object_size);
-
-  LOG(DEBUG) << "function returned";
+  gcs_client_.WriteLocation(object_id, my_address_, true, object_size,
+                            object_buffer);
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
