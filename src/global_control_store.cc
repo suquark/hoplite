@@ -123,7 +123,8 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                      << " failed.";
 }
 
-SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, bool occupying) {
+SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
+                                                    bool occupying) {
   TIMELINE("GetLocationSync");
   grpc::ClientContext context;
   GetLocationSyncRequest request;
@@ -135,7 +136,8 @@ SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, b
 }
 
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
-    const std::vector<ObjectID> &object_ids, const std::string &query_id, bool occupying) {
+    const std::vector<ObjectID> &object_ids, const std::string &query_id,
+    bool occupying) {
   std::shared_ptr<ObjectNotifications> notifications =
       std::make_shared<ObjectNotifications>();
   {

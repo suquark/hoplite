@@ -54,8 +54,7 @@ public:
 
   std::shared_ptr<ObjectNotifications>
   GetLocationAsync(const std::vector<ObjectID> &object_ids,
-                   const std::string &query_id,
-                   bool occupying);
+                   const std::string &query_id, bool occupying);
 
   inline std::thread Run() {
     std::thread notification_thread(&GlobalControlStoreClient::worker_loop,
