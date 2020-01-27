@@ -48,10 +48,10 @@ DistributedObjectStore::~DistributedObjectStore() {
   LOG(INFO) << "Object store has been shutdown.";
 }
 
-void DistributedObjectStore::IsLocalObject(const ObjectID &object_id) {
-  return local_store_client_.ObjectExists(object_id) ||
-         state_.get_progressive_stream(object_id);
-}
+// void DistributedObjectStore::IsLocalObject(const ObjectID &object_id) {
+//   return local_store_client_.ObjectExists(object_id) ||
+//          state_.get_progressive_stream(object_id);
+// }
 
 void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                                  const ObjectID &object_id) {
@@ -207,24 +207,23 @@ void DistributedObjectStore::poll_and_reduce(
   }
 }
 
-void DistributedObjectStore::poll_and_reduce_k_dimension(
-    const std::vector<ObjectID> object_ids, const ObjectID reduction_id,
-    int k_dimension) {
+void DistributedObjectStore::poll_and_reduce_2d(
+    const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
   TIMELINE("DistributedObjectStore Reduce Thread 2D");
   // we do not use reference for its parameters because it will be executed
   // in a thread.
 
   // TODO: separate local objects first
   size_t n_objects = object_ids.size();
-  int max_dimension = floor(log2(n_objects));
-  if (k_dimension > max_dimension) {
-    LOG(WARNING) << "The specified dimension is greater than the maximum dimension. "
-                 << "Use the maximum dimension instead.";
-    k_dimension = max_dimension;
+  int rows = floor(sqrt(n_objects));
+  std::vector<int> objects_per_row(rows);
+  int minimum_length = n_objects / rows;
+  int remaining = n_objects % rows;
+  for (int i = 0; i < rows; i++) {
+    objects_per_row[i] = minimum_length + (i < remaining);
   }
-  double avg_edge_length = pow(n_objects, 1. / max_dimension);
-  std::vector<int> edge_lengths;
-  edge_lengths.push_back()
+
+  std::vector<std::vector<std::pair<std::string, ObjectID>>> lines(rows);
 
   std::shared_ptr<ObjectNotifications> notifications =
       gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
@@ -239,6 +238,7 @@ void DistributedObjectStore::poll_and_reduce_k_dimension(
 
   // the buffer for reduction results
   std::shared_ptr<Buffer> buffer;
+  int object_index = 0;
 
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
@@ -274,39 +274,41 @@ void DistributedObjectStore::poll_and_reduce_k_dimension(
         // necessary to transfer them through the network.
         local_object_ids.push_back(ready_id);
       } else {
-        // wait until at lease 2 objects in nodes except the master node are
-        // ready.
-        if (node_index == 0) {
-          auto reduction_endpoint =
-              state_.create_progressive_stream(reduction_id, buffer);
-          {
-            std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
-            reduction_tasks_[reduction_id].stream = reduction_endpoint;
-          }
-        } else if (node_index == 1) {
+        // take round robin of the objects
+        auto &current_line = lines[object_index % rows];
+        // wait until at lease 2 objects in the same line
+        if (current_line.size() == 0) {
+          current_line.emplace_back(address, ready_id);
+        } else if (current_line.size() == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
           bool reply_ok = object_control_.InvokeReduceTo(
-              tail_address, reduction_id, {ready_id}, address, false,
-              &tail_objectid);
+              current_line[0].first, reduction_id, {ready_id}, address, false,
+              &current_line[0].second);
           DCHECK(reply_ok);
-        } else if (node_index > 1) {
+        } else if (current_line.size() > 1) {
           // Send 'ReduceTo' command to the other node in the chain.
           bool reply_ok = object_control_.InvokeReduceTo(
-              tail_address, reduction_id, {ready_id}, address, false);
+              current_line.back().first, reduction_id, {ready_id}, address,
+              false);
           DCHECK(reply_ok);
         }
-        tail_objectid = ready_id;
-        tail_address = address;
-        node_index++;
+        object_index++;
       }
       // mark it as done
       remaining_ids.erase(ready_id);
     }
   }
 
+  auto reduction_endpoint =
+      state_.create_progressive_stream(reduction_id, buffer);
+  {
+    std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
+    reduction_tasks_[reduction_id].stream = reduction_endpoint;
+  }
+
   // send the reduced object back to the master node.
   bool reply_ok = false;
-  if (node_index == 0) {
+  if (object_index == 0) {
     // all the objects are local, we just reduce them locally
     LOG(INFO) << "All the objects to be reduced are local";
     // TODO: support more reduction types & ops
@@ -315,17 +317,31 @@ void DistributedObjectStore::poll_and_reduce_k_dimension(
     // write the location just like in 'Put()'
     gcs_client_.WriteLocation(reduction_id, my_address_, true, buffer->Size(),
                               buffer->Data());
-  } else if (node_index == 1) {
-    // only two nodes, no streaming needed
-    reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
-                                              local_object_ids, my_address_,
-                                              true, &tail_objectid);
-    DCHECK(reply_ok);
   } else {
-    // more than 2 nodes
-    reply_ok = object_control_.InvokeReduceTo(
-        tail_address, reduction_id, local_object_ids, my_address_, true);
-    DCHECK(reply_ok);
+    // we append the master after the rows for convinience
+    lines.emplace_back({std::make_pair(my_address_, reduction_id)});
+    for (int i = 0; i < rows; i++) {
+      auto &current_line = lines[i];
+      auto &next_line = lines[i + 1];
+      // TODO: take care of empty next lines
+      DCHECK(current_line.size() > 0);
+      DCHECK(next_line.size() > 0);
+      auto &current_node = current_line.back();
+      auto &next_node = next_line.back();
+      if (current_line.size() == 1) {
+        // only two nodes, no streaming needed
+        reply_ok = object_control_.InvokeReduceTo(
+            current_node.first, reduction_id, local_object_ids, next_node.first,
+            true, &current_node.second);
+        DCHECK(reply_ok);
+      } else {
+        // more than 2 nodes
+        reply_ok = object_control_.InvokeReduceTo(
+            current_node.first, reduction_id, local_object_ids, next_node.first,
+            true);
+        DCHECK(reply_ok);
+      }
+    }
   }
 }
 
