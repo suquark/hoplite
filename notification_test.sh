@@ -11,7 +11,7 @@ working_dir=$(dirname $(realpath -s $0))
 pkill '^notification$'
 pkill '^notification_server_test$'
 sleep 2
-./notification $my_address &
+./notification $my_address $my_address &
 sleep 2
-./notification_server_test $my_address &
+./notification_server_test $my_address $my_address &
 sleep 40
