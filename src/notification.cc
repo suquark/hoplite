@@ -16,6 +16,8 @@
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::ConnectReply;
+using objectstore::ConnectRequest;
 using objectstore::GetLocationAsyncAnswerReply;
 using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
@@ -66,6 +68,11 @@ public:
 
     reply->set_ok(true);
     LOG(ERROR) << "barrier exits";
+    return grpc::Status::OK;
+  }
+
+  grpc::Status Connect(grpc::ServerContext *context,
+                       const ConnectRequest *request, ConnectReply *reply) {
     return grpc::Status::OK;
   }
 

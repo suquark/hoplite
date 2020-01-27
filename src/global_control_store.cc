@@ -8,6 +8,8 @@
 #include "global_control_store.h"
 #include "logging.h"
 
+using objectstore::ConnectReply;
+using objectstore::ConnectRequest;
 using objectstore::GetLocationAsyncAnswerReply;
 using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
@@ -102,6 +104,11 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       remote_notification_server_address, grpc::InsecureChannelCredentials());
   notification_stub_ =
       objectstore::NotificationServer::NewStub(notification_channel_);
+  grpc::ClientContext context;
+  ConnectRequest request;
+  ConnectReply reply;
+  auto status = notification_stub_->Connect(&context, request, &reply);
+  DCHECK(status.ok()) << status.error_message();
   LOG(INFO) << "notification_stub_ created";
 }
 

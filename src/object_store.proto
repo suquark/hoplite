@@ -118,9 +118,14 @@ message GetLocationAsyncAnswerReply {
   bool ok = 1;
 }
 
+message ConnectRequest{}
+
+message ConnectReply{}
+
 service NotificationServer {
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc IsReady(IsReadyRequest) returns (IsReadyReply);
+  rpc Connect(ConnectRequest) returns (ConnectReply);
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
   rpc GetLocationAsync(GetLocationAsyncRequest) returns (GetLocationAsyncReply);
