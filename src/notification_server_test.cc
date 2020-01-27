@@ -211,11 +211,10 @@ double standard_deviation(const std::vector<double> &data) {
   return sqrt(sum / data.size());
 }
 
-void SPEED_TEST1() {
+void SPEED_TEST(size_t object_size) {
   LOG(INFO) << "=========== SPEED TEST1 ===========";
   ObjectID object_id = ObjectID::FromRandom();
   std::string sender_ip = "1.2.3.4";
-  size_t object_size = 100;
   LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
   int num_tests = 100;
   std::vector<double> write_location_latencies;
@@ -248,7 +247,7 @@ void SPEED_TEST1() {
 int main(int argc, char **argv) {
   std::string notification_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
-  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
+  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::INFO);
   std::unique_ptr<NotificationListener> notification_listener;
   std::thread notification_listener_thread;
   notification_listener.reset(new NotificationListener(my_address, 8888));
@@ -261,7 +260,10 @@ int main(int argc, char **argv) {
   TEST3(my_address);
   TEST4(my_address);
   TEST5(my_address);
-  SPEED_TEST1();
+  SPEED_TEST(1);
+  SPEED_TEST(100);
+  SPEED_TEST(4095);
+  SPEED_TEST(1024 * 1024 * 1024);
   notification_listener_thread.join();
   return 0;
 }
