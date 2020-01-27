@@ -319,7 +319,8 @@ void DistributedObjectStore::poll_and_reduce_2d(
                               buffer->Data());
   } else {
     // we append the master after the rows for convinience
-    lines.emplace_back({std::make_pair(my_address_, reduction_id)});
+    lines.emplace_back(
+        {std::make_pair<std::string, ObjectID>(my_address_, reduction_id)});
     for (int i = 0; i < rows; i++) {
       auto &current_line = lines[i];
       auto &next_line = lines[i + 1];
