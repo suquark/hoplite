@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include <unistd.h> // usleep
 #include <unordered_set>
 
@@ -44,6 +46,11 @@ DistributedObjectStore::~DistributedObjectStore() {
   gcs_client_.Shutdown();
   notification_thread_.join();
   LOG(INFO) << "Object store has been shutdown.";
+}
+
+void DistributedObjectStore::IsLocalObject(const ObjectID &object_id) {
+  return local_store_client_.ObjectExists(object_id) ||
+         state_.get_progressive_stream(object_id);
 }
 
 void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
@@ -96,6 +103,128 @@ void DistributedObjectStore::poll_and_reduce(
   TIMELINE("DistributedObjectStore Reduce Thread");
   // we do not use reference for its parameters because it will be executed
   // in a thread.
+
+  std::shared_ptr<ObjectNotifications> notifications =
+      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
+
+  // states for enumerating the chain
+  std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
+                                             object_ids.end());
+  std::vector<ObjectID> local_object_ids;
+  int node_index = 0;
+  ObjectID tail_objectid;
+  std::string tail_address;
+
+  // the buffer for reduction results
+  std::shared_ptr<Buffer> buffer;
+
+  // main loop for constructing the reduction chain.
+  while (remaining_ids.size() > 0) {
+    std::vector<NotificationMessage> ready_ids =
+        notifications->GetNotifications();
+    // TODO: we should group ready ids by their node address.
+    for (auto &ready_id_message : ready_ids) {
+      ObjectID ready_id = ready_id_message.object_id;
+      std::string address = ready_id_message.sender_ip;
+      size_t object_size = ready_id_message.object_size;
+      const std::string &inband_data = ready_id_message.inband_data;
+      if (check_and_store_inband_data(ready_id, object_size, inband_data)) {
+        // mark this object as local
+        address = my_address_;
+      }
+      DCHECK(address != "")
+          << ready_id.ToString()
+          << " location is not ready, but notification is received!";
+      LOG(INFO) << "Received notification, address = " << address
+                << ", object_id = " << ready_id.ToString();
+
+      if (!buffer) {
+        // create the endpoint buffer
+        auto pstatus =
+            local_store_client_.Create(reduction_id, object_size, &buffer);
+        DCHECK(pstatus.ok())
+            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
+            << " size = " << object_size << ", status = " << pstatus.ToString();
+      }
+
+      if (address == my_address_) {
+        // move local objects to another address, because there's no
+        // necessary to transfer them through the network.
+        local_object_ids.push_back(ready_id);
+      } else {
+        // wait until at lease 2 objects in nodes except the master node are
+        // ready.
+        if (node_index == 0) {
+          auto reduction_endpoint =
+              state_.create_progressive_stream(reduction_id, buffer);
+          {
+            std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
+            reduction_tasks_[reduction_id].stream = reduction_endpoint;
+          }
+        } else if (node_index == 1) {
+          // Send 'ReduceTo' command to the first node in the chain.
+          bool reply_ok = object_control_.InvokeReduceTo(
+              tail_address, reduction_id, {ready_id}, address, false,
+              &tail_objectid);
+          DCHECK(reply_ok);
+        } else if (node_index > 1) {
+          // Send 'ReduceTo' command to the other node in the chain.
+          bool reply_ok = object_control_.InvokeReduceTo(
+              tail_address, reduction_id, {ready_id}, address, false);
+          DCHECK(reply_ok);
+        }
+        tail_objectid = ready_id;
+        tail_address = address;
+        node_index++;
+      }
+      // mark it as done
+      remaining_ids.erase(ready_id);
+    }
+  }
+
+  // send the reduced object back to the master node.
+  bool reply_ok = false;
+  if (node_index == 0) {
+    // all the objects are local, we just reduce them locally
+    LOG(INFO) << "All the objects to be reduced are local";
+    // TODO: support more reduction types & ops
+    reduce_local_objects<float>(local_object_ids, buffer.get());
+    local_store_client_.Seal(reduction_id);
+    // write the location just like in 'Put()'
+    gcs_client_.WriteLocation(reduction_id, my_address_, true, buffer->Size(),
+                              buffer->Data());
+  } else if (node_index == 1) {
+    // only two nodes, no streaming needed
+    reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
+                                              local_object_ids, my_address_,
+                                              true, &tail_objectid);
+    DCHECK(reply_ok);
+  } else {
+    // more than 2 nodes
+    reply_ok = object_control_.InvokeReduceTo(
+        tail_address, reduction_id, local_object_ids, my_address_, true);
+    DCHECK(reply_ok);
+  }
+}
+
+void DistributedObjectStore::poll_and_reduce_k_dimension(
+    const std::vector<ObjectID> object_ids, const ObjectID reduction_id,
+    int k_dimension) {
+  TIMELINE("DistributedObjectStore Reduce Thread 2D");
+  // we do not use reference for its parameters because it will be executed
+  // in a thread.
+
+  // TODO: separate local objects first
+  size_t n_objects = object_ids.size();
+  int max_dimension = floor(log2(n_objects));
+  if (k_dimension > max_dimension) {
+    LOG(WARNING) << "The specified dimension is greater than the maximum dimension. "
+                 << "Use the maximum dimension instead.";
+    k_dimension = max_dimension;
+  }
+  double avg_edge_length = pow(n_objects, 1. / max_dimension);
+  std::vector<int> edge_lengths;
+  edge_lengths.push_back()
 
   std::shared_ptr<ObjectNotifications> notifications =
       gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
