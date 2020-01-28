@@ -56,7 +56,8 @@ public:
   }
 
   grpc::Status RedirectReduce(grpc::ServerContext *context,
-                        const RedirectReduceRequest *request, RedirectReduceReply *reply) {
+                              const RedirectReduceRequest *request,
+                              RedirectReduceReply *reply) {
     TIMELINE("ObjectStoreServiceImpl::RedirectReduce()");
     DCHECK(false) << "Notimplemented";
     reply->set_ok(true);
