@@ -38,6 +38,7 @@ public:
   GetLocationAsyncAnswer(grpc::ServerContext *context,
                          const GetLocationAsyncAnswerRequest *request,
                          GetLocationAsyncAnswerReply *reply) {
+    TIMELINE("GetLocationAsyncAnswer");
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
@@ -57,6 +58,7 @@ public:
   grpc::Status ConnectListener(grpc::ServerContext *context,
                                const ConnectListenerRequest *request,
                                ConnectListenerReply *reply) {
+    TIMELINE("ConnectListener");
     return grpc::Status::OK;
   }
 
