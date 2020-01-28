@@ -30,6 +30,8 @@ DistributedObjectStore::DistributedObjectStore(
   object_control_thread_ = object_control_.Run();
   // create a thread to process notifications
   notification_thread_ = gcs_client_.Run();
+
+  gcs_client_.ConnectNotificationServer();
 }
 
 DistributedObjectStore::~DistributedObjectStore() {

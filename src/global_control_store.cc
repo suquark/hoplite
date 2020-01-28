@@ -8,6 +8,10 @@
 #include "global_control_store.h"
 #include "logging.h"
 
+using objectstore::ConnectListenerReply;
+using objectstore::ConnectListenerRequest;
+using objectstore::ConnectReply;
+using objectstore::ConnectRequest;
 using objectstore::GetLocationAsyncAnswerReply;
 using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
@@ -34,6 +38,7 @@ public:
   GetLocationAsyncAnswer(grpc::ServerContext *context,
                          const GetLocationAsyncAnswerRequest *request,
                          GetLocationAsyncAnswerReply *reply) {
+    TIMELINE("GetLocationAsyncAnswer");
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
     std::string sender_ip = request->sender_ip();
     std::string query_id = request->query_id();
@@ -47,6 +52,13 @@ public:
     notifications->ReceiveObjectNotification(object_id, sender_ip, object_size,
                                              inband_data);
     reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status ConnectListener(grpc::ServerContext *context,
+                               const ConnectListenerRequest *request,
+                               ConnectListenerReply *reply) {
+    TIMELINE("ConnectListener");
     return grpc::Status::OK;
   }
 
@@ -103,6 +115,15 @@ GlobalControlStoreClient::GlobalControlStoreClient(
   notification_stub_ =
       objectstore::NotificationServer::NewStub(notification_channel_);
   LOG(INFO) << "notification_stub_ created";
+}
+
+void GlobalControlStoreClient::ConnectNotificationServer() {
+  grpc::ClientContext context;
+  ConnectRequest request;
+  request.set_sender_ip(my_address_);
+  ConnectReply reply;
+  auto status = notification_stub_->Connect(&context, request, &reply);
+  DCHECK(status.ok()) << status.error_message();
 }
 
 void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,

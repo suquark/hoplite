@@ -50,6 +50,8 @@ public:
                            int notification_server_port,
                            int notification_listen_port);
 
+  void ConnectNotificationServer();
+
   // Write object location to the notification server.
   void WriteLocation(const ObjectID &object_id, const std::string &my_address,
                      bool finished, size_t object_size,

@@ -1,4 +1,5 @@
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <cstdlib>
 #include <grpc/grpc.h>
@@ -193,14 +194,65 @@ void TEST5(const std::string &my_address) {
   getlocationsync(object_id, true);
 }
 
+double average(const std::vector<double> &data) {
+  double sum = 0;
+  for (auto d : data) {
+    sum += d;
+  }
+  return sum / data.size();
+}
+
+double standard_deviation(const std::vector<double> &data) {
+  double avg = average(data);
+  double sum = 0;
+  for (auto d : data) {
+    sum += (d - avg) * (d - avg);
+  }
+  return sqrt(sum / data.size());
+}
+
+void SPEED_TEST(size_t object_size) {
+  LOG(INFO) << "=========== SPEED TEST1 ===========";
+  ObjectID object_id = ObjectID::FromRandom();
+  std::string sender_ip = "1.2.3.4";
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip: " << sender_ip;
+  int num_tests = 100;
+  std::vector<double> write_location_latencies;
+  std::vector<double> get_location_latencies;
+  for (int i = 0; i < num_tests; i++) {
+    auto start = std::chrono::system_clock::now();
+    write_location(object_id, sender_ip, object_size);
+    auto after_writelocation = std::chrono::system_clock::now();
+    getlocationsync(object_id, true);
+    auto after_getlocation = std::chrono::system_clock::now();
+    std::chrono::duration<double> diff_writelocation =
+        after_writelocation - start;
+    std::chrono::duration<double> diff_getlocation =
+        after_getlocation - after_writelocation;
+    write_location_latencies.push_back(diff_writelocation.count());
+    get_location_latencies.push_back(diff_getlocation.count());
+  }
+
+  LOG(INFO) << "write location latency = " << average(write_location_latencies)
+            << ","
+            << " standard deviation = "
+            << standard_deviation(write_location_latencies);
+
+  LOG(INFO) << "get location latency = " << average(get_location_latencies)
+            << ","
+            << " standard deviation = "
+            << standard_deviation(get_location_latencies);
+}
+
 int main(int argc, char **argv) {
-  std::string my_address = std::string(argv[1]);
-  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
+  std::string notification_address = std::string(argv[1]);
+  std::string my_address = std::string(argv[2]);
+  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::INFO);
   std::unique_ptr<NotificationListener> notification_listener;
   std::thread notification_listener_thread;
   notification_listener.reset(new NotificationListener(my_address, 8888));
   notification_listener_thread = notification_listener->Run();
-  channel = grpc::CreateChannel(my_address + ":7777",
+  channel = grpc::CreateChannel(notification_address + ":7777",
                                 grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);
   TEST1();
@@ -208,6 +260,10 @@ int main(int argc, char **argv) {
   TEST3(my_address);
   TEST4(my_address);
   TEST5(my_address);
+  SPEED_TEST(1);
+  SPEED_TEST(100);
+  SPEED_TEST(4095);
+  SPEED_TEST(1024 * 1024 * 1024);
   notification_listener_thread.join();
   return 0;
 }
