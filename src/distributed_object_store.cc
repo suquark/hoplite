@@ -26,7 +26,7 @@ using objectstore::ReduceToRequest;
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
   ObjectStoreServiceImpl(ObjectSender &object_sender,
-                         DistributedObjectStore store)
+                         DistributedObjectStore &store)
       : ObjectStore::Service(), object_sender_(object_sender), store_(store) {}
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
@@ -133,7 +133,7 @@ bool DistributedObjectStore::InvokeRedirectReduce(
   grpc::ClientContext context;
   RedirectReduceRequest request;
   RedirectReduceReply reply;
-  request.set_reduction_id(reduction_id);
+  request.set_reduction_id(reduction_id.Binary());
   for (const auto &object_id : object_ids) {
     request.add_object_ids(object_id.Binary());
   }
