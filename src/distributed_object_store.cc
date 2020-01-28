@@ -442,7 +442,7 @@ void DistributedObjectStore::poll_and_reduce_2d(
     objects_per_row[i] = minimum_length + (i < remaining);
   }
 
-  std::vector<std::vector<std::pair<std::string, ObjectID>>> lines(rows);
+  std::vector<std::pair<std::string, ObjectID>> lines;
 
   std::shared_ptr<ObjectNotifications> notifications =
       gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
@@ -451,10 +451,6 @@ void DistributedObjectStore::poll_and_reduce_2d(
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
                                              object_ids.end());
   std::vector<ObjectID> local_object_ids;
-
-  // the buffer for reduction results
-  std::shared_ptr<Buffer> buffer;
-  int object_index = 0;
 
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
@@ -476,90 +472,48 @@ void DistributedObjectStore::poll_and_reduce_2d(
       LOG(INFO) << "Received notification, address = " << address
                 << ", object_id = " << ready_id.ToString();
 
-      if (!buffer) {
-        // create the endpoint buffer
-        auto pstatus =
-            local_store_client_.Create(reduction_id, object_size, &buffer);
-        DCHECK(pstatus.ok())
-            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
-            << " size = " << object_size << ", status = " << pstatus.ToString();
-      }
-
       if (address == my_address_) {
         // move local objects to another address, because there's no
         // necessary to transfer them through the network.
         local_object_ids.push_back(ready_id);
       } else {
-        // take round robin of the objects
-        auto &current_line = lines[object_index % rows];
-        // wait until at lease 2 objects in the same line
-        if (current_line.size() == 0) {
-          current_line.emplace_back(address, ready_id);
-        } else if (current_line.size() == 1) {
-          // Send 'ReduceTo' command to the first node in the chain.
-          bool reply_ok =
-              InvokeReduceTo(current_line[0].first, reduction_id, {ready_id},
-                             address, false, &current_line[0].second);
-          DCHECK(reply_ok);
-        } else if (current_line.size() > 1) {
-          // Send 'ReduceTo' command to the other node in the chain.
-          bool reply_ok =
-              InvokeReduceTo(current_line.back().first, reduction_id,
-                             {ready_id}, address, false);
-          DCHECK(reply_ok);
-        }
-        object_index++;
+        lines.emplace_back(address, ready_id);
       }
       // mark it as done
       remaining_ids.erase(ready_id);
+      if (lines.size() >= rows) {
+        break;
+      }
+    }
+    if (lines.size() >= rows) {
+      // TODO: unsubscribe objects
+      break;
     }
   }
 
-  auto reduction_endpoint =
-      state_.create_progressive_stream(reduction_id, buffer);
-  {
-    std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
-    reduction_tasks_[reduction_id].stream = reduction_endpoint;
+  if (lines.size() < rows || remaining_ids.size() < rows) {
+    // TODO: This is inefficient. There should be a pathway that all
+    // objects are ready.
+    poll_and_reduce(object_ids, reduction_id);
+  } else {
+    std::vector<ObjectID> edge;
+    int remaining_size = remaining_ids.size();
+    int processed_count = 0;
+    for (int i = 0; i < rows; i++) {
+      std::vector<ObjectID> redirect_object_ids {lines[i].second};
+      int share_count = (remaining_size / rows) + (i < remaining_size % rows);
+      for (int j = 0; j < share_count; j++, processed_count++) {
+        redirect_object_ids.push_back(remaining_ids[processed_count]);
+      }
+      // TODO: creating a random object id is very slow now.
+      auto line_reduction_id = ObjectID::FromRandom();
+      edge.push_back(line_reduction_id);
+      InvokeRedirectReduce(lines[i].first, redirect_object_ids, line_reduction_id);
+    }
+    Reduce(edge, reduction_id);
   }
 
   LOG(INFO) << "Row-direction reduction completed.";
-
-  // send the reduced object back to the master node.
-  bool reply_ok = false;
-  if (object_index == 0) {
-    // all the objects are local, we just reduce them locally
-    LOG(INFO) << "All the objects to be reduced are local";
-    // TODO: support more reduction types & ops
-    reduce_local_objects<float>(local_object_ids, buffer.get());
-    local_store_client_.Seal(reduction_id);
-    // write the location just like in 'Put()'
-    gcs_client_.WriteLocation(reduction_id, my_address_, true, buffer->Size(),
-                              buffer->Data());
-  } else {
-    // we append the master after the rows for convinience
-    lines.push_back({std::make_pair(my_address_, reduction_id)});
-    for (int i = 0; i < rows; i++) {
-      auto &current_line = lines[i];
-      auto &next_line = lines[i + 1];
-      // TODO: take care of empty next lines
-      DCHECK(current_line.size() > 0);
-      DCHECK(next_line.size() > 0);
-      auto &current_node = current_line.back();
-      auto &next_node = next_line.back();
-      if (current_line.size() == 1) {
-        // only two nodes, no streaming needed
-        reply_ok =
-            InvokeReduceTo(current_node.first, reduction_id, local_object_ids,
-                           next_node.first, true, &current_node.second);
-        DCHECK(reply_ok);
-      } else {
-        // more than 2 nodes
-        reply_ok = InvokeReduceTo(current_node.first, reduction_id,
-                                  local_object_ids, next_node.first, true);
-        DCHECK(reply_ok);
-      }
-    }
-  }
 }
 
 void DistributedObjectStore::worker_loop() {
