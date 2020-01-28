@@ -506,12 +506,14 @@ void DistributedObjectStore::poll_and_reduce_2d(
   } else {
     std::vector<ObjectID> edge;
     int remaining_size = remaining_ids.size();
+    std::vector<ObjectID> remaining_ids_list(object_ids.begin(),
+                                             object_ids.end());
     int processed_count = 0;
     for (int i = 0; i < rows; i++) {
       std::vector<ObjectID> redirect_object_ids{lines[i].second};
       int share_count = (remaining_size / rows) + (i < remaining_size % rows);
       for (int j = 0; j < share_count; j++, processed_count++) {
-        redirect_object_ids.push_back(remaining_ids[processed_count]);
+        redirect_object_ids.push_back(remaining_ids_list[processed_count]);
       }
       // TODO: creating a random object id is very slow now.
       auto line_reduction_id = ObjectID::FromRandom();
@@ -521,8 +523,6 @@ void DistributedObjectStore::poll_and_reduce_2d(
     }
     Reduce(edge, reduction_id);
   }
-
-  LOG(INFO) << "Row-direction reduction completed.";
 }
 
 void DistributedObjectStore::worker_loop() {
