@@ -127,7 +127,7 @@ bool DistributedObjectStore::InvokeReduceTo(
 bool DistributedObjectStore::InvokeRedirectReduce(
     const std::string &remote_address, const std::vector<ObjectID> &object_ids,
     const ObjectID &reduction_id) {
-  TIMELINE("GrpcServer::RedirectReduceTo");
+  TIMELINE("GrpcServer::InvokeRedirectReduce");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
   grpc::ClientContext context;
