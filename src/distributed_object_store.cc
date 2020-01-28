@@ -11,15 +11,15 @@
 #include "distributed_object_store.h"
 #include "logging.h"
 
-////////////////////////////////////////////////////////////////
-// The gRPC service of the object store
-////////////////////////////////////////////////////////////////
-
 using objectstore::ObjectStore;
 using objectstore::PullReply;
 using objectstore::PullRequest;
 using objectstore::ReduceToReply;
 using objectstore::ReduceToRequest;
+
+////////////////////////////////////////////////////////////////
+// The gRPC server side of the object store
+////////////////////////////////////////////////////////////////
 
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
@@ -58,6 +58,71 @@ private:
   ObjectStoreState &state_;
   LocalStoreClient &local_store_client_;
 };
+
+////////////////////////////////////////////////////////////////
+// The gRPC client side of the object store
+////////////////////////////////////////////////////////////////
+
+bool DistributedObjectStore::PullObject(const std::string &remote_address,
+                                        const ObjectID &object_id) {
+  TIMELINE("DistributedObjectStore::PullObject");
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  create_stub(remote_grpc_address);
+  grpc::ClientContext context;
+  PullRequest request;
+  PullReply reply;
+  request.set_object_id(object_id.Binary());
+  request.set_puller_ip(my_address_);
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->Pull(&context, request, &reply);
+  return reply.ok();
+}
+
+bool DistributedObjectStore::InvokeReduceTo(
+    const std::string &remote_address, const ObjectID &reduction_id,
+    const std::vector<ObjectID> &dst_object_ids, const std::string &dst_address,
+    bool is_endpoint, const ObjectID *src_object_id) {
+  TIMELINE("GrpcServer::InvokeReduceTo");
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  create_stub(remote_grpc_address);
+  grpc::ClientContext context;
+  ReduceToRequest request;
+  ReduceToReply reply;
+
+  request.set_reduction_id(reduction_id.Binary());
+  for (auto &object_id : dst_object_ids) {
+    request.add_dst_object_ids(object_id.Binary());
+  }
+  request.set_dst_address(dst_address);
+  request.set_is_endpoint(is_endpoint);
+  if (src_object_id != nullptr) {
+    request.set_src_object_id(src_object_id->Binary());
+  }
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->ReduceTo(&context, request, &reply);
+  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
+                      << remote_grpc_address
+                      << ", message: " << status.error_message()
+                      << ", details = " << status.error_code();
+
+  return reply.ok();
+}
+
+void DistributedObjectStore::RedirectReduceTo(
+    const std::string &remote_address, const std::vector<ObjectID> &object_ids,
+    const ObjectID &reduction_id) {
+  TIMELINE("GrpcServer::RedirectReduceTo");
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  create_stub(remote_grpc_address);
+  grpc::ClientContext context;
+  
+}
+
+////////////////////////////////////////////////////////////////
+// The object store API
+////////////////////////////////////////////////////////////////
 
 DistributedObjectStore::DistributedObjectStore(
     const std::string &notification_server_address, int redis_port,
@@ -155,6 +220,78 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
     reduction_tasks_[reduction_id] = {nullptr, std::move(reduction_thread)};
   }
 }
+
+void DistributedObjectStore::Get(const ObjectID &object_id,
+                                 std::shared_ptr<Buffer> *result) {
+  TIMELINE(std::string("DistributedObjectStore Get single object ") +
+           object_id.ToString());
+
+  // FIXME: currently the object store will assume that the object
+  // exists even before 'Seal' is called. This will cause the problem
+  // that an on-going reduction task could be skipped. Here we just
+  // reorder the checking process as a workaround.
+  std::unique_lock<std::mutex> l(reduction_tasks_mutex_);
+  auto search = reduction_tasks_.find(object_id);
+  if (search != reduction_tasks_.end()) {
+    l.unlock();
+    // ==> This ObjectID belongs to a reduction task.
+    auto &reduction_task_pair = search->second;
+    // we must join the thread first, because the stream
+    // pointer could still be nullptr at creation.
+    reduction_task_pair.reduction_thread.join();
+    auto &stream = reduction_task_pair.stream;
+    if (stream) {
+      LOG(DEBUG) << "waiting the reduction stream";
+      // wait until the object is fully reduced
+      stream->wait();
+      local_store_client_.Seal(object_id);
+    }
+    // TODO: should we add this line?
+    // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
+    //                           stream->data());
+    l.lock();
+    reduction_tasks_.erase(object_id);
+    l.unlock();
+  } else {
+    l.unlock();
+    if (!local_store_client_.ObjectExists(object_id)) {
+      // ==> This ObjectID refers to a remote object.
+      SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
+      if (!check_and_store_inband_data(object_id, reply.object_size,
+                                       reply.inband_data)) {
+        // send pull request to one of the location
+        DCHECK(PullObject(reply.sender_ip, object_id))
+            << "Failed to pull object";
+      }
+    }
+  }
+
+  // get object from local store
+  ObjectBuffer object_buffer;
+  local_store_client_.Get(object_id, &object_buffer);
+  *result = object_buffer.data;
+}
+
+bool DistributedObjectStore::check_and_store_inband_data(
+    const ObjectID &object_id, int64_t object_size,
+    const std::string &inband_data) {
+  TIMELINE("DistributedObjectStore::check_and_store_inband_data");
+  if (inband_data.size() > 0) {
+    LOG(DEBUG) << "fetching object directly from inband data";
+    DCHECK(inband_data.size() <= inband_data_size_limit)
+        << "unexpected inband data size";
+    std::shared_ptr<Buffer> data;
+    local_store_client_.Create(object_id, object_size, &data);
+    data->CopyFrom(inband_data);
+    local_store_client_.Seal(object_id);
+    return true;
+  }
+  return false;
+}
+
+////////////////////////////////////////////////////////////////
+// The object store internal functions
+////////////////////////////////////////////////////////////////
 
 void DistributedObjectStore::poll_and_reduce(
     const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
@@ -399,128 +536,8 @@ void DistributedObjectStore::poll_and_reduce_2d(
   }
 }
 
-void DistributedObjectStore::Get(const ObjectID &object_id,
-                                 std::shared_ptr<Buffer> *result) {
-  TIMELINE(std::string("DistributedObjectStore Get single object ") +
-           object_id.ToString());
-
-  // FIXME: currently the object store will assume that the object
-  // exists even before 'Seal' is called. This will cause the problem
-  // that an on-going reduction task could be skipped. Here we just
-  // reorder the checking process as a workaround.
-  std::unique_lock<std::mutex> l(reduction_tasks_mutex_);
-  auto search = reduction_tasks_.find(object_id);
-  if (search != reduction_tasks_.end()) {
-    l.unlock();
-    // ==> This ObjectID belongs to a reduction task.
-    auto &reduction_task_pair = search->second;
-    // we must join the thread first, because the stream
-    // pointer could still be nullptr at creation.
-    reduction_task_pair.reduction_thread.join();
-    auto &stream = reduction_task_pair.stream;
-    if (stream) {
-      LOG(DEBUG) << "waiting the reduction stream";
-      // wait until the object is fully reduced
-      stream->wait();
-      local_store_client_.Seal(object_id);
-    }
-    // TODO: should we add this line?
-    // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
-    //                           stream->data());
-    l.lock();
-    reduction_tasks_.erase(object_id);
-    l.unlock();
-  } else {
-    l.unlock();
-    if (!local_store_client_.ObjectExists(object_id)) {
-      // ==> This ObjectID refers to a remote object.
-      SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
-      if (!check_and_store_inband_data(object_id, reply.object_size,
-                                       reply.inband_data)) {
-        // send pull request to one of the location
-        DCHECK(PullObject(reply.sender_ip, object_id))
-            << "Failed to pull object";
-      }
-    }
-  }
-
-  // get object from local store
-  ObjectBuffer object_buffer;
-  local_store_client_.Get(object_id, &object_buffer);
-  *result = object_buffer.data;
-}
-
-bool DistributedObjectStore::check_and_store_inband_data(
-    const ObjectID &object_id, int64_t object_size,
-    const std::string &inband_data) {
-  TIMELINE("DistributedObjectStore::check_and_store_inband_data");
-  if (inband_data.size() > 0) {
-    LOG(DEBUG) << "fetching object directly from inband data";
-    DCHECK(inband_data.size() <= inband_data_size_limit)
-        << "unexpected inband data size";
-    std::shared_ptr<Buffer> data;
-    local_store_client_.Create(object_id, object_size, &data);
-    data->CopyFrom(inband_data);
-    local_store_client_.Seal(object_id);
-    return true;
-  }
-  return false;
-}
-
-////////////////////////////////////////////////////////////////
-// the following code is moved from the object control
-////////////////////////////////////////////////////////////////
-
-bool DistributedObjectStore::PullObject(const std::string &remote_address,
-                                        const ObjectID &object_id) {
-  TIMELINE("DistributedObjectStore::PullObject");
-  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  PullRequest request;
-  PullReply reply;
-  request.set_object_id(object_id.Binary());
-  request.set_puller_ip(my_address_);
-  auto stub = get_stub(remote_grpc_address);
-  // TODO: make sure that grpc stub is thread-safe.
-  auto status = stub->Pull(&context, request, &reply);
-  return reply.ok();
-}
-
-bool DistributedObjectStore::InvokeReduceTo(
-    const std::string &remote_address, const ObjectID &reduction_id,
-    const std::vector<ObjectID> &dst_object_ids, const std::string &dst_address,
-    bool is_endpoint, const ObjectID *src_object_id) {
-  TIMELINE("GrpcServer::InvokeReduceTo");
-  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  ReduceToRequest request;
-  ReduceToReply reply;
-
-  request.set_reduction_id(reduction_id.Binary());
-  for (auto &object_id : dst_object_ids) {
-    request.add_dst_object_ids(object_id.Binary());
-  }
-  request.set_dst_address(dst_address);
-  request.set_is_endpoint(is_endpoint);
-  if (src_object_id != nullptr) {
-    request.set_src_object_id(src_object_id->Binary());
-  }
-  auto stub = get_stub(remote_grpc_address);
-  // TODO: make sure that grpc stub is thread-safe.
-  auto status = stub->ReduceTo(&context, request, &reply);
-  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
-                      << remote_grpc_address
-                      << ", message: " << status.error_message()
-                      << ", details = " << status.error_code();
-
-  return reply.ok();
-}
-
 void DistributedObjectStore::worker_loop() {
   LOG(INFO) << "[GprcServer] grpc server " << my_address_ << " started";
-
   grpc_server_->Wait();
 }
 
