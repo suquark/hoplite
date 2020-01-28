@@ -26,10 +26,8 @@ using objectstore::ReduceToRequest;
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
   ObjectStoreServiceImpl(ObjectSender &object_sender,
-                         LocalStoreClient &local_store_client,
-                         ObjectStoreState &state)
-      : ObjectStore::Service(), object_sender_(object_sender),
-        local_store_client_(local_store_client), state_(state) {}
+                         DistributedObjectStore store)
+      : ObjectStore::Service(), object_sender_(object_sender), store_(store) {}
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
@@ -59,15 +57,20 @@ public:
                               const RedirectReduceRequest *request,
                               RedirectReduceReply *reply) {
     TIMELINE("ObjectStoreServiceImpl::RedirectReduce()");
-    DCHECK(false) << "Notimplemented";
+    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
+    std::vector<ObjectID> object_ids;
+    for (const auto &object_id_str : request->object_ids()) {
+      ObjectID object_id = ObjectID::FromBinary(object_id_str);
+      object_ids.push_back(object_id);
+    }
+    store_.Reduce(object_ids, reduction_id);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
 
 private:
   ObjectSender &object_sender_;
-  ObjectStoreState &state_;
-  LocalStoreClient &local_store_client_;
+  DistributedObjectStore &store_;
 };
 
 ////////////////////////////////////////////////////////////////
@@ -170,8 +173,7 @@ DistributedObjectStore::DistributedObjectStore(
   object_sender_thread_ = object_sender_.Run();
 
   // initialize the object store
-  service_.reset(
-      new ObjectStoreServiceImpl(object_sender_, local_store_client_, state_));
+  service_.reset(new ObjectStoreServiceImpl(object_sender_, *this));
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address_, grpc::InsecureServerCredentials());
   builder.RegisterService(service_.get());
