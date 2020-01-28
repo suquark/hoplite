@@ -238,9 +238,17 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
   // TODO: support different reduce op and types.
   TIMELINE("DistributedObjectStore Async Reduce");
   DCHECK(object_ids.size() > 0);
+  std::thread reduction_thread;
   // starting a thread
-  std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
-                               object_ids, reduction_id);
+  // FIXME: this is an ad-hoc condition
+  if (object_ids.size() > 2) {
+    reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce_2d,
+                                   this, object_ids, reduction_id);
+  } else {
+    reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce,
+                                   this, object_ids, reduction_id);
+  }
+
   {
     std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
     reduction_tasks_[reduction_id] = {nullptr, std::move(reduction_thread)};
@@ -500,7 +508,7 @@ void DistributedObjectStore::poll_and_reduce_2d(
     int remaining_size = remaining_ids.size();
     int processed_count = 0;
     for (int i = 0; i < rows; i++) {
-      std::vector<ObjectID> redirect_object_ids {lines[i].second};
+      std::vector<ObjectID> redirect_object_ids{lines[i].second};
       int share_count = (remaining_size / rows) + (i < remaining_size % rows);
       for (int j = 0; j < share_count; j++, processed_count++) {
         redirect_object_ids.push_back(remaining_ids[processed_count]);
@@ -508,7 +516,8 @@ void DistributedObjectStore::poll_and_reduce_2d(
       // TODO: creating a random object id is very slow now.
       auto line_reduction_id = ObjectID::FromRandom();
       edge.push_back(line_reduction_id);
-      InvokeRedirectReduce(lines[i].first, redirect_object_ids, line_reduction_id);
+      InvokeRedirectReduce(lines[i].first, redirect_object_ids,
+                           line_reduction_id);
     }
     Reduce(edge, reduction_id);
   }
