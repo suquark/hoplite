@@ -8,6 +8,8 @@
 #include "global_control_store.h"
 #include "logging.h"
 
+using objectstore::ConnectListenerReply;
+using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;
 using objectstore::GetLocationAsyncAnswerReply;
@@ -49,6 +51,12 @@ public:
     notifications->ReceiveObjectNotification(object_id, sender_ip, object_size,
                                              inband_data);
     reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status ConnectListener(grpc::ServerContext *context,
+                               const ConnectListenerRequest *request,
+                               ConnectListenerReply *reply) {
     return grpc::Status::OK;
   }
 
@@ -104,12 +112,16 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       remote_notification_server_address, grpc::InsecureChannelCredentials());
   notification_stub_ =
       objectstore::NotificationServer::NewStub(notification_channel_);
+  LOG(INFO) << "notification_stub_ created";
+}
+
+void GlobalControlStoreClient::ConnectNotificationServer() {
   grpc::ClientContext context;
   ConnectRequest request;
+  request.set_sender_ip(my_address_);
   ConnectReply reply;
   auto status = notification_stub_->Connect(&context, request, &reply);
   DCHECK(status.ok()) << status.error_message();
-  LOG(INFO) << "notification_stub_ created";
 }
 
 void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,

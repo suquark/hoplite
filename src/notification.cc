@@ -16,6 +16,8 @@
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::ConnectListenerReply;
+using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;
 using objectstore::GetLocationAsyncAnswerReply;
@@ -73,6 +75,17 @@ public:
 
   grpc::Status Connect(grpc::ServerContext *context,
                        const ConnectRequest *request, ConnectReply *reply) {
+    // Create reverse stub
+    std::string sender_address = request->sender_ip() + ":" + std::to_string(port_);
+    create_stub(sender_address);
+    grpc::ClientContext client_context;
+    ConnectListenerRequest connect_request;
+    ConnectListenerReply connect_reply;
+    auto status = notification_listener_stub_pool_[sender_address]->ConnectListener(
+        &client_context, connect_request, &connect_reply);
+    DCHECK(status.ok()) << "Connect to " << sender_address << " failed: " << status.error_message();
+
+    LOG(INFO) << "Create succeeds on the notification server";
     return grpc::Status::OK;
   }
 

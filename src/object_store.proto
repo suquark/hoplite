@@ -118,9 +118,15 @@ message GetLocationAsyncAnswerReply {
   bool ok = 1;
 }
 
-message ConnectRequest{}
+message ConnectRequest {
+  bytes sender_ip = 1;
+}
 
-message ConnectReply{}
+message ConnectReply {}
+
+message ConnectListenerRequest {}
+
+message ConnectListenerReply {}
 
 service NotificationServer {
   rpc Register(RegisterRequest) returns (RegisterReply);
@@ -132,6 +138,7 @@ service NotificationServer {
 }
 
 service NotificationListener {
+  rpc ConnectListener(ConnectListenerRequest) returns (ConnectListenerReply);
   rpc GetLocationAsyncAnswer(GetLocationAsyncAnswerRequest) returns (GetLocationAsyncAnswerReply);
 }
 
