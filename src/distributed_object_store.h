@@ -22,6 +22,8 @@
 #include "object_store_state.h"
 #include "object_writer.h"
 
+class ObjectStoreServiceImpl;
+
 class DistributedObjectStore {
 public:
   DistributedObjectStore(const std::string &notification_server_address,
@@ -52,6 +54,8 @@ public:
   }
 
 private:
+  void worker_loop();
+
   void poll_and_reduce(const std::vector<ObjectID> object_ids,
                        const ObjectID reduction_id);
 
