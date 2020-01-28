@@ -3,10 +3,18 @@
 #include <unistd.h> // usleep
 #include <unordered_set>
 
-#include "common/buffer.h"
-#include "common/id.h"
+// gRPC headers
+#include <grpc/grpc.h>
+#include <grpcpp/grpcpp.h>
+#include <grpcpp/server.h>
+#include <grpcpp/server_builder.h>
+#include <grpcpp/server_context.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include "distributed_object_store.h"
 #include "logging.h"
+#include "socket_utils.h"
 
 DistributedObjectStore::DistributedObjectStore(
     const std::string &notification_server_address, int redis_port,
@@ -18,18 +26,25 @@ DistributedObjectStore::DistributedObjectStore(
                                            notification_server_port,
                                            notification_listen_port},
       local_store_client_{false, plasma_socket},
-      object_control_{object_sender_, local_store_client_, state_, my_address_,
-                      grpc_port},
       object_writer_{state_, gcs_client_, local_store_client_, my_address_,
                      object_writer_port},
-      object_sender_{state_, gcs_client_, local_store_client_, my_address_} {
+      object_sender_{state_, gcs_client_, local_store_client_, my_address_},
+      grpc_port_(grpc_port),
+      grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
   TIMELINE("DistributedObjectStore construction function");
   // create a thread to receive remote object
   object_writer_.Run();
   // create a thread to send object
   object_sender_thread_ = object_sender_.Run();
-  // create a thread to process pull requests
-  object_control_thread_ = object_control_.Run();
+
+  // initialize the object store
+  service_.reset(new ObjectStoreServiceImpl(
+      object_sender_, local_store_client_, state_)) grpc::ServerBuilder builder;
+  builder.AddListeningPort(grpc_address_, grpc::InsecureServerCredentials());
+  builder.RegisterService(service_.get());
+  grpc_server_ = builder.BuildAndStart();
+  object_control_thread_ =
+      std::thread(&DistributedObjectStore::worker_loop, this);
   // create a thread to process notifications
   notification_thread_ = gcs_client_.Run();
 
@@ -41,8 +56,7 @@ DistributedObjectStore::~DistributedObjectStore() {
   object_writer_.Shutdown();
   object_sender_.Shutdown();
   object_sender_thread_.join();
-  object_control_.Shutdown();
-  object_control_thread_.join();
+  Shutdown();
   gcs_client_.Shutdown();
   notification_thread_.join();
   LOG(INFO) << "Object store has been shutdown.";
@@ -163,14 +177,13 @@ void DistributedObjectStore::poll_and_reduce(
           }
         } else if (node_index == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
-          bool reply_ok = object_control_.InvokeReduceTo(
-              tail_address, reduction_id, {ready_id}, address, false,
-              &tail_objectid);
+          bool reply_ok = InvokeReduceTo(tail_address, reduction_id, {ready_id},
+                                         address, false, &tail_objectid);
           DCHECK(reply_ok);
         } else if (node_index > 1) {
           // Send 'ReduceTo' command to the other node in the chain.
-          bool reply_ok = object_control_.InvokeReduceTo(
-              tail_address, reduction_id, {ready_id}, address, false);
+          bool reply_ok = InvokeReduceTo(tail_address, reduction_id, {ready_id},
+                                         address, false);
           DCHECK(reply_ok);
         }
         tail_objectid = ready_id;
@@ -195,14 +208,13 @@ void DistributedObjectStore::poll_and_reduce(
                               buffer->Data());
   } else if (node_index == 1) {
     // only two nodes, no streaming needed
-    reply_ok = object_control_.InvokeReduceTo(tail_address, reduction_id,
-                                              local_object_ids, my_address_,
-                                              true, &tail_objectid);
+    reply_ok = InvokeReduceTo(tail_address, reduction_id, local_object_ids,
+                              my_address_, true, &tail_objectid);
     DCHECK(reply_ok);
   } else {
     // more than 2 nodes
-    reply_ok = object_control_.InvokeReduceTo(
-        tail_address, reduction_id, local_object_ids, my_address_, true);
+    reply_ok = InvokeReduceTo(tail_address, reduction_id, local_object_ids,
+                              my_address_, true);
     DCHECK(reply_ok);
   }
 }
@@ -232,9 +244,6 @@ void DistributedObjectStore::poll_and_reduce_2d(
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
                                              object_ids.end());
   std::vector<ObjectID> local_object_ids;
-  int node_index = 0;
-  ObjectID tail_objectid;
-  std::string tail_address;
 
   // the buffer for reduction results
   std::shared_ptr<Buffer> buffer;
@@ -281,15 +290,15 @@ void DistributedObjectStore::poll_and_reduce_2d(
           current_line.emplace_back(address, ready_id);
         } else if (current_line.size() == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
-          bool reply_ok = object_control_.InvokeReduceTo(
-              current_line[0].first, reduction_id, {ready_id}, address, false,
-              &current_line[0].second);
+          bool reply_ok =
+              InvokeReduceTo(current_line[0].first, reduction_id, {ready_id},
+                             address, false, &current_line[0].second);
           DCHECK(reply_ok);
         } else if (current_line.size() > 1) {
           // Send 'ReduceTo' command to the other node in the chain.
-          bool reply_ok = object_control_.InvokeReduceTo(
-              current_line.back().first, reduction_id, {ready_id}, address,
-              false);
+          bool reply_ok =
+              InvokeReduceTo(current_line.back().first, reduction_id,
+                             {ready_id}, address, false);
           DCHECK(reply_ok);
         }
         object_index++;
@@ -332,15 +341,14 @@ void DistributedObjectStore::poll_and_reduce_2d(
       auto &next_node = next_line.back();
       if (current_line.size() == 1) {
         // only two nodes, no streaming needed
-        reply_ok = object_control_.InvokeReduceTo(
-            current_node.first, reduction_id, local_object_ids, next_node.first,
-            true, &current_node.second);
+        reply_ok =
+            InvokeReduceTo(current_node.first, reduction_id, local_object_ids,
+                           next_node.first, true, &current_node.second);
         DCHECK(reply_ok);
       } else {
         // more than 2 nodes
-        reply_ok = object_control_.InvokeReduceTo(
-            current_node.first, reduction_id, local_object_ids, next_node.first,
-            true);
+        reply_ok = InvokeReduceTo(current_node.first, reduction_id,
+                                  local_object_ids, next_node.first, true);
         DCHECK(reply_ok);
       }
     }
@@ -386,7 +394,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
       if (!check_and_store_inband_data(object_id, reply.object_size,
                                        reply.inband_data)) {
         // send pull request to one of the location
-        DCHECK(object_control_.PullObject(reply.sender_ip, object_id))
+        DCHECK(PullObject(reply.sender_ip, object_id))
             << "Failed to pull object";
       }
     }
@@ -413,4 +421,125 @@ bool DistributedObjectStore::check_and_store_inband_data(
     return true;
   }
   return false;
+}
+
+////////////////////////////////////////////////////////////////
+// The following code is moved from the object control
+////////////////////////////////////////////////////////////////
+
+using objectstore::ObjectStore;
+using objectstore::PullReply;
+using objectstore::PullRequest;
+using objectstore::ReduceToReply;
+using objectstore::ReduceToRequest;
+
+bool DistributedObjectStore::PullObject(const std::string &remote_address,
+                                        const ObjectID &object_id) {
+  TIMELINE("DistributedObjectStore::PullObject");
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  create_stub(remote_grpc_address);
+  grpc::ClientContext context;
+  PullRequest request;
+  PullReply reply;
+  request.set_object_id(object_id.Binary());
+  request.set_puller_ip(my_address_);
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->Pull(&context, request, &reply);
+  return reply.ok();
+}
+
+class ObjectStoreServiceImpl final : public ObjectStore::Service {
+public:
+  ObjectStoreServiceImpl(ObjectSender &object_sender,
+                         LocalStoreClient &local_store_client,
+                         ObjectStoreState &state)
+      : ObjectStore::Service(), object_sender_(object_sender),
+        local_store_client_(local_store_client), state_(state) {}
+
+  grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
+                    PullReply *reply) {
+    TIMELINE("ObjectStoreServiceImpl::Pull()");
+    ObjectID object_id = ObjectID::FromBinary(request->object_id());
+
+    LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
+               << " for object " << object_id.ToString();
+
+    object_sender_.send_object(request);
+    LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
+               << " for object " << object_id.ToString();
+
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status ReduceTo(grpc::ServerContext *context,
+                        const ReduceToRequest *request, ReduceToReply *reply) {
+    TIMELINE("ObjectStoreServiceImpl::ReduceTo()");
+    object_sender_.AppendTask(request);
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+private:
+  ObjectSender &object_sender_;
+  ObjectStoreState &state_;
+  LocalStoreClient &local_store_client_;
+};
+
+bool DistributedObjectStore::InvokeReduceTo(
+    const std::string &remote_address, const ObjectID &reduction_id,
+    const std::vector<ObjectID> &dst_object_ids, const std::string &dst_address,
+    bool is_endpoint, const ObjectID *src_object_id) {
+  TIMELINE("GrpcServer::InvokeReduceTo");
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  create_stub(remote_grpc_address);
+  grpc::ClientContext context;
+  ReduceToRequest request;
+  ReduceToReply reply;
+
+  request.set_reduction_id(reduction_id.Binary());
+  for (auto &object_id : dst_object_ids) {
+    request.add_dst_object_ids(object_id.Binary());
+  }
+  request.set_dst_address(dst_address);
+  request.set_is_endpoint(is_endpoint);
+  if (src_object_id != nullptr) {
+    request.set_src_object_id(src_object_id->Binary());
+  }
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->ReduceTo(&context, request, &reply);
+  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
+                      << remote_grpc_address
+                      << ", message: " << status.error_message()
+                      << ", details = " << status.error_code();
+
+  return reply.ok();
+}
+
+void DistributedObjectStore::worker_loop() {
+  LOG(INFO) << "[GprcServer] grpc server " << my_address_ << " started";
+
+  grpc_server_->Wait();
+}
+
+objectstore::ObjectStore::Stub *
+DistributedObjectStore::get_stub(const std::string &remote_grpc_address) {
+  std::lock_guard<std::mutex> lock(grpc_stub_map_mutex_);
+  return object_store_stub_pool_[remote_grpc_address].get();
+}
+
+void DistributedObjectStore::create_stub(
+    const std::string &remote_grpc_address) {
+  std::lock_guard<std::mutex> lock(grpc_stub_map_mutex_);
+  if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
+    channel_pool_[remote_grpc_address] = grpc::CreateChannel(
+        remote_grpc_address, grpc::InsecureChannelCredentials());
+  }
+  if (object_store_stub_pool_.find(remote_grpc_address) ==
+      object_store_stub_pool_.end()) {
+    object_store_stub_pool_[remote_grpc_address] =
+        ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
+  }
 }
