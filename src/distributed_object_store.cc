@@ -501,8 +501,8 @@ void DistributedObjectStore::poll_and_reduce_2d(
   } else {
     std::vector<ObjectID> edge;
     int remaining_size = remaining_ids.size();
-    std::vector<ObjectID> remaining_ids_list(object_ids.begin(),
-                                             object_ids.end());
+    std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
+                                             remaining_ids.end());
     int processed_count = 0;
     for (int i = 0; i < rows; i++) {
       std::vector<ObjectID> redirect_object_ids{lines[i].second};
