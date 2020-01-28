@@ -16,6 +16,16 @@
 #include "logging.h"
 #include "socket_utils.h"
 
+////////////////////////////////////////////////////////////////
+// The gRPC service of the object store
+////////////////////////////////////////////////////////////////
+
+using objectstore::ObjectStore;
+using objectstore::PullReply;
+using objectstore::PullRequest;
+using objectstore::ReduceToReply;
+using objectstore::ReduceToRequest;
+
 class ObjectStoreServiceImpl final : public ObjectStore::Service {
 public:
   ObjectStoreServiceImpl(ObjectSender &object_sender,
@@ -463,14 +473,8 @@ bool DistributedObjectStore::check_and_store_inband_data(
 }
 
 ////////////////////////////////////////////////////////////////
-// The following code is moved from the object control
+// the following code is moved from the object control
 ////////////////////////////////////////////////////////////////
-
-using objectstore::ObjectStore;
-using objectstore::PullReply;
-using objectstore::PullRequest;
-using objectstore::ReduceToReply;
-using objectstore::ReduceToRequest;
 
 bool DistributedObjectStore::PullObject(const std::string &remote_address,
                                         const ObjectID &object_id) {
