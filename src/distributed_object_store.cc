@@ -14,6 +14,8 @@
 using objectstore::ObjectStore;
 using objectstore::PullReply;
 using objectstore::PullRequest;
+using objectstore::RedirectReduceReply;
+using objectstore::RedirectReduceRequest;
 using objectstore::ReduceToReply;
 using objectstore::ReduceToRequest;
 
@@ -49,6 +51,14 @@ public:
                         const ReduceToRequest *request, ReduceToReply *reply) {
     TIMELINE("ObjectStoreServiceImpl::ReduceTo()");
     object_sender_.AppendTask(request);
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status RedirectReduce(grpc::ServerContext *context,
+                        const RedirectReduceRequest *request, RedirectReduceReply *reply) {
+    TIMELINE("ObjectStoreServiceImpl::RedirectReduce()");
+    DCHECK(false) << "Notimplemented";
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -110,14 +120,27 @@ bool DistributedObjectStore::InvokeReduceTo(
   return reply.ok();
 }
 
-void DistributedObjectStore::RedirectReduceTo(
+bool DistributedObjectStore::InvokeRedirectReduce(
     const std::string &remote_address, const std::vector<ObjectID> &object_ids,
     const ObjectID &reduction_id) {
   TIMELINE("GrpcServer::RedirectReduceTo");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
   grpc::ClientContext context;
-  
+  RedirectReduceRequest request;
+  RedirectReduceReply reply;
+  request.set_reduction_id(reduction_id);
+  for (const auto &object_id : object_ids) {
+    request.add_object_ids(object_id.Binary());
+  }
+  auto stub = get_stub(remote_grpc_address);
+  // TODO: make sure that grpc stub is thread-safe.
+  auto status = stub->RedirectReduce(&context, request, &reply);
+  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
+                      << remote_grpc_address
+                      << ", message: " << status.error_message()
+                      << ", details = " << status.error_code();
+  return reply.ok();
 }
 
 ////////////////////////////////////////////////////////////////

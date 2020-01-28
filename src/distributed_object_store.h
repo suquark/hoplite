@@ -111,6 +111,10 @@ private:
                       const std::string &dst_address, bool is_endpoint,
                       const ObjectID *src_object_id = nullptr);
 
+  bool InvokeRedirectReduce(const std::string &remote_address,
+                            const std::vector<ObjectID> &object_ids,
+                            const ObjectID &reduction_id);
+
   void Shutdown() {
     grpc_server_->Shutdown();
     object_control_thread_.join();
