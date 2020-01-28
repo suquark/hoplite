@@ -3,7 +3,6 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <string.h>
 
 #include "global_control_store.h"
 #include "logging.h"

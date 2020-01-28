@@ -1,6 +1,4 @@
 #include <cmath>
-
-#include <unistd.h> // usleep
 #include <unordered_set>
 
 // gRPC headers
@@ -9,12 +7,9 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 #include "distributed_object_store.h"
 #include "logging.h"
-#include "socket_utils.h"
 
 ////////////////////////////////////////////////////////////////
 // The gRPC service of the object store

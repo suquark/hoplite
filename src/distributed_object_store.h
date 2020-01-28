@@ -3,7 +3,6 @@
 
 #include <condition_variable>
 #include <cstdint>
-#include <ctime>
 #include <mutex>
 #include <string>
 #include <thread>
