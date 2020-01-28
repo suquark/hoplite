@@ -443,12 +443,7 @@ void DistributedObjectStore::poll_and_reduce_2d(
   // TODO: separate local objects first
   size_t n_objects = object_ids.size();
   int rows = floor(sqrt(n_objects));
-  std::vector<int> objects_per_row(rows);
-  int minimum_length = n_objects / rows;
-  int remaining = n_objects % rows;
-  for (int i = 0; i < rows; i++) {
-    objects_per_row[i] = minimum_length + (i < remaining);
-  }
+  LOG(INFO) << "number of rows: " << rows;
 
   std::vector<std::pair<std::string, ObjectID>> lines;
 
