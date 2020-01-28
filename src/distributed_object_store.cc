@@ -251,6 +251,9 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
 
   {
     std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
+    DCHECK(reduction_tasks_.find(reduction_id) == reduction_tasks_.end())
+        << "Reduction task with " << reduction_id.ToString()
+        << " already exists.";
     reduction_tasks_[reduction_id] = {nullptr, std::move(reduction_thread)};
   }
 }
