@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <thread>
 
 #include "logging.h"
 #include "notification.h"
@@ -152,17 +153,8 @@ public:
   grpc::Status GetLocationAsync(grpc::ServerContext *context,
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
-    std::lock_guard<std::mutex> guard(object_location_mutex_);
-    std::string receiver_ip = request->receiver_ip();
-    std::string query_id = request->query_id();
-    // TODO: pass in repeated object ids will send twice.
-    for (auto object_id_it : request->object_ids()) {
-      ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
-                                             receiver_ip, query_id,
-                                             request->occupying()});
-      try_send_notification(object_id);
-    }
+    std::thread t(push_async_request_into_queue, *request);
+    t.detach();
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -226,6 +218,20 @@ private:
               << "Failed to send notification";
         }
       }
+    }
+  }
+
+  void push_async_request_into_queue(GetLocationAsyncRequest request) {
+    std::lock_guard<std::mutex> guard(object_location_mutex_);
+    std::string receiver_ip = request->receiver_ip();
+    std::string query_id = request->query_id();
+    // TODO: pass in repeated object ids will send twice.
+    for (auto object_id_it : request->object_ids()) {
+      ObjectID object_id = ObjectID::FromBinary(object_id_it);
+      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
+                                             receiver_ip, query_id,
+                                             request->occupying()});
+      try_send_notification(object_id);
     }
   }
 
