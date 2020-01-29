@@ -27,9 +27,19 @@ message ReduceToReply {
   bool ok = 1;
 }
 
+message RedirectReduceRequest {
+  bytes reduction_id = 1;
+  repeated bytes object_ids = 2;
+}
+
+message RedirectReduceReply {
+  bool ok = 1;
+}
+
 service ObjectStore {
   rpc Pull(PullRequest) returns (PullReply);
   rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
+  rpc RedirectReduce(RedirectReduceRequest) returns (RedirectReduceReply);
 }
 
 // Object Writer Protocol

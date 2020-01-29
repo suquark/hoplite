@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$#" -lt 3 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) test name, number of nodes & input size required$"; exit -1; fi
+if [ "$#" -lt 3 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) test name, number of nodes & input size required"; exit -1; fi
 if [ "$#" -gt 6 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many arguments: $#"; exit -1; fi
 
 
