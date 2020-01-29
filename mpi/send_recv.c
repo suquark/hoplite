@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   double time = 0;
   float *numbers = create_rand_nums(num_elements);
   if (world_rank == 0) {
-    // If we are rank 0, set the number to -1 and send it to process 1
+    time -= MPI_Wtime();
     MPI_Send(
         /* data         = */ numbers,
         /* count        = */ num_elements,
@@ -45,8 +45,19 @@ int main(int argc, char **argv) {
         /* destination  = */ 1,
         /* tag          = */ 0,
         /* communicator = */ MPI_COMM_WORLD);
+
+    MPI_Recv(
+        /* data         = */ numbers,
+        /* count        = */ num_elements,
+        /* datatype     = */ MPI_FLOAT,
+        /* source       = */ 1,
+        /* tag          = */ 0,
+        /* communicator = */ MPI_COMM_WORLD,
+        /* status       = */ MPI_STATUS_IGNORE);
+    time += MPI_Wtime();
+    printf("MPI_Recv time = %lf\n", time);
+
   } else if (world_rank == 1) {
-    time -= MPI_Wtime();
     MPI_Recv(
         /* data         = */ numbers,
         /* count        = */ num_elements,
@@ -55,9 +66,14 @@ int main(int argc, char **argv) {
         /* tag          = */ 0,
         /* communicator = */ MPI_COMM_WORLD,
         /* status       = */ MPI_STATUS_IGNORE);
-    time += MPI_Wtime();
 
-    printf("MPI_Recv time = %lf\n", time);
+    MPI_Send(
+        /* data         = */ numbers,
+        /* count        = */ num_elements,
+        /* datatype     = */ MPI_FLOAT,
+        /* destination  = */ 0,
+        /* tag          = */ 0,
+        /* communicator = */ MPI_COMM_WORLD);
   }
   MPI_Finalize();
 }
