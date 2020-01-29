@@ -519,7 +519,7 @@ void DistributedObjectStore::poll_and_reduce_2d(
       InvokeRedirectReduce(lines[i].first, redirect_object_ids,
                            line_reduction_id);
     }
-    poll_and_reduce(object_ids, reduction_id);
+    poll_and_reduce(edge, reduction_id);
   }
 }
 
