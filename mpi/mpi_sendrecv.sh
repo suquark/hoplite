@@ -13,7 +13,7 @@ slaves=(${slaves[@]:0:1})
 
 all_nodes=($master ${slaves[@]})
 
-echo data size: $2
+echo data size: $1
 echo Nodes: ${all_nodes[@]}
 
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
