@@ -197,10 +197,24 @@ DistributedObjectStore::~DistributedObjectStore() {
   LOG(INFO) << "Object store has been shutdown.";
 }
 
-// void DistributedObjectStore::IsLocalObject(const ObjectID &object_id) {
-//   return local_store_client_.ObjectExists(object_id) ||
-//          state_.get_progressive_stream(object_id);
-// }
+bool DistributedObjectStore::IsLocalObject(const ObjectID &object_id, int64_t *size) {
+  if (local_store_client_.ObjectExists(object_id)) {
+    ObjectBuffer object_buffer;
+    local_store_client_.Get(object_id, &object_buffer);
+    if (size != nullptr) {
+      *size = object_buffer.data->Size();
+    }
+    return true;
+  }
+  auto stream = state_.get_progressive_stream(object_id);
+  if (stream) {
+    if (size != nullptr) {
+      *size = stream->size();
+    }
+    return true;
+  }
+  return false;
+}
 
 void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                                  const ObjectID &object_id) {
@@ -343,12 +357,30 @@ void DistributedObjectStore::poll_and_reduce(
   std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
                                              object_ids.end());
   std::vector<ObjectID> local_object_ids;
-  int node_index = 0;
-  ObjectID tail_objectid;
-  std::string tail_address;
 
   // the buffer for reduction results
   std::shared_ptr<Buffer> buffer;
+
+  // iterate over object ids to see if they are local objects
+  for (const auto &object_id : object_ids) {
+    int64_t object_size;
+    if (IsLocalObject(object_id, &object_size)) {
+      remaining_ids.erase(object_id);
+      local_object_ids.push_back(object_id);
+      if (!buffer) {
+        // create the endpoint buffer
+        auto pstatus =
+            local_store_client_.Create(reduction_id, object_size, &buffer);
+        DCHECK(pstatus.ok())
+            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
+            << " size = " << object_size << ", status = " << pstatus.ToString();
+      }
+    }
+  }
+
+  int node_index = 0;
+  ObjectID tail_objectid;
+  std::string tail_address;
 
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
@@ -513,7 +545,6 @@ void DistributedObjectStore::poll_and_reduce_2d(
       for (int j = 0; j < share_count; j++, processed_count++) {
         redirect_object_ids.push_back(remaining_ids_list[processed_count]);
       }
-      // TODO: creating a random object id is very slow now.
       auto line_reduction_id = ObjectID::FromRandom();
       edge.push_back(line_reduction_id);
       InvokeRedirectReduce(lines[i].first, redirect_object_ids,

@@ -46,6 +46,8 @@ public:
 
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
+  bool IsLocalObject(const ObjectID &object_id, int64_t *size);
+
   inline void join_tasks() {
     object_sender_thread_.join();
     object_control_thread_.join();
@@ -75,7 +77,10 @@ private:
     bool first = true;
     // TODO: implement parallel reducing
     for (const auto &object_id : object_ids) {
+      // TODO: those object_ids could also be local streams.
       ObjectBuffer object_buffer;
+      DCHECK(local_store_client_.ObjectExists(object_id))
+        << "ObjectID not in local store";
       local_store_client_.Get(object_id, &object_buffer);
       std::shared_ptr<Buffer> buf = object_buffer.data;
       const T *data_ptr = (const T *)buf->Data();
