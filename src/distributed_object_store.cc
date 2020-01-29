@@ -197,7 +197,8 @@ DistributedObjectStore::~DistributedObjectStore() {
   LOG(INFO) << "Object store has been shutdown.";
 }
 
-bool DistributedObjectStore::IsLocalObject(const ObjectID &object_id, int64_t *size) {
+bool DistributedObjectStore::IsLocalObject(const ObjectID &object_id,
+                                           int64_t *size) {
   if (local_store_client_.ObjectExists(object_id)) {
     ObjectBuffer object_buffer;
     local_store_client_.Get(object_id, &object_buffer);
@@ -347,25 +348,15 @@ bool DistributedObjectStore::check_and_store_inband_data(
 void DistributedObjectStore::poll_and_reduce(
     const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
   TIMELINE("DistributedObjectStore Reduce Thread");
-  // we do not use reference for its parameters because it will be executed
-  // in a thread.
-
-  std::shared_ptr<ObjectNotifications> notifications =
-      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
-
-  // states for enumerating the chain
-  std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
-                                             object_ids.end());
-  std::vector<ObjectID> local_object_ids;
-
   // the buffer for reduction results
   std::shared_ptr<Buffer> buffer;
+  std::vector<ObjectID> notification_candidates;
+  std::vector<ObjectID> local_object_ids;
 
   // iterate over object ids to see if they are local objects
   for (const auto &object_id : object_ids) {
     int64_t object_size;
     if (IsLocalObject(object_id, &object_size)) {
-      remaining_ids.erase(object_id);
       local_object_ids.push_back(object_id);
       if (!buffer) {
         // create the endpoint buffer
@@ -375,8 +366,17 @@ void DistributedObjectStore::poll_and_reduce(
             << "Plasma failed to create reduction_id = " << reduction_id.Hex()
             << " size = " << object_size << ", status = " << pstatus.ToString();
       }
+    } else {
+      notification_candidates.push_back(object_id);
     }
   }
+
+  std::shared_ptr<ObjectNotifications> notifications =
+      gcs_client_.GetLocationAsync(notification_candidates,
+                                   reduction_id.Binary(), false);
+  // states for enumerating the chain
+  std::unordered_set<ObjectID> remaining_ids(notification_candidates.begin(),
+                                             notification_candidates.end());
 
   int node_index = 0;
   ObjectID tail_objectid;
@@ -534,7 +534,8 @@ void DistributedObjectStore::poll_and_reduce_2d(
     // objects are ready.
     poll_and_reduce(object_ids, reduction_id);
   } else {
-    std::vector<ObjectID> edge(local_object_ids.begin(), local_object_ids.end());
+    std::vector<ObjectID> edge(local_object_ids.begin(),
+                               local_object_ids.end());
     int remaining_size = remaining_ids.size();
     std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
                                              remaining_ids.end());

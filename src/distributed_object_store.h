@@ -57,6 +57,8 @@ public:
 private:
   void worker_loop();
 
+  // we do not use reference for its parameters because it will be executed
+  // in a thread.
   void poll_and_reduce(const std::vector<ObjectID> object_ids,
                        const ObjectID reduction_id);
 
@@ -80,7 +82,7 @@ private:
       // TODO: those object_ids could also be local streams.
       ObjectBuffer object_buffer;
       DCHECK(local_store_client_.ObjectExists(object_id))
-        << "ObjectID not in local store";
+          << "ObjectID not in local store";
       local_store_client_.Get(object_id, &object_buffer);
       std::shared_ptr<Buffer> buf = object_buffer.data;
       const T *data_ptr = (const T *)buf->Data();
