@@ -502,7 +502,7 @@ void DistributedObjectStore::poll_and_reduce_2d(
     // objects are ready.
     poll_and_reduce(object_ids, reduction_id);
   } else {
-    std::vector<ObjectID> edge;
+    std::vector<ObjectID> edge(local_object_ids.begin(), local_object_ids.end());
     int remaining_size = remaining_ids.size();
     std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
                                              remaining_ids.end());
