@@ -1,4 +1,4 @@
-EXECS=compare_bcast reduce allreduce gather allgather
+EXECS=compare_bcast reduce allreduce gather allgather send_recv
 MPICC?=mpicc
 
 all: ${EXECS}
@@ -17,6 +17,9 @@ gather: gather.c
 
 allgather: allgather.c
 	${MPICC} -O2 -o allgather allgather.c
+
+send_recv: send_recv.c
+	${MPICC} -O2 -o send_recv send_recv.c
 
 clean:
 	rm -f ${EXECS}
