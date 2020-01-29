@@ -153,6 +153,7 @@ public:
   grpc::Status GetLocationAsync(grpc::ServerContext *context,
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
+    TIMELINE("notification GetLocationAsync");
     std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this, *request);
     t.detach();
     reply->set_ok(true);
@@ -222,6 +223,7 @@ private:
   }
 
   void push_async_request_into_queue(GetLocationAsyncRequest request) {
+    TIMELINE("notification push_async_request_into_queue");
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     std::string receiver_ip = request.receiver_ip();
     std::string query_id = request.query_id();
@@ -239,6 +241,7 @@ private:
                          const std::string &receiver_ip,
                          const ObjectID &object_id,
                          const std::string &query_id) {
+    TIMELINE("notification send_notification");
     auto remote_address = receiver_ip + ":" + std::to_string(port_);
     create_stub(remote_address);
     grpc::ClientContext context;
