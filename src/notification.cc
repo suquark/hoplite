@@ -153,7 +153,7 @@ public:
   grpc::Status GetLocationAsync(grpc::ServerContext *context,
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
-    std::thread t(push_async_request_into_queue, *request);
+    std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this, *request);
     t.detach();
     reply->set_ok(true);
     return grpc::Status::OK;
