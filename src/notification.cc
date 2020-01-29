@@ -7,11 +7,11 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 #include <queue>
+#include <thread>
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-#include <thread>
 
 #include "logging.h"
 #include "notification.h"
@@ -154,7 +154,8 @@ public:
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
     TIMELINE("notification GetLocationAsync");
-    std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this, *request);
+    std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this,
+                  *request);
     t.detach();
     reply->set_ok(true);
     return grpc::Status::OK;
