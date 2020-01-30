@@ -41,6 +41,31 @@ def barrier(world_rank, notification_address, notification_port, world_size):
     is_ready(notification_address, notification_port, my_address)
 
 @ray.remote(resources={'node': 1})
+def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, object_size):
+    object_id = ray.ObjectID(str(args_dict['seed']).encode().rjust(20, b'\0'))
+    object_id2 = ray.ObjectID(str(args_dict['seed'] + 1).encode().rjust(20, b'\0'))
+    if world_rank == 0:
+        array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
+        barrier(world_rank, notification_address, notification_port, world_size)
+        start = time.time()
+        ray.worker.global_worker.put_object(array, object_id=object_id)
+        ready_set, unready_set = ray.wait([object_id2], timeout=5)
+        assert ready_set
+        array = ray.get(object_id2)
+        duration = time.time() - start
+        buffer = store_lib.Buffer.from_buffer(array)
+        print("Buffer created, hash =", hash(buffer))
+        print("duration = ", duration)
+    else:
+        return_array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
+        barrier(world_rank, notification_address, notification_port, world_size)
+        ready_set, unready_set = ray.wait([object_id], timeout=5)
+        assert ready_set
+        array = ray.get(object_id)
+        ray.worker.global_worker.put_object(return_array, object_id=object_id2)
+    time.sleep(30)
+
+@ray.remote(resources={'node': 1})
 def ray_multicast(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed']).encode().rjust(20, b'\0'))
     if world_rank == 0:
@@ -351,7 +376,10 @@ tasks = []
 args_dict['seed'] = np.random.randint(0, 2**30)
 
 for rank in range(args.world_size):
-    if args.type_of_test == 'ray-multicast':
+    if args.type_of_test == 'ray-sendrecv':
+        assert (args.world_size == 2)
+        task_id = ray_sendrecv.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    elif args.type_of_test == 'ray-multicast':
         task_id = ray_multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'ray-reduce':
         task_id = ray_reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
