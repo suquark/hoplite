@@ -256,7 +256,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
   std::thread reduction_thread;
   // starting a thread
   // FIXME: this is an ad-hoc condition
-  if (object_ids.size() > 2) {
+  if (object_ids.size() > 100) {
     reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce_2d,
                                    this, object_ids, reduction_id);
   } else {
