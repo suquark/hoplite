@@ -49,9 +49,9 @@ void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
       LOG(FATAL) << "[stream_write_next] socket send error (" << strerror(errno)
                  << ", code=" << errno << ")";
     }
-    break;
+    stream->receive_progress += bytes_recv;
+    return;
   }
-  stream->receive_progress += bytes_recv;
 }
 
 template <typename T> void stream_write(int conn_fd, T *stream) {
