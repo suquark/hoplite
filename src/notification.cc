@@ -217,13 +217,12 @@ private:
                 << "sync_mutex should be locked";
             receiver.sync_mutex->unlock();
           } else {
-            GetLocationAsyncAnswerRequest::ObjectInfo object;
-            object.set_object_id(object_id.Binary());
-            object.set_sender_ip(sender_ip);
-            object.set_query_id(receiver.query_id);
-            object.set_object_size(object_size_[object_id]);
-            object.set_inband_data(get_inband_data(object_id));
-            request_pool[receiver.receiver_ip].add_objects(object);
+            GetLocationAsyncAnswerRequest::ObjectInfo* object = request_pool[receiver.receiver_ip].add_objects();
+            object->set_object_id(object_id.Binary());
+            object->set_sender_ip(sender_ip);
+            object->set_query_id(receiver.query_id);
+            object->set_object_size(object_size_[object_id]);
+            object->set_inband_data(get_inband_data(object_id));
           }
         }
       }
