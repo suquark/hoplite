@@ -23,7 +23,8 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
-  std::thread exit_thread(timed_exit, 20);
+  // TODO: allgather could be very slow. we could even extend it longer.
+  std::thread exit_thread(timed_exit, 40);
 
   std::vector<ObjectID> object_ids;
   float sum = 0;
