@@ -237,14 +237,16 @@ private:
     std::lock_guard<std::mutex> guard(object_location_mutex_);
     std::string receiver_ip = request.receiver_ip();
     std::string query_id = request.query_id();
+    std::vector<ObjectID> object_ids;
     // TODO: pass in repeated object ids will send twice.
     for (auto object_id_it : request.object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
       pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
                                              receiver_ip, query_id,
                                              request.occupying()});
+      object_ids.append(object_id)
     }
-    try_send_notification(request.object_ids());
+    try_send_notification(object_ids);
   }
 
   bool send_notification(const std::string &receiver_ip,
