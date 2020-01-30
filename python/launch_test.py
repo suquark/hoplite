@@ -344,7 +344,7 @@ args_dict = utils.extract_dict_from_args(args)
 utils.start_location_server()
 notification_address = utils.get_my_address()
 
-ray.init(address='auto', load_code_from_local=True)
+ray.init(address='auto')
 
 tasks = []
 
