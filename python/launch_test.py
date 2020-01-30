@@ -232,6 +232,30 @@ def ray_allgather(args_dict, notification_address, world_size, world_rank, objec
     time.sleep(30)
 
 @ray.remote(resources={'node': 1})
+def sendrecv(args_dict, notification_address, world_size, world_rank, object_size):
+    store = utils.create_store_using_dict(args_dict)
+    object_id = store_lib.ObjectID(b'\0' * 20)
+    object_id2 = store_lib.ObjectID(b'\1' * 20)
+    if world_rank == 0:
+        array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
+        buffer = store_lib.Buffer.from_buffer(array)
+        barrier(world_rank, notification_address, notification_port, world_size)
+        start = time.time()
+        store.put(buffer, object_id)
+        buffer = store.get(object_id2)
+        duration = time.time() - start
+        print("Buffer created, hash =", hash(buffer))
+        print("duration = ", duration)
+    else:
+        return_array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
+        return_buffer = store_lib.Buffer.from_buffer(return_array)
+        barrier(world_rank, notification_address, notification_port, world_size)
+        buffer = store.get(object_id)
+        store.put(return_buffer, object_id2)
+    time.sleep(30)
+
+
+@ray.remote(resources={'node': 1})
 def multicast(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = store_lib.ObjectID(b'\0' * 20)
@@ -389,6 +413,9 @@ for rank in range(args.world_size):
         task_id = ray_gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'ray-allgather':
         task_id = ray_allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+    elif args.type_of_test == 'sendrecv':
+        assert (args.world_size == 2)
+        task_id = sendrecv.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'multicast':
         task_id = multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'reduce':
