@@ -40,7 +40,7 @@ void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
   while (true) {
     int bytes_recv =
         recv(conn_fd, data_ptr + stream->receive_progress, recv_block_size, 0);
-    if (bytes_sent < 0) {
+    if (bytes_recv < 0) {
       LOG(ERROR) << "[stream_write_next] socket send error (" << strerror(errno)
                  << ", code=" << errno << ")";
       if (errno == EAGAIN) {
