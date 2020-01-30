@@ -244,7 +244,7 @@ private:
       pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
                                              receiver_ip, query_id,
                                              request.occupying()});
-      object_ids.push_back(object_id)
+      object_ids.push_back(object_id);
     }
     try_send_notification(object_ids);
   }
