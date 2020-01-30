@@ -42,7 +42,6 @@ def barrier(world_rank, notification_address, notification_port, world_size):
 
 @ray.remote(resources={'node': 1})
 def ray_multicast(args_dict, notification_address, world_size, world_rank, object_size):
-    store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed']).encode().rjust(20, b'\0'))
     if world_rank == 0:
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
@@ -65,7 +64,6 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
 
 @ray.remote(resources={'node': 1})
 def ray_reduce(args_dict, notification_address, world_size, world_rank, object_size):
-    store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
@@ -103,7 +101,6 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
 
 @ray.remote(resources={'node': 1})
 def ray_allreduce(args_dict, notification_address, world_size, world_rank, object_size):
-    store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     reduce_id = ray.ObjectID(str(args_dict['seed'] + world_size).encode().rjust(20, b'\0'))
     time.sleep(5)
@@ -144,7 +141,6 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
 
 @ray.remote(resources={'node': 1})
 def ray_gather(args_dict, notification_address, world_size, world_rank, object_size):
-    store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
@@ -180,7 +176,6 @@ def ray_gather(args_dict, notification_address, world_size, world_rank, object_s
 
 @ray.remote(resources={'node': 1})
 def ray_allgather(args_dict, notification_address, world_size, world_rank, object_size):
-    store = utils.create_store_using_dict(args_dict)
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
@@ -357,25 +352,25 @@ args_dict['seed'] = np.random.randint(0, 2**30)
 
 for rank in range(args.world_size):
     if args.type_of_test == 'ray-multicast':
-        task_id = test_functions.ray_multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = ray_multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'ray-reduce':
-        task_id = test_functions.ray_reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = ray_reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'ray-allreduce':
-        task_id = test_functions.ray_allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = ray_allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'ray-gather':
-        task_id = test_functions.ray_gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = ray_gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'ray-allgather':
-        task_id = test_functions.ray_allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = ray_allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'multicast':
-        task_id = test_functions.multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'reduce':
-        task_id = test_functions.reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'allreduce':
-        task_id = test_functions.allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'gather':
-        task_id = test_functions.gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'allgather':
-        task_id = test_functions.allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
     else:
         raise ValueError(f"Test '{args.type_of_test}' not exists.")
     tasks.append(task_id)
