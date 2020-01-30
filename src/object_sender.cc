@@ -1,4 +1,6 @@
 #include <arpa/inet.h>
+#include <cerrno>
+#include <cstring>
 #include <logging.h>
 #include <netinet/in.h>
 #include <socket_utils.h>
@@ -36,7 +38,15 @@ template <typename T> void stream_send(int conn_fd, T *stream) {
     if (cursor < current_progress) {
       int bytes_sent =
           send(conn_fd, data_ptr + cursor, current_progress - cursor, 0);
-      DCHECK(bytes_sent > 0) << "socket send error: object content";
+      if (bytes_sent < 0) {
+        LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno)
+                   << ", code=" << errno << ")";
+        if (errno == EAGAIN) {
+          continue;
+        }
+        LOG(FATAL) << "[stream_send] socket send error (" << strerror(errno)
+                   << ", code=" << errno << ")";
+      }
       cursor += bytes_sent;
     }
   }

@@ -1,6 +1,7 @@
 #include "logging.h"
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstring>
 #include <ctime>
 #include <errno.h>
 #include <iostream>
@@ -25,7 +26,11 @@ int send_all(int conn_fd, const void *buf, const size_t size) {
     int bytes_sent =
         send(conn_fd, (const uint8_t *)buf + cursor, size - cursor, 0);
     if (bytes_sent < 0) {
-      LOG(ERROR) << "Socket send error (code=" << errno << ")";
+      LOG(ERROR) << "Socket send error (" << strerror(errno)
+                 << ", code=" << errno << ")";
+      if (errno == EAGAIN) {
+        continue;
+      }
       return bytes_sent;
     }
     cursor += bytes_sent;
@@ -38,7 +43,11 @@ int recv_all(int conn_fd, void *buf, const size_t size) {
   while (cursor < size) {
     int bytes_recv = recv(conn_fd, (uint8_t *)buf + cursor, size - cursor, 0);
     if (bytes_recv < 0) {
-      LOG(ERROR) << "Socket recv error (code=" << errno << ")";
+      LOG(ERROR) << "Socket recv error (" << strerror(errno)
+                 << ", code=" << errno << ")";
+      if (errno == EAGAIN) {
+        continue;
+      }
       return bytes_recv;
     }
     cursor += bytes_recv;

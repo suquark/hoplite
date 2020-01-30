@@ -1,5 +1,7 @@
 #include <csignal>
 #include <cstdint>
+#include <cerrno>
+#include <cstring>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -35,11 +37,21 @@ void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
   int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
                             ? STREAM_MAX_BLOCK_SIZE
                             : remaining_size;
-  int bytes_recv =
-      recv(conn_fd, data_ptr + stream->receive_progress, recv_block_size, 0);
-  DCHECK(bytes_recv > 0) << "socket recv error: object content, errno = "
-                         << errno;
-  stream->receive_progress += bytes_recv;
+  while (true) {
+    int bytes_recv =
+        recv(conn_fd, data_ptr + stream->receive_progress, recv_block_size, 0);
+    if (bytes_recv < 0) {
+      LOG(ERROR) << "[stream_write_next] socket send error (" << strerror(errno)
+                 << ", code=" << errno << ")";
+      if (errno == EAGAIN) {
+        continue;
+      }
+      LOG(FATAL) << "[stream_write_next] socket send error (" << strerror(errno)
+                 << ", code=" << errno << ")";
+    }
+    stream->receive_progress += bytes_recv;
+    return;
+  }
 }
 
 template <typename T> void stream_write(int conn_fd, T *stream) {
