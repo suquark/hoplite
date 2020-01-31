@@ -262,12 +262,10 @@ int main(int argc, char **argv) {
   TEST3(my_address);
   TEST4(my_address);
   TEST5(my_address);
-  /*
   SPEED_TEST(1);
   SPEED_TEST(100);
   SPEED_TEST(4095);
   SPEED_TEST(1024 * 1024 * 1024);
-  */
   notification_listener_thread.join();
   return 0;
 }
