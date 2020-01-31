@@ -81,9 +81,9 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
         ready_set, unready_set = ray.wait([object_id], timeout=5)
         assert ready_set
         array = ray.get(object_id)
-        during = time.time() - start
+        duration = time.time() - start
         buffer = store_lib.Buffer.from_buffer(array)
-        print("Buffer received, hash =", hash(buffer), "during =", during)
+        print("Buffer received, hash =", hash(buffer), "duration =", duration)
         print(array)
     time.sleep(30)
 
@@ -270,8 +270,8 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         buffer = store.get(object_id)
-        during = time.time() - start
-        print("Buffer received, hash =", hash(buffer), "during =", during)
+        duration = time.time() - start
+        print("Buffer received, hash =", hash(buffer), "duration =", duration)
         array = np.frombuffer(buffer, dtype=np.int32)
         print(array)
     time.sleep(20)
