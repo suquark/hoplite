@@ -355,7 +355,7 @@ void DistributedObjectStore::poll_and_reduce(
 
   // iterate over object ids to see if they are local objects
   for (const auto &object_id : object_ids) {
-    TIMELINE(std::string("Check local object for ") + object_id.Hex())
+    TIMELINE(std::string("Check local object for ") + object_id.Hex());
     int64_t object_size;
     if (IsLocalObject(object_id, &object_size)) {
       local_object_ids.push_back(object_id);
@@ -404,7 +404,7 @@ void DistributedObjectStore::poll_and_reduce(
                 << ", object_id = " << ready_id.ToString();
 
       if (!buffer) {
-        TIMELINE("Create endpoint buffer")
+        TIMELINE("Create endpoint buffer");
         // create the endpoint buffer
         auto pstatus =
             local_store_client_.Create(reduction_id, object_size, &buffer);
