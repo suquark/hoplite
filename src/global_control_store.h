@@ -30,7 +30,7 @@ struct SyncReply {
 
 class ObjectNotifications {
 public:
-  std::vector<NotificationMessage> GetNotifications();
+  std::vector<NotificationMessage> GetNotifications(bool delete_after_get);
 
   void ReceiveObjectNotification(const ObjectID &object_id,
                                  const std::string &sender_ip,

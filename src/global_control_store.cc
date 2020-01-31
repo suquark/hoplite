@@ -69,12 +69,21 @@ private:
   std::shared_ptr<std::mutex> notifications_pool_mutex_;
 };
 
-std::vector<NotificationMessage> ObjectNotifications::GetNotifications() {
+////////////////////////////////////////////////////////////////
+// The object notification structure
+////////////////////////////////////////////////////////////////
+
+std::vector<NotificationMessage>
+ObjectNotifications::GetNotifications(bool delete_after_get) {
   std::unique_lock<std::mutex> l(notification_mutex_);
   notification_cv_.wait(l, [this]() { return !ready_.empty(); });
-  std::vector<NotificationMessage> notifications = ready_;
-  ready_.clear();
-  return notifications;
+  if (delete_after_get) {
+    std::vector<NotificationMessage> notifications = ready_;
+    ready_.clear();
+    return notifications;
+  } else {
+    return ready_;
+  }
 }
 
 void ObjectNotifications::ReceiveObjectNotification(
