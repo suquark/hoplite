@@ -49,6 +49,5 @@ def main(log_dir):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 2, "Usage: python timeline.py LOG_DIR"
-    log_dir = sys.argv[1]
+    log_dir = sys.argv[1] if sys.argv >= 2 else "log/latest"
     main(log_dir)
