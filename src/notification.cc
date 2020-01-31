@@ -198,6 +198,8 @@ private:
       if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
           object_location_store_ready_.find(object_id) !=
               object_location_store_ready_.end()) {
+        // if both the pending receivers queue and pending senders queue are 
+        // not empty, we can pair the receiver and senders.
         while (!pending_receiver_ips_[object_id].empty() &&
               !object_location_store_ready_[object_id].empty()) {
           std::string sender_ip =
@@ -212,11 +214,13 @@ private:
           }
           pending_receiver_ips_[object_id].pop();
           if (receiver.sync) {
+            // Reply to synchronous get_lcoation call
             *receiver.result_sender_ip = sender_ip;
             DCHECK(!receiver.sync_mutex->try_lock())
                 << "sync_mutex should be locked";
             receiver.sync_mutex->unlock();
           } else {
+            // Batching replies to asynchronous get_lcoation call
             GetLocationAsyncAnswerRequest::ObjectInfo* object = request_pool[receiver.receiver_ip].add_objects();
             object->set_object_id(object_id.Binary());
             object->set_sender_ip(sender_ip);
