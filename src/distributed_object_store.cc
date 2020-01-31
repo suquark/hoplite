@@ -391,7 +391,7 @@ void DistributedObjectStore::poll_and_reduce(
   double S = object_size;
   LOG(INFO) << "grid/pipe boundary object size = "
             << pow(sqrt(P) - 1, 2) * B * L;
-  if (sqrt(P) - 1 > sqrt(S / (B * L))) {
+  if (sqrt(P) - 1 > sqrt(S / (B * L)) && P > 3.5) {
     // NOTE: for P = 16 (including one local node), S < 7.67 MB
     LOG(INFO) << "Grid reduce algorithm is used.";
     poll_and_reduce_grid_impl(notifications, notification_candidates,
