@@ -168,8 +168,8 @@ DistributedObjectStore::DistributedObjectStore(
       grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
   TIMELINE("DistributedObjectStore construction function");
   // Creating the first random ObjectID will initialize the random number
-  // generator, which is pretty slow. So we generate one and we will not
-  // feel surprise later.
+  // generator, which is pretty slow. So we generate one first, and it
+  // will not surprise us later.
   (void)ObjectID::FromRandom();
   // create a thread to receive remote object
   object_writer_.Run();
