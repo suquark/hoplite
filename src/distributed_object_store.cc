@@ -513,8 +513,8 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
   std::vector<std::pair<std::string, ObjectID>> lines;
 
   // states for enumerating the chain
-  std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
-                                             object_ids.end());
+  std::unordered_set<ObjectID> remaining_ids(notification_candidates.begin(),
+                                             notification_candidates.end());
 
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
