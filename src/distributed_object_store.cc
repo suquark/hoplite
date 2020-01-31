@@ -521,7 +521,7 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
     std::vector<NotificationMessage> ready_ids =
-        notifications->GetNotifications();
+        notifications->GetNotifications(true);
     // TODO: we should group ready ids by their node address.
     for (auto &ready_id_message : ready_ids) {
       ObjectID ready_id = ready_id_message.object_id;
