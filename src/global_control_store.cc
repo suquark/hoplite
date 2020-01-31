@@ -38,7 +38,7 @@ public:
                          const GetLocationAsyncAnswerRequest *request,
                          GetLocationAsyncAnswerReply *reply) {
     TIMELINE("GetLocationAsyncAnswer");
-    for (auto& object : request->objects()) {
+    for (auto &object : request->objects()) {
       ObjectID object_id = ObjectID::FromBinary(object.object_id());
       std::string sender_ip = object.sender_ip();
       std::string query_id = object.query_id();
@@ -49,8 +49,8 @@ public:
         std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
         notifications = object_notifications_pool_[query_id];
       }
-      notifications->ReceiveObjectNotification(object_id, sender_ip, object_size,
-                                              inband_data);
+      notifications->ReceiveObjectNotification(object_id, sender_ip,
+                                               object_size, inband_data);
     }
     reply->set_ok(true);
     return grpc::Status::OK;

@@ -37,7 +37,7 @@ public:
   GetLocationAsyncAnswer(grpc::ServerContext *context,
                          const GetLocationAsyncAnswerRequest *request,
                          GetLocationAsyncAnswerReply *reply) {
-    for(auto &object : request->objects()) {
+    for (auto &object : request->objects()) {
       ObjectID object_id = ObjectID::FromBinary(object.object_id());
       std::string sender_ip = object.sender_ip();
       std::string query_id = object.query_id();

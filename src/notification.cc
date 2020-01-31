@@ -194,14 +194,15 @@ private:
   void try_send_notification(std::vector<ObjectID> object_ids) {
     TIMELINE("notification try_send_notification");
     std::unordered_map<std::string, GetLocationAsyncAnswerRequest> request_pool;
-    for (auto& object_id : object_ids) {
-      if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
+    for (auto &object_id : object_ids) {
+      if (pending_receiver_ips_.find(object_id) !=
+              pending_receiver_ips_.end() &&
           object_location_store_ready_.find(object_id) !=
               object_location_store_ready_.end()) {
-        // if both the pending receivers queue and pending senders queue are 
+        // if both the pending receivers queue and pending senders queue are
         // not empty, we can pair the receiver and senders.
         while (!pending_receiver_ips_[object_id].empty() &&
-              !object_location_store_ready_[object_id].empty()) {
+               !object_location_store_ready_[object_id].empty()) {
           std::string sender_ip =
               object_location_store_ready_[object_id].top().second;
           receiver_queue_element receiver =
@@ -221,7 +222,8 @@ private:
             receiver.sync_mutex->unlock();
           } else {
             // Batching replies to asynchronous get_lcoation call
-            GetLocationAsyncAnswerRequest::ObjectInfo* object = request_pool[receiver.receiver_ip].add_objects();
+            GetLocationAsyncAnswerRequest::ObjectInfo *object =
+                request_pool[receiver.receiver_ip].add_objects();
             object->set_object_id(object_id.Binary());
             object->set_sender_ip(sender_ip);
             object->set_query_id(receiver.query_id);
@@ -231,8 +233,9 @@ private:
         }
       }
     }
-    for (auto& request : request_pool) {
-      DCHECK(send_notification(request.first, request.second)) << "Failed to send notification";
+    for (auto &request : request_pool) {
+      DCHECK(send_notification(request.first, request.second))
+          << "Failed to send notification";
     }
   }
 
