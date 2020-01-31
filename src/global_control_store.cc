@@ -75,23 +75,27 @@ private:
 
 std::vector<NotificationMessage>
 ObjectNotifications::GetNotifications(bool delete_after_get) {
-  std::unique_lock<std::mutex> l(notification_mutex_);
-  notification_cv_.wait(l, [this]() { return !ready_.empty(); });
+  std::lock_guard<std::mutex> l(notification_mutex_);
+  notification_cv_.wait(l, [this]() { return ready_.size() > cursor_; });
+  std::vector<NotificationMessage> notifications(ready_.begin() + cursor_, ready_.end());
   if (delete_after_get) {
-    std::vector<NotificationMessage> notifications = ready_;
-    ready_.clear();
-    return notifications;
-  } else {
-    return ready_;
+    cursor_ = ready_.size();
   }
+  return notifications;
+}
+
+void ObjectNotifications::Rewind() {
+  std::lock_guard<std::mutex> l(notification_mutex_);
+  cursor_ = 0;
 }
 
 void ObjectNotifications::ReceiveObjectNotification(
     const ObjectID &object_id, const std::string &sender_ip, size_t object_size,
     const std::string &inband_data) {
-  std::unique_lock<std::mutex> l(notification_mutex_);
-  ready_.push_back({object_id, sender_ip, object_size, inband_data});
-  l.unlock();
+  {
+    std::lock_guard<std::mutex> l(notification_mutex_);
+    ready_.push_back({object_id, sender_ip, object_size, inband_data});
+  }
   notification_cv_.notify_one();
 }
 

@@ -37,10 +37,13 @@ public:
                                  size_t object_size,
                                  const std::string &inband_data);
 
+  void Rewind();
+
 private:
   std::mutex notification_mutex_;
   std::condition_variable notification_cv_;
   std::vector<NotificationMessage> ready_;
+  size_t cursor_ = 0;
 };
 
 class GlobalControlStoreClient {

@@ -556,10 +556,11 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
   }
 
   if (lines.size() < rows || remaining_ids.size() < rows) {
-    LOG(WARNING) << "too many objects are found local for grid reduction";
     // This is a quite unexpected pathway. This is caused by too many
     // objects were discovered to be local objects.
-    // FIXME: restore objects in lines.
+    LOG(WARNING) << "too many objects are found local for grid reduction";
+    // restore previous notifications
+    notifications->Rewind();
     poll_and_reduce_pipe_impl(notifications, notification_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
