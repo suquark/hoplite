@@ -25,11 +25,10 @@ void FillRandom(T *data) {
     // To increase the entropy, mix in a number of time samples instead of a single one.
     // This avoids the possibility of duplicate seeds for many workers that start in
     // close succession.
-    // FIXME: This part of code is disabled due to its signicant impact on performance.
-    // for (int i = 0; i < 128; i++) {
-    //   std::this_thread::sleep_for(std::chrono::microseconds(10));
-    //   seed += std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    // }
+    for (int i = 0; i < 128; i++) {
+      std::this_thread::sleep_for(std::chrono::microseconds(10));
+      seed += std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    }
     std::mt19937 seeded_engine(seed);
     return seeded_engine;
   };

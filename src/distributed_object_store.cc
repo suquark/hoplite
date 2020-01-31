@@ -167,6 +167,10 @@ DistributedObjectStore::DistributedObjectStore(
       grpc_port_(grpc_port),
       grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
   TIMELINE("DistributedObjectStore construction function");
+  // Creating the first random ObjectID will initialize the random number
+  // generator, which is pretty slow. So we generate one first, and it
+  // will not surprise us later.
+  (void)ObjectID::FromRandom();
   // create a thread to receive remote object
   object_writer_.Run();
   // create a thread to send object
@@ -253,17 +257,9 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
   // TODO: support different reduce op and types.
   TIMELINE("DistributedObjectStore Async Reduce");
   DCHECK(object_ids.size() > 0);
-  std::thread reduction_thread;
   // starting a thread
-  // FIXME: this is an ad-hoc condition
-  if (object_ids.size() > 100) {
-    reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce_2d,
-                                   this, object_ids, reduction_id);
-  } else {
-    reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce,
-                                   this, object_ids, reduction_id);
-  }
-
+  std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
+                               object_ids, reduction_id);
   {
     std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
     DCHECK(reduction_tasks_.find(reduction_id) == reduction_tasks_.end())
@@ -348,25 +344,18 @@ bool DistributedObjectStore::check_and_store_inband_data(
 void DistributedObjectStore::poll_and_reduce(
     const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
   TIMELINE("DistributedObjectStore Reduce Thread");
-  // the buffer for reduction results
-  std::shared_ptr<Buffer> buffer;
+  // In this method, we will do until we get the size of the first object.
   std::vector<ObjectID> notification_candidates;
   std::vector<ObjectID> local_object_ids;
 
+  // The object size for reduction. If it is less than 0,
+  // it means that we haven't get the size.
+  int64_t object_size = -1;
+
   // iterate over object ids to see if they are local objects
   for (const auto &object_id : object_ids) {
-    TIMELINE(std::string("Check local object for ") + object_id.Hex());
-    int64_t object_size;
     if (IsLocalObject(object_id, &object_size)) {
       local_object_ids.push_back(object_id);
-      if (!buffer) {
-        // create the endpoint buffer
-        auto pstatus =
-            local_store_client_.Create(reduction_id, object_size, &buffer);
-        DCHECK(pstatus.ok())
-            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
-            << " size = " << object_size << ", status = " << pstatus.ToString();
-      }
     } else {
       notification_candidates.push_back(object_id);
     }
@@ -375,6 +364,54 @@ void DistributedObjectStore::poll_and_reduce(
   std::shared_ptr<ObjectNotifications> notifications =
       gcs_client_.GetLocationAsync(notification_candidates,
                                    reduction_id.Binary(), false);
+  std::vector<NotificationMessage> ready_ids;
+  if (object_size < 0) {
+    // we haven't got the object size yet, so we have to subscribe to the
+    // notifications and get the message of the first completed object.
+    ready_ids = notifications->GetNotifications(false);
+    object_size = ready_ids[0].object_size;
+  }
+
+  // the buffer for reduction results
+  std::shared_ptr<Buffer> buffer;
+  // Since we have got the object size, we can create the endpoint buffer now.
+  auto pstatus = local_store_client_.Create(reduction_id, object_size, &buffer);
+  DCHECK(pstatus.ok()) << "Plasma failed to create reduction_id = "
+                       << reduction_id.Hex() << " size = " << object_size
+                       << ", status = " << pstatus.ToString();
+
+  // Here we will calculate which reduction algorithm will be used.
+  // P: number of nodes
+  // L: latency (in second)
+  // B: bandwidth (in bytes)
+  // S: object size (in bytes)
+  double L = 750 * 1e-6;
+  double B = 9.68 * pow(2, 30) / 8;
+  double P = notification_candidates.size();
+  double S = object_size;
+  LOG(INFO) << "grid/pipe boundary object size = "
+            << pow(sqrt(P) - 1, 2) * B * L;
+  if (sqrt(P) - 1 > sqrt(S / (B * L)) && P > 3.5) {
+    // NOTE: for P = 16 (including one local node), S < 7.67 MB
+    LOG(INFO) << "Grid reduce algorithm is used.";
+    poll_and_reduce_grid_impl(notifications, notification_candidates,
+                              local_object_ids, object_size, buffer,
+                              reduction_id);
+  } else {
+    LOG(INFO) << "Pipe reduce algorithm is used.";
+    poll_and_reduce_pipe_impl(notifications, notification_candidates,
+                              local_object_ids, object_size, buffer,
+                              reduction_id);
+  }
+}
+
+void DistributedObjectStore::poll_and_reduce_pipe_impl(
+    const std::shared_ptr<ObjectNotifications> &notifications,
+    const std::vector<ObjectID> &notification_candidates,
+    std::vector<ObjectID> &local_object_ids, const int64_t object_size,
+    const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id) {
+  TIMELINE("DistributedObjectStore Reduce Thread Pipe");
+
   // states for enumerating the chain
   std::unordered_set<ObjectID> remaining_ids(notification_candidates.begin(),
                                              notification_candidates.end());
@@ -386,7 +423,7 @@ void DistributedObjectStore::poll_and_reduce(
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
     std::vector<NotificationMessage> ready_ids =
-        notifications->GetNotifications();
+        notifications->GetNotifications(true);
     // TODO: we should group ready ids by their node address.
     for (auto &ready_id_message : ready_ids) {
       ObjectID ready_id = ready_id_message.object_id;
@@ -402,16 +439,6 @@ void DistributedObjectStore::poll_and_reduce(
           << " location is not ready, but notification is received!";
       LOG(INFO) << "Received notification, address = " << address
                 << ", object_id = " << ready_id.ToString();
-
-      if (!buffer) {
-        TIMELINE("Create endpoint buffer");
-        // create the endpoint buffer
-        auto pstatus =
-            local_store_client_.Create(reduction_id, object_size, &buffer);
-        DCHECK(pstatus.ok())
-            << "Plasma failed to create reduction_id = " << reduction_id.Hex()
-            << " size = " << object_size << ", status = " << pstatus.ToString();
-      }
 
       if (address == my_address_) {
         // move local objects to another address, because there's no
@@ -471,31 +498,28 @@ void DistributedObjectStore::poll_and_reduce(
   }
 }
 
-void DistributedObjectStore::poll_and_reduce_2d(
-    const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
-  TIMELINE("DistributedObjectStore Reduce Thread 2D");
+void DistributedObjectStore::poll_and_reduce_grid_impl(
+    const std::shared_ptr<ObjectNotifications> &notifications,
+    const std::vector<ObjectID> &notification_candidates,
+    std::vector<ObjectID> &local_object_ids, const int64_t object_size,
+    const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id) {
+  TIMELINE("DistributedObjectStore Reduce Thread Grid");
   // we do not use reference for its parameters because it will be executed
   // in a thread.
 
-  // TODO: separate local objects first
-  size_t n_objects = object_ids.size();
-  int rows = floor(sqrt(n_objects));
+  int rows = round(sqrt(notification_candidates.size()));
   LOG(INFO) << "number of rows: " << rows;
 
   std::vector<std::pair<std::string, ObjectID>> lines;
 
-  std::shared_ptr<ObjectNotifications> notifications =
-      gcs_client_.GetLocationAsync(object_ids, reduction_id.Binary(), false);
-
   // states for enumerating the chain
-  std::unordered_set<ObjectID> remaining_ids(object_ids.begin(),
-                                             object_ids.end());
-  std::vector<ObjectID> local_object_ids;
+  std::unordered_set<ObjectID> remaining_ids(notification_candidates.begin(),
+                                             notification_candidates.end());
 
   // main loop for constructing the reduction chain.
   while (remaining_ids.size() > 0) {
     std::vector<NotificationMessage> ready_ids =
-        notifications->GetNotifications();
+        notifications->GetNotifications(true);
     // TODO: we should group ready ids by their node address.
     for (auto &ready_id_message : ready_ids) {
       ObjectID ready_id = ready_id_message.object_id;
@@ -532,29 +556,39 @@ void DistributedObjectStore::poll_and_reduce_2d(
   }
 
   if (lines.size() < rows || remaining_ids.size() < rows) {
-    // TODO: This is inefficient. There should be a pathway that all
-    // objects are ready.
-    poll_and_reduce(object_ids, reduction_id);
-  } else {
-    std::vector<ObjectID> edge(local_object_ids.begin(),
-                               local_object_ids.end());
-    int remaining_size = remaining_ids.size();
-    std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
-                                             remaining_ids.end());
-    int processed_count = 0;
-    for (int i = 0; i < rows; i++) {
-      std::vector<ObjectID> redirect_object_ids{lines[i].second};
-      int share_count = (remaining_size / rows) + (i < remaining_size % rows);
-      for (int j = 0; j < share_count; j++, processed_count++) {
-        redirect_object_ids.push_back(remaining_ids_list[processed_count]);
-      }
-      auto line_reduction_id = ObjectID::FromRandom();
-      edge.push_back(line_reduction_id);
-      InvokeRedirectReduce(lines[i].first, redirect_object_ids,
-                           line_reduction_id);
-    }
-    poll_and_reduce(edge, reduction_id);
+    // This is a quite unexpected pathway. This is caused by too many
+    // objects were discovered to be local objects.
+    LOG(WARNING) << "too many objects are found local for grid reduction";
+    // restore previous notifications
+    notifications->Rewind();
+    poll_and_reduce_pipe_impl(notifications, notification_candidates,
+                              local_object_ids, object_size, buffer,
+                              reduction_id);
   }
+
+  std::vector<ObjectID> edge;
+  int remaining_size = remaining_ids.size();
+  std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
+                                           remaining_ids.end());
+  int processed_count = 0;
+  for (int i = 0; i < rows; i++) {
+    // put the master node of each chain in the first place.
+    std::vector<ObjectID> redirect_object_ids{lines[i].second};
+    // distributing objects into each chain as evenly as possible
+    int share_count = (remaining_size / rows) + (i < remaining_size % rows);
+    for (int j = 0; j < share_count; j++, processed_count++) {
+      redirect_object_ids.push_back(remaining_ids_list[processed_count]);
+    }
+    auto line_reduction_id = ObjectID::FromRandom();
+    edge.push_back(line_reduction_id);
+    InvokeRedirectReduce(lines[i].first, redirect_object_ids,
+                         line_reduction_id);
+  }
+  ObjectID _monk_subscription_id = ObjectID::FromRandom();
+  std::shared_ptr<ObjectNotifications> new_notifications =
+      gcs_client_.GetLocationAsync(edge, _monk_subscription_id.Binary(), false);
+  poll_and_reduce_pipe_impl(new_notifications, edge, local_object_ids,
+                            object_size, buffer, reduction_id);
 }
 
 void DistributedObjectStore::worker_loop() {

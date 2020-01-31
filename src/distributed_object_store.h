@@ -62,8 +62,17 @@ private:
   void poll_and_reduce(const std::vector<ObjectID> object_ids,
                        const ObjectID reduction_id);
 
-  void poll_and_reduce_2d(const std::vector<ObjectID> object_ids,
-                          const ObjectID reduction_id);
+  void poll_and_reduce_pipe_impl(
+      const std::shared_ptr<ObjectNotifications> &notifications,
+      const std::vector<ObjectID> &notification_candidates,
+      std::vector<ObjectID> &local_object_ids, const int64_t object_size,
+      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id);
+
+  void poll_and_reduce_grid_impl(
+      const std::shared_ptr<ObjectNotifications> &notifications,
+      const std::vector<ObjectID> &notification_candidates,
+      std::vector<ObjectID> &local_object_ids, const int64_t object_size,
+      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id);
 
   bool check_and_store_inband_data(const ObjectID &object_id,
                                    int64_t object_size,
