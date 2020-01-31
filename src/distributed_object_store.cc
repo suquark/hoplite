@@ -169,7 +169,7 @@ DistributedObjectStore::DistributedObjectStore(
   TIMELINE("DistributedObjectStore construction function");
   // Creating the first random ObjectID will initialize the random number
   // generator, which is pretty slow. So we generate one and we will not
-  // feel surprise later. 
+  // feel surprise later.
   (void)ObjectID::FromRandom();
   // create a thread to receive remote object
   object_writer_.Run();
@@ -257,17 +257,9 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
   // TODO: support different reduce op and types.
   TIMELINE("DistributedObjectStore Async Reduce");
   DCHECK(object_ids.size() > 0);
-  std::thread reduction_thread;
   // starting a thread
-  // FIXME: this is an ad-hoc condition
-  if (object_ids.size() > 100) {
-    reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce_2d,
-                                   this, object_ids, reduction_id);
-  } else {
-    reduction_thread = std::thread(&DistributedObjectStore::poll_and_reduce,
-                                   this, object_ids, reduction_id);
-  }
-
+  std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
+                               object_ids, reduction_id);
   {
     std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
     DCHECK(reduction_tasks_.find(reduction_id) == reduction_tasks_.end())
