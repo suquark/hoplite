@@ -77,7 +77,8 @@ std::vector<NotificationMessage>
 ObjectNotifications::GetNotifications(bool delete_after_get) {
   std::lock_guard<std::mutex> l(notification_mutex_);
   notification_cv_.wait(l, [this]() { return ready_.size() > cursor_; });
-  std::vector<NotificationMessage> notifications(ready_.begin() + cursor_, ready_.end());
+  std::vector<NotificationMessage> notifications(ready_.begin() + cursor_,
+                                                 ready_.end());
   if (delete_after_get) {
     cursor_ = ready_.size();
   }

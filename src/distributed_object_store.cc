@@ -385,7 +385,7 @@ void DistributedObjectStore::poll_and_reduce(
   // L: latency (in second)
   // B: bandwidth (in bytes)
   // S: object size (in bytes)
-  double L = 0.00075;
+  double L = 750 * 1e-6;
   double B = 9.68 * pow(2, 30) / 8;
   double P = notification_candidates.size();
   double S = object_size;
