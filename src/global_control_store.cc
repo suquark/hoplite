@@ -168,6 +168,7 @@ SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
     const std::vector<ObjectID> &object_ids, const std::string &query_id,
     bool occupying) {
+  TIMELINE("GetLocationAsync");
   std::shared_ptr<ObjectNotifications> notifications =
       std::make_shared<ObjectNotifications>();
   {
