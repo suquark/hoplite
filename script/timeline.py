@@ -49,5 +49,5 @@ def main(log_dir):
 
 
 if __name__ == "__main__":
-    log_dir = sys.argv[1] if sys.argv >= 2 else "log/latest"
+    log_dir = sys.argv[1] if len(sys.argv) >= 2 else "log/latest"
     main(log_dir)
