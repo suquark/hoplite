@@ -507,9 +507,7 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
   // we do not use reference for its parameters because it will be executed
   // in a thread.
 
-  // TODO: should be using notification_candidates
-  size_t n_objects = object_ids.size();
-  int rows = floor(sqrt(n_objects));
+  int rows = round(sqrt(notification_candidates.size()));
   LOG(INFO) << "number of rows: " << rows;
 
   std::vector<std::pair<std::string, ObjectID>> lines;
