@@ -167,6 +167,10 @@ DistributedObjectStore::DistributedObjectStore(
       grpc_port_(grpc_port),
       grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
   TIMELINE("DistributedObjectStore construction function");
+  // Creating the first random ObjectID will initialize the random number
+  // generator, which is pretty slow. So we generate one and we will not
+  // feel surprise later. 
+  (void)ObjectID::FromRandom();
   // create a thread to receive remote object
   object_writer_.Run();
   // create a thread to send object
@@ -507,7 +511,7 @@ void DistributedObjectStore::poll_and_reduce_2d(
   // we do not use reference for its parameters because it will be executed
   // in a thread.
 
-  // TODO: separate local objects first
+  // TODO: should be using notification_candidates
   size_t n_objects = object_ids.size();
   int rows = floor(sqrt(n_objects));
   LOG(INFO) << "number of rows: " << rows;
