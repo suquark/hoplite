@@ -556,40 +556,38 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
   }
 
   if (lines.size() < rows || remaining_ids.size() < rows) {
+    LOG(WARNING) << "too many objects are found local for grid reduction";
     // This is a quite unexpected pathway. This is caused by too many
     // objects were discovered to be local objects.
     // FIXME: restore objects in lines.
     poll_and_reduce_pipe_impl(notifications, notification_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
-  } else {
-    std::vector<ObjectID> edge(local_object_ids.begin(),
-                               local_object_ids.end());
-    int remaining_size = remaining_ids.size();
-    std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
-                                             remaining_ids.end());
-    int processed_count = 0;
-    for (int i = 0; i < rows; i++) {
-      // put the master node of each chain in the first place.
-      std::vector<ObjectID> redirect_object_ids{lines[i].second};
-      // distributing objects into each chain as evenly as possible
-      int share_count = (remaining_size / rows) + (i < remaining_size % rows);
-      for (int j = 0; j < share_count; j++, processed_count++) {
-        redirect_object_ids.push_back(remaining_ids_list[processed_count]);
-      }
-      auto line_reduction_id = ObjectID::FromRandom();
-      edge.push_back(line_reduction_id);
-      InvokeRedirectReduce(lines[i].first, redirect_object_ids,
-                           line_reduction_id);
-    }
-    std::vector<ObjectID> _monk_local_object_ids;
-    ObjectID _monk_subscription_id = ObjectID::FromRandom();
-    std::shared_ptr<ObjectNotifications> new_notifications =
-        gcs_client_.GetLocationAsync(edge, _monk_subscription_id.Binary(),
-                                     false);
-    poll_and_reduce_pipe_impl(new_notifications, edge, _monk_local_object_ids,
-                              object_size, buffer, reduction_id);
   }
+
+  std::vector<ObjectID> edge;
+  int remaining_size = remaining_ids.size();
+  std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
+                                           remaining_ids.end());
+  int processed_count = 0;
+  for (int i = 0; i < rows; i++) {
+    // put the master node of each chain in the first place.
+    std::vector<ObjectID> redirect_object_ids{lines[i].second};
+    // distributing objects into each chain as evenly as possible
+    int share_count = (remaining_size / rows) + (i < remaining_size % rows);
+    for (int j = 0; j < share_count; j++, processed_count++) {
+      redirect_object_ids.push_back(remaining_ids_list[processed_count]);
+    }
+    auto line_reduction_id = ObjectID::FromRandom();
+    edge.push_back(line_reduction_id);
+    InvokeRedirectReduce(lines[i].first, redirect_object_ids,
+                         line_reduction_id);
+  }
+  ObjectID _monk_subscription_id = ObjectID::FromRandom();
+  std::shared_ptr<ObjectNotifications> new_notifications =
+      gcs_client_.GetLocationAsync(edge, _monk_subscription_id.Binary(), false);
+  poll_and_reduce_pipe_impl(new_notifications, edge, local_object_ids,
+                            object_size, buffer, reduction_id);
 }
 
 void DistributedObjectStore::worker_loop() {
