@@ -29,9 +29,14 @@ if [ "$#" -eq 3 ]; then
     # prompt test info
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) Running test $(tput setaf 3)$(tput bold)$test_name$(tput sgr 0)"
 
+    # create logging dir
+    log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+    mkdir -p $log_dir
+    ln -sfn $log_dir/ $working_dir/log/latest
+
     pkill notification
     sleep 2
-    ./notification $my_address &
+    (./notification $my_address 2>&1 | tee $log_dir/$my_address.notification.log) &
     sleep 2
 
     # get cluster info
@@ -40,11 +45,6 @@ if [ "$#" -eq 3 ]; then
     for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
     slaves=(${slaves[@]:0:$(($world_size-1))})
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $my_address; slaves: ${slaves[@]}"
-
-    # create logging dir
-    log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
-    mkdir -p $log_dir
-    ln -sfn $log_dir/ $working_dir/log/latest
 
     # execute remote commands
     for index in ${!slaves[@]}

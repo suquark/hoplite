@@ -37,14 +37,16 @@ public:
   GetLocationAsyncAnswer(grpc::ServerContext *context,
                          const GetLocationAsyncAnswerRequest *request,
                          GetLocationAsyncAnswerReply *reply) {
-    ObjectID object_id = ObjectID::FromBinary(request->object_id());
-    std::string sender_ip = request->sender_ip();
-    std::string query_id = request->query_id();
-    size_t object_size = request->object_size();
-    LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID: "
-              << object_id.Hex() << " IP: " << sender_ip
-              << " Query: " << query_id << " Size: " << object_size;
-    reply->set_ok(true);
+    for (auto &object : request->objects()) {
+      ObjectID object_id = ObjectID::FromBinary(object.object_id());
+      std::string sender_ip = object.sender_ip();
+      std::string query_id = object.query_id();
+      size_t object_size = object.object_size();
+      LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID: "
+                << object_id.Hex() << " IP: " << sender_ip
+                << " Query: " << query_id << " Size: " << object_size;
+      reply->set_ok(true);
+    }
     return grpc::Status::OK;
   }
 };

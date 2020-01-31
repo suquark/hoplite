@@ -38,18 +38,20 @@ public:
                          const GetLocationAsyncAnswerRequest *request,
                          GetLocationAsyncAnswerReply *reply) {
     TIMELINE("GetLocationAsyncAnswer");
-    ObjectID object_id = ObjectID::FromBinary(request->object_id());
-    std::string sender_ip = request->sender_ip();
-    std::string query_id = request->query_id();
-    size_t object_size = request->object_size();
-    std::string inband_data = request->inband_data();
-    std::shared_ptr<ObjectNotifications> notifications;
-    {
-      std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
-      notifications = object_notifications_pool_[query_id];
+    for (auto &object : request->objects()) {
+      ObjectID object_id = ObjectID::FromBinary(object.object_id());
+      std::string sender_ip = object.sender_ip();
+      std::string query_id = object.query_id();
+      size_t object_size = object.object_size();
+      std::string inband_data = object.inband_data();
+      std::shared_ptr<ObjectNotifications> notifications;
+      {
+        std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
+        notifications = object_notifications_pool_[query_id];
+      }
+      notifications->ReceiveObjectNotification(object_id, sender_ip,
+                                               object_size, inband_data);
     }
-    notifications->ReceiveObjectNotification(object_id, sender_ip, object_size,
-                                             inband_data);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -166,6 +168,7 @@ SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
 std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
     const std::vector<ObjectID> &object_ids, const std::string &query_id,
     bool occupying) {
+  TIMELINE("GetLocationAsync");
   std::shared_ptr<ObjectNotifications> notifications =
       std::make_shared<ObjectNotifications>();
   {

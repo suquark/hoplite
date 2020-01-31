@@ -7,6 +7,7 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 #include <queue>
+#include <thread>
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
@@ -116,7 +117,7 @@ public:
     }
     object_location_store_ready_[object_id].push(
         std::make_pair(weight, sender_ip));
-    try_send_notification(object_id);
+    try_send_notification({object_id});
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -136,7 +137,7 @@ public:
         std::make_shared<std::string>();
     pending_receiver_ips_[object_id].push(
         {true, sync_mutex, result_sender_ip, "", "", request->occupying()});
-    try_send_notification(object_id);
+    try_send_notification({object_id});
     l.unlock();
     sync_mutex->lock();
     l.lock();
@@ -152,17 +153,10 @@ public:
   grpc::Status GetLocationAsync(grpc::ServerContext *context,
                                 const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply) {
-    std::lock_guard<std::mutex> guard(object_location_mutex_);
-    std::string receiver_ip = request->receiver_ip();
-    std::string query_id = request->query_id();
-    // TODO: pass in repeated object ids will send twice.
-    for (auto object_id_it : request->object_ids()) {
-      ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
-                                             receiver_ip, query_id,
-                                             request->occupying()});
-      try_send_notification(object_id);
-    }
+    TIMELINE("notification GetLocationAsync");
+    std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this,
+                  *request);
+    t.detach();
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -197,52 +191,78 @@ private:
     return data;
   }
 
-  void try_send_notification(const ObjectID &object_id) {
+  void try_send_notification(std::vector<ObjectID> object_ids) {
     TIMELINE("notification try_send_notification");
-    if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
-        object_location_store_ready_.find(object_id) !=
-            object_location_store_ready_.end()) {
-      while (!pending_receiver_ips_[object_id].empty() &&
-             !object_location_store_ready_[object_id].empty()) {
-        std::string sender_ip =
-            object_location_store_ready_[object_id].top().second;
-        receiver_queue_element receiver =
-            pending_receiver_ips_[object_id].front();
-        if (!has_inband_data(object_id) && receiver.occupying) {
-          // In this case, the client will take the ownership
-          // of the object transfer. Just pop it here so later
-          // requests of this object ID will be pending.
-          object_location_store_ready_[object_id].pop();
-        }
-        pending_receiver_ips_[object_id].pop();
-        if (receiver.sync) {
-          *receiver.result_sender_ip = sender_ip;
-          DCHECK(!receiver.sync_mutex->try_lock())
-              << "sync_mutex should be locked";
-          receiver.sync_mutex->unlock();
-        } else {
-          DCHECK(send_notification(sender_ip, receiver.receiver_ip, object_id,
-                                   receiver.query_id))
-              << "Failed to send notification";
+    std::unordered_map<std::string, GetLocationAsyncAnswerRequest> request_pool;
+    for (auto &object_id : object_ids) {
+      if (pending_receiver_ips_.find(object_id) !=
+              pending_receiver_ips_.end() &&
+          object_location_store_ready_.find(object_id) !=
+              object_location_store_ready_.end()) {
+        // if both the pending receivers queue and pending senders queue are
+        // not empty, we can pair the receiver and senders.
+        while (!pending_receiver_ips_[object_id].empty() &&
+               !object_location_store_ready_[object_id].empty()) {
+          std::string sender_ip =
+              object_location_store_ready_[object_id].top().second;
+          receiver_queue_element receiver =
+              pending_receiver_ips_[object_id].front();
+          if (!has_inband_data(object_id) && receiver.occupying) {
+            // In this case, the client will take the ownership
+            // of the object transfer. Just pop it here so later
+            // requests of this object ID will be pending.
+            object_location_store_ready_[object_id].pop();
+          }
+          pending_receiver_ips_[object_id].pop();
+          if (receiver.sync) {
+            // Reply to synchronous get_lcoation call
+            *receiver.result_sender_ip = sender_ip;
+            DCHECK(!receiver.sync_mutex->try_lock())
+                << "sync_mutex should be locked";
+            receiver.sync_mutex->unlock();
+          } else {
+            // Batching replies to asynchronous get_lcoation call
+            GetLocationAsyncAnswerRequest::ObjectInfo *object =
+                request_pool[receiver.receiver_ip].add_objects();
+            object->set_object_id(object_id.Binary());
+            object->set_sender_ip(sender_ip);
+            object->set_query_id(receiver.query_id);
+            object->set_object_size(object_size_[object_id]);
+            object->set_inband_data(get_inband_data(object_id));
+          }
         }
       }
     }
+    for (auto &request : request_pool) {
+      DCHECK(send_notification(request.first, request.second))
+          << "Failed to send notification";
+    }
   }
 
-  bool send_notification(const std::string &sender_ip,
-                         const std::string &receiver_ip,
-                         const ObjectID &object_id,
-                         const std::string &query_id) {
+  void push_async_request_into_queue(GetLocationAsyncRequest request) {
+    TIMELINE("notification push_async_request_into_queue");
+    std::lock_guard<std::mutex> guard(object_location_mutex_);
+    std::string receiver_ip = request.receiver_ip();
+    std::string query_id = request.query_id();
+    std::vector<ObjectID> object_ids;
+    // TODO: pass in repeated object ids will send twice.
+    for (auto object_id_it : request.object_ids()) {
+      ObjectID object_id = ObjectID::FromBinary(object_id_it);
+      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
+                                             receiver_ip, query_id,
+                                             request.occupying()});
+      object_ids.push_back(object_id);
+    }
+    try_send_notification(object_ids);
+  }
+
+  bool send_notification(const std::string &receiver_ip,
+                         const GetLocationAsyncAnswerRequest &request) {
+    TIMELINE("notification send_notification");
     auto remote_address = receiver_ip + ":" + std::to_string(port_);
     create_stub(remote_address);
     grpc::ClientContext context;
-    GetLocationAsyncAnswerRequest request;
     GetLocationAsyncAnswerReply reply;
-    request.set_object_id(object_id.Binary());
-    request.set_sender_ip(sender_ip);
-    request.set_query_id(query_id);
-    request.set_object_size(object_size_[object_id]);
-    request.set_inband_data(get_inband_data(object_id));
     notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
         &context, request, &reply);
     return reply.ok();
