@@ -6,8 +6,8 @@ def parse_multicast(folder_path):
     try:
         f = open(folder_path, 'r')
         for line in f.readlines():
-            if 'during =' in line:
-                tmp = line.split('during =')[1]
+            if 'duration =' in line:
+                tmp = line.split('duration =')[1]
                 retrieval_time = float(tmp)
                 if retrieval_time > last_retrieval_time:
                     last_retrieval_time = retrieval_time
