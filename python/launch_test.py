@@ -100,18 +100,14 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
         object_ids = []
         for i in range(0, world_size):
             object_ids.append(ray.ObjectID(str(args_dict['seed'] + i).encode().rjust(20, b'\0')))
+        reduce_result = np.zeros(object_size//4, dtype=np.int32)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
-        first_object = True
         while True:
             assert ready_set
             array = ray.get(ready_set[0])
-            if first_object:
-                reduce_result = array
-                first_object = False
-            else:
-                reduce_result = reduce_result + array
+            reduce_result += array
             if not unready_set:
                 break
             ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
