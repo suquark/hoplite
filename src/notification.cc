@@ -79,7 +79,7 @@ public:
   grpc::Status Exit(grpc::ServerContext *context,
                     const ExitRequest *request, ExitReply *reply) {
     {
-      std::lock_guard<std::mutex guard(barrier_mutex_);
+      std::lock_guard<std::mutex> guard(barrier_mutex_);
       participants_.erase(request->ip());
       LOG(INFO) << "Participant " << request->ip() << " exited!";
     }
