@@ -33,12 +33,15 @@ def is_ready(notification_address, notification_port, my_address):
 
 def barrier(world_rank, notification_address, notification_port, world_size):
     my_address = utils.get_my_address()
-    if world_rank == 0:
-        register_group(notification_address, notification_port, world_size)
-    else:
-        # we must ensure that the master will register group first.
-        time.sleep(30)
     is_ready(notification_address, notification_port, my_address)
+
+def barrier_exit(notification_address, notification_port):
+    my_address = utils.get_my_address()
+    channel = grpc.insecure_channel(notification_address + ':' + str(notification_port))
+    stub = object_store_pb2_grpc.NotificationServerStub(channel)
+    request = object_store_pb2.ExitRequest(ip=str.encode(my_address))
+    reply = stub.Exit(request)
+    return reply.ok
 
 @ray.remote(resources={'node': 1})
 def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, object_size):
@@ -63,7 +66,7 @@ def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, objec
         assert ready_set
         array = ray.get(object_id)
         ray.worker.global_worker.put_object(return_array, object_id=object_id2)
-    time.sleep(30)
+    barrier_exit(notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def ray_multicast(args_dict, notification_address, world_size, world_rank, object_size):
@@ -392,6 +395,8 @@ notification_address = utils.get_my_address()
 ray.init(address='auto')
 
 tasks = []
+
+register_group(notification_address, notification_port, args.world_size)
 
 args_dict['seed'] = np.random.randint(0, 2**30)
 
