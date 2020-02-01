@@ -7,6 +7,7 @@ void ProgressiveStream::stream_copy(const std::shared_ptr<Buffer> &src) {
   int64_t size = src->Size();
   DCHECK(size == buf_ptr_->Size()) << "Size mismatch for copying.";
   size_t copy_size = size / 1024;
+  // trade off 'copy_size' between performance and latency
   if (copy_size < 4096) {
     copy_size = 4096;
   } else if (copy_size > 2 << 20) {
@@ -17,9 +18,10 @@ void ProgressiveStream::stream_copy(const std::shared_ptr<Buffer> &src) {
   }
   uint8_t *dst = buf_ptr_->MutableData();
   size_t cursor = 0;
-  while (size - cursor >= copy_size) {
+  while (copy_size + cursor <= size) {
     memcpy(dst + cursor, data + cursor, copy_size);
-    progress += copy_size, cursor += copy_size;
+    progress += copy_size;
+    cursor += copy_size;
   }
   memcpy(dst + cursor, data + cursor, size - cursor);
   progress = cursor;
