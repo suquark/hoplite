@@ -245,12 +245,13 @@ def sendrecv(args_dict, notification_address, world_size, world_rank, object_siz
     if world_rank == 0:
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
         buffer = store_lib.Buffer.from_buffer(array)
+        print("Buffer created, hash =", hash(buffer))
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         store.put(buffer, object_id)
         buffer = store.get(object_id2)
         duration = time.time() - start
-        print("Buffer created, hash =", hash(buffer))
+        print("Buffer received, hash =", hash(buffer))
         print("duration = ", duration)
     else:
         return_array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
