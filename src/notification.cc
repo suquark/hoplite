@@ -33,6 +33,8 @@ using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
+using objectstore::ExitReply;
+using objectstore::ExitRequest;
 
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
@@ -72,6 +74,25 @@ public:
     reply->set_ok(true);
     LOG(ERROR) << "barrier exits";
     return grpc::Status::OK;
+  }
+
+  grpc::Status Exit(grpc::ServerContext *context,
+                    const ExitRequest *request, ExitReply *reply) {
+    {
+      std::lock_guard<std::mutex guard(barrier_mutex_);
+      participants_.erase(request->ip());
+      LOG(INFO) << "Participant " << request->ip() << " exited!";
+    }
+
+    while (true) {
+      {
+        std::lock_guard<std::mutex> guard(barrier_mutex_);
+        if (participants_.empty()) {
+          break;
+        }
+      }
+      usleep(1);
+    }
   }
 
   grpc::Status Connect(grpc::ServerContext *context,
