@@ -32,6 +32,7 @@ private:
   const bool use_plasma_;
   std::mutex local_store_mutex_;
   std::unordered_map<ObjectID, std::shared_ptr<Buffer>> buffers_;
+  size_t total_store_size_;
 };
 
 #endif // LOCAL_STORE_H

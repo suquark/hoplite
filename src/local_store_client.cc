@@ -1,9 +1,11 @@
 #include "local_store_client.h"
 #include "logging.h"
+#include <iostream>
+#include <fstream>
 
 LocalStoreClient::LocalStoreClient(const bool use_plasma,
                                    const std::string &plasma_socket)
-    : use_plasma_(use_plasma) {
+    : use_plasma_(use_plasma), total_store_size_(0) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma) {
   //   plasma_client_.Connect(plasma_socket, "");
@@ -19,7 +21,9 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
 
   buffers_[object_id] = std::make_shared<Buffer>(data_size);
   *data = buffers_[object_id];
-
+  total_store_size_ += data_size;
+  std::ofstream log_to_file("/home/ubuntu/object_store_size.log", std::ios::out | std::ios::app);
+  log_to_file << total_store_size_ << endl;
   return Status::OK();
 }
 
