@@ -23,7 +23,7 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
   *data = buffers_[object_id];
   total_store_size_ += data_size;
   std::ofstream log_to_file("/home/ubuntu/object_store_size.log", std::ios::out | std::ios::app);
-  log_to_file << total_store_size_ << endl;
+  log_to_file << total_store_size_ << std::endl;
   return Status::OK();
 }
 
