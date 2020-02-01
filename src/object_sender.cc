@@ -105,22 +105,25 @@ void ObjectSender::send_object(const PullRequest *request) {
   const uint8_t *object_buffer = NULL;
   size_t object_size = 0;
   ObjectID object_id = ObjectID::FromBinary(request->object_id());
-  auto stream = state_.get_progressive_stream(object_id);
-  if (stream) {
-    // fetch partial object in memory
-    LOG(DEBUG) << "[GrpcServer] fetching a partial object";
-    object_size = stream->size();
-    // we need this data pointer for 'WriteLocation'
-    object_buffer = stream->data();
-  } else {
+  std::shared_ptr<ProgressiveStream> stream;
+  if (local_store_client_.ObjectExists(object_id)) {
     // fetch object from Plasma
     LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
-    std::vector<ObjectBuffer> object_buffers;
-    local_store_client_.Get({object_id}, &object_buffers);
+    ObjectBuffer object_buffer;
+    local_store_client_.Get(object_id, &object_buffer);
     LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store, "
                << object_id.ToString();
-    object_buffer = object_buffers[0].data->Data();
-    object_size = object_buffers[0].data->Size();
+    object_buffer = object_buffer.data->Data();
+    object_size = object_buffer.data->Size();
+  } else {
+    stream = state_.get_progressive_stream(object_id);
+    if (stream) {
+      // fetch partial object in memory
+      LOG(DEBUG) << "[GrpcServer] fetching a partial object";
+      object_size = stream->size();
+      // we need this data pointer for 'WriteLocation'
+      object_buffer = stream->data();
+    }
   }
 
   ObjectWriterRequest ow_request;
