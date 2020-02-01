@@ -1,5 +1,29 @@
 #include "object_store_state.h"
 #include "logging.h"
+#include <cstring>
+
+void ProgressiveStream::stream_copy(const std::shared_ptr<Buffer> &src) {
+  const uint8_t *data = src->Data();
+  int64_t size = src->Size();
+  DCHECK(size == buf_ptr_->Size()) << "Size mismatch for copying.";
+  size_t copy_size = size / 1024;
+  if (copy_size < 4096) {
+    copy_size = 4096;
+  } else if (copy_size > 2 << 20) {
+    copy_size = 2 << 20;
+  } else {
+    // align to 64
+    copy_size = (copy_size >> 6) << 6;
+  }
+  uint8_t *dst = buf_ptr_->MutableData();
+  size_t cursor = 0;
+  while (size - cursor >= copy_size) {
+    memcpy(dst + cursor, data + cursor, copy_size);
+    progress += copy_size, cursor += copy_size;
+  }
+  memcpy(dst + cursor, data + cursor, size - cursor);
+  progress = cursor;
+}
 
 std::shared_ptr<ReductionStream>
 ObjectStoreState::create_reduction_stream(const ObjectID &reduction_id,

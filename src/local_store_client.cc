@@ -38,12 +38,16 @@ Status LocalStoreClient::Seal(const ObjectID &object_id) {
   //   return plasma_client_.Seal(object_id);
   // }
 
+  auto search = buffers_.find(object_id);
+  DCHECK(search != buffers_.end()) << "Sealing an object that does not exist.";
+  sealed_buffers_.insert(*search);
+  buffers_.erase(object_id);
   return Status::OK();
 }
 
 bool LocalStoreClient::ObjectExists(const ObjectID &object_id) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  return buffers_.find(object_id) != buffers_.end();
+  return sealed_buffers_.find(object_id) != sealed_buffers_.end();
 }
 
 Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
@@ -55,7 +59,7 @@ Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
 
   for (auto &object_id : object_ids) {
     ObjectBuffer buf;
-    buf.data = buffers_[object_id];
+    buf.data = sealed_buffers_[object_id];
     buf.metadata = nullptr;
     buf.device_num = 0;
     object_buffers->push_back(buf);
@@ -67,7 +71,7 @@ Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
 Status LocalStoreClient::Get(const ObjectID &object_id,
                              ObjectBuffer *object_buffer) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  object_buffer->data = buffers_[object_id];
+  object_buffer->data = sealed_buffers_[object_id];
   object_buffer->metadata = nullptr;
   object_buffer->device_num = 0;
   return Status::OK();

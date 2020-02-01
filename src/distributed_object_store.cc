@@ -231,10 +231,18 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
                        << object_id.Hex() << " size = " << buffer->Size()
                        << ", status = " << pstatus.ToString();
-  ptr->CopyFrom(*buffer);
-  local_store_client_.Seal(object_id);
-  gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
-                            buffer->Data());
+  if (buffer->Size() <= inband_data_size_limit) {
+    ptr->CopyFrom(*buffer);
+    local_store_client_.Seal(object_id);
+    gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
+                              buffer->Data());
+  } else {
+    auto stream = state_.create_progressive_stream(object_id, ptr);
+    gcs_client_.WriteLocation(object_id, my_address_, false, buffer->Size(),
+                              buffer->Data());
+    stream->stream_copy(buffer);
+    local_store_client_.Seal(object_id);
+  }
 }
 
 ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {

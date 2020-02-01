@@ -53,6 +53,7 @@ public:
     finished_mutex_.unlock();
   }
   inline std::shared_ptr<Buffer> get_buffer() { return buf_ptr_; }
+  void stream_copy(const std::shared_ptr<Buffer> &src);
 
   int64_t receive_progress;
   std::atomic_int64_t progress;
