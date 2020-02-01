@@ -78,7 +78,6 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
         ray.worker.global_worker.put_object(array, object_id=object_id)
         barrier(world_rank, notification_address, notification_port, world_size)
     else:
-        time.sleep(20)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         ready_set, unready_set = ray.wait([object_id], timeout=5)
@@ -88,17 +87,16 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
         buffer = store_lib.Buffer.from_buffer(array)
         print("Buffer received, hash =", hash(buffer), "duration =", duration)
         print(array)
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
+
 
 @ray.remote(resources={'node': 1})
 def ray_reduce(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
-    time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
     ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
-    time.sleep(5)
     if world_rank == 0:
         object_ids = []
         for i in range(0, world_size):
@@ -106,14 +104,17 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
         reduce_result = np.zeros(object_size//4, dtype=np.int32)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
-        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
-        while True:
-            assert ready_set
-            array = ray.get(ready_set[0])
+        arrays = ray.get(object_ids)
+        #ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
+        #while True:
+        #    assert ready_set
+        #    array = ray.get(ready_set[0])
+        #    reduce_result += array
+        #    if not unready_set:
+        #        break
+        #    ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
+        for array in arrays:
             reduce_result += array
-            if not unready_set:
-                break
-            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
         duration = time.time() - start
         buffer = store_lib.Buffer.from_buffer(reduce_result)
         print("Reduce completed, hash =", hash(buffer), "duration =", duration)
@@ -121,57 +122,52 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
 
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def ray_allreduce(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     reduce_id = ray.ObjectID(str(args_dict['seed'] + world_size).encode().rjust(20, b'\0'))
-    time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
     ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
-    time.sleep(5)
+    allreduce_result = np.zeros(object_size//4, dtype=np.int32)
     barrier(world_rank, notification_address, notification_port, world_size)
     start = time.time()
     if world_rank == 0:
         object_ids = []
         for i in range(0, world_size):
             object_ids.append(ray.ObjectID(str(args_dict['seed'] + i).encode().rjust(20, b'\0')))
-        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=5)
-        first_object = True
-        while True:
-            assert ready_set
-            array = ray.get(ready_set[0])
-            if first_object:
-                reduce_result = array
-                first_object = False
-            else:
-                reduce_result = reduce_result + array
-            if not unready_set:
-                break
-            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
-        ray.worker.global_worker.put_object(reduce_result, object_id=reduce_id)
-
-    ready_set, unready_set = ray.wait([reduce_id], num_returns=1, timeout=20)
-    allreduce_result = ray.get(ready_set[0])
+#        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=5)
+        allreduce_result = np.zeros(object_size//4, dtype=np.int32)
+#        while True:
+#            assert ready_set
+#            array = ray.get(ready_set[0])
+#            reduce_result += array
+#            if not unready_set:
+#                break
+#            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
+        arrays = ray.get(object_ids)
+        for array in arrays:
+            allreduce_result += array
+        ray.worker.global_worker.put_object(allreduce_result, object_id=reduce_id)
+    else:
+        ready_set, unready_set = ray.wait([reduce_id], num_returns=1, timeout=500)
+        allreduce_result = ray.get(ready_set[0])
     duration = time.time() - start
     buffer = store_lib.Buffer.from_buffer(allreduce_result)
     print("Allreduce completed, hash =", hash(buffer), "duration =", duration)
     print(allreduce_result)
-
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def ray_gather(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
-    time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
     ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
-    time.sleep(5)
     if world_rank == 0:
         object_ids = []
         for i in range(0, world_size):
@@ -195,18 +191,15 @@ def ray_gather(args_dict, notification_address, world_size, world_rank, object_s
         print("Gather completed, hash =", hash_sum, "duration =", duration)
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
-
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def ray_allgather(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
-    time.sleep(5)
     array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
     ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
-    time.sleep(5)
     barrier(world_rank, notification_address, notification_port, world_size)
     object_ids = []
     for i in range(0, world_size):
@@ -227,8 +220,8 @@ def ray_allgather(args_dict, notification_address, world_size, world_rank, objec
         buffer = store_lib.Buffer.from_buffer(array)
         hash_sum += hash(buffer)
     print("Allgather completed, hash =", hash_sum, "duration =", duration)
+    barrier_exit(world_rank, notification_address, notification_port)
 
-    time.sleep(30)
 
 @ray.remote(resources={'node': 1})
 def sendrecv(args_dict, notification_address, world_size, world_rank, object_size):
@@ -265,7 +258,6 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
         store.put(buffer, object_id)
         barrier(world_rank, notification_address, notification_port, world_size)
     else:
-        time.sleep(5)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         buffer = store.get(object_id)
@@ -273,7 +265,7 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
         print("Buffer received, hash =", hash(buffer), "duration =", duration)
         array = np.frombuffer(buffer, dtype=np.int32)
         print(array)
-    time.sleep(20)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def reduce(args_dict, notification_address, world_size, world_rank, object_size):
@@ -298,9 +290,7 @@ def reduce(args_dict, notification_address, world_size, world_rank, object_size)
         print(reduce_result)
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
-
-    time.sleep(30)
-
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def allreduce(args_dict, notification_address, world_size, world_rank, object_size):
@@ -309,7 +299,6 @@ def allreduce(args_dict, notification_address, world_size, world_rank, object_si
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = store_lib.Buffer.from_buffer(array)
     store.put(buffer, object_id)
-
     print("Buffer created, hash =", hash(buffer))
     object_ids = []
     for i in range(0, world_size):
@@ -326,7 +315,7 @@ def allreduce(args_dict, notification_address, world_size, world_rank, object_si
     reduce_result = np.frombuffer(reduced_buffer)
     print("AllReduce completed, hash =", hash(reduced_buffer), "duration =", duration)
     print(reduce_result)
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 
 @ray.remote(resources={'node': 1})
@@ -351,7 +340,7 @@ def gather(args_dict, notification_address, world_size, world_rank, object_size)
     duration = time.time() - start
 
     print("Gather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 
 @ray.remote(resources={'node': 1})
@@ -375,7 +364,8 @@ def allgather(args_dict, notification_address, world_size, world_rank, object_si
     duration = time.time() - start
 
     print("AllGather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
-    time.sleep(30)
+    barrier_exit(world_rank, notification_address, notification_port)
+
 
 parser = argparse.ArgumentParser(description='broadcast test')
 utils.add_arguments(parser)
