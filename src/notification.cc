@@ -21,6 +21,8 @@ using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;
+using objectstore::ExitReply;
+using objectstore::ExitRequest;
 using objectstore::GetLocationAsyncAnswerReply;
 using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
@@ -33,8 +35,6 @@ using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
-using objectstore::ExitReply;
-using objectstore::ExitRequest;
 
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
@@ -76,8 +76,8 @@ public:
     return grpc::Status::OK;
   }
 
-  grpc::Status Exit(grpc::ServerContext *context,
-                    const ExitRequest *request, ExitReply *reply) {
+  grpc::Status Exit(grpc::ServerContext *context, const ExitRequest *request,
+                    ExitReply *reply) {
     {
       std::lock_guard<std::mutex> guard(barrier_mutex_);
       participants_.erase(request->ip());
