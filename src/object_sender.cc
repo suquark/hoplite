@@ -113,8 +113,8 @@ void ObjectSender::send_object(const PullRequest *request) {
     local_store_client_.Get(object_id, &object_buffer);
     LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store, "
                << object_id.ToString();
-    buf = buf.data->Data();
-    object_size = buf.data->Size();
+    buf = object_buffer.data->Data();
+    object_size = object_buffer.data->Size();
   } else {
     stream = state_.get_progressive_stream(object_id);
     if (stream) {
