@@ -81,7 +81,7 @@ public:
     {
       std::lock_guard<std::mutex> guard(barrier_mutex_);
       participants_.erase(request->ip());
-      LOG(INFO) << "Participant " << request->ip() << " exited!";
+      LOG(INFO) << "Participant " << request->ip() << " wants to exit!";
     }
 
     while (true) {
@@ -93,6 +93,8 @@ public:
       }
       usleep(1);
     }
+    LOG(INFO) << "Participant " << request->ip() << " exited!";
+    return grpc::Status::OK;
   }
 
   grpc::Status Connect(grpc::ServerContext *context,

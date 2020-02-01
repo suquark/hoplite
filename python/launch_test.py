@@ -35,7 +35,7 @@ def barrier(world_rank, notification_address, notification_port, world_size):
     my_address = utils.get_my_address()
     is_ready(notification_address, notification_port, my_address)
 
-def barrier_exit(notification_address, notification_port):
+def barrier_exit(world_rank, notification_address, notification_port):
     my_address = utils.get_my_address()
     channel = grpc.insecure_channel(notification_address + ':' + str(notification_port))
     stub = object_store_pb2_grpc.NotificationServerStub(channel)
@@ -52,7 +52,7 @@ def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, objec
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         ray.worker.global_worker.put_object(array, object_id=object_id)
-        ready_set, unready_set = ray.wait([object_id2], timeout=5)
+        ready_set, unready_set = ray.wait([object_id2], timeout=100)
         assert ready_set
         array = ray.get(object_id2)
         duration = time.time() - start
@@ -62,11 +62,11 @@ def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, objec
     else:
         return_array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
         barrier(world_rank, notification_address, notification_port, world_size)
-        ready_set, unready_set = ray.wait([object_id], timeout=5)
+        ready_set, unready_set = ray.wait([object_id], timeout=100)
         assert ready_set
         array = ray.get(object_id)
         ray.worker.global_worker.put_object(return_array, object_id=object_id2)
-    barrier_exit(notification_address, notification_port)
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def ray_multicast(args_dict, notification_address, world_size, world_rank, object_size):
@@ -396,6 +396,7 @@ ray.init(address='auto')
 
 tasks = []
 
+time.sleep(1)
 register_group(notification_address, notification_port, args.world_size)
 
 args_dict['seed'] = np.random.randint(0, 2**30)
