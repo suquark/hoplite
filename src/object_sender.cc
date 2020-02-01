@@ -102,7 +102,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
 
-  const uint8_t *object_buffer = NULL;
+  const uint8_t *buf = NULL;
   size_t object_size = 0;
   ObjectID object_id = ObjectID::FromBinary(request->object_id());
   std::shared_ptr<ProgressiveStream> stream;
@@ -113,8 +113,8 @@ void ObjectSender::send_object(const PullRequest *request) {
     local_store_client_.Get(object_id, &object_buffer);
     LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store, "
                << object_id.ToString();
-    object_buffer = object_buffer.data->Data();
-    object_size = object_buffer.data->Size();
+    buf = buf.data->Data();
+    object_size = buf.data->Size();
   } else {
     stream = state_.get_progressive_stream(object_id);
     if (stream) {
@@ -122,7 +122,7 @@ void ObjectSender::send_object(const PullRequest *request) {
       LOG(DEBUG) << "[GrpcServer] fetching a partial object";
       object_size = stream->size();
       // we need this data pointer for 'WriteLocation'
-      object_buffer = stream->data();
+      buf = stream->data();
     }
   }
 
@@ -136,7 +136,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   if (stream) {
     stream_send<ProgressiveStream>(conn_fd, stream.get());
   } else {
-    int status = send_all(conn_fd, object_buffer, object_size);
+    int status = send_all(conn_fd, buf, object_size);
     DCHECK(!status) << "Failed to send object";
   }
 
