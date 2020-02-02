@@ -3,6 +3,8 @@
 #include "logging.h"
 #include "common/buffer.h"
 #include <zlib.h>
+#include <iostream>
+#include <fstream>
 
 Buffer::Buffer(uint8_t* data_ptr, int64_t size): data_ptr_(data_ptr), size_(size), is_data_owner_(false) {}
 
@@ -39,6 +41,8 @@ void Buffer::CopyFrom(const std::string &data) {
 }
 
 Buffer::~Buffer() {
+  std::ofstream log_to_file("/home/ubuntu/object_store_size.log", std::ios::out | std::ios::app);
+  log_to_file << "buffer freed!" << std::endl;
   if (is_data_owner_) {
     delete[] data_ptr_;
   }

@@ -32,6 +32,7 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
     buffers_.erase(front_id);
     total_store_size_ -= buffer_ptr->Size();
     log_to_file << "buffer_ptr use_count: " << buffer_ptr.use_count() << std::endl;
+    delete buffer_ptr.get();
   }
   return Status::OK();
 }
