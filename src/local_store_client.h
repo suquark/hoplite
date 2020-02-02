@@ -34,7 +34,7 @@ private:
   std::mutex local_store_mutex_;
   std::unordered_map<ObjectID, std::shared_ptr<Buffer>> buffers_;
   size_t total_store_size_;
-  const size_t lru_bound_size_ = 16 * (2LL << 30);
+  const size_t lru_bound_size_ = (16LL << 30);
   std::queue<ObjectID> lru_queue_;
 };
 
