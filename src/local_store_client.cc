@@ -22,8 +22,6 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
   buffers_[object_id] = std::make_shared<Buffer>(data_size);
   *data = buffers_[object_id];
   total_store_size_ += data_size;
-  std::ofstream log_to_file("/home/ubuntu/object_store_size.log", std::ios::out | std::ios::app);
-  log_to_file << total_store_size_ << " lru_bound_size_: " << lru_bound_size_ << std::endl;
   lru_queue_.push(object_id);
   while (total_store_size_ > lru_bound_size_) {
     ObjectID front_id = lru_queue_.front();
@@ -31,7 +29,6 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
     std::shared_ptr<Buffer> buffer_ptr = buffers_[front_id];
     buffers_.erase(front_id);
     total_store_size_ -= buffer_ptr->Size();
-    log_to_file << "buffer_ptr use_count: " << buffer_ptr.use_count() << std::endl;
     buffer_ptr->ShrinkForLRU();
   }
   return Status::OK();
