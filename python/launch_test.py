@@ -11,8 +11,6 @@ import ray
 
 import utils
 
-from ray.rllib.utils.memory import ray_get_and_free
-
 import object_store_pb2
 import object_store_pb2_grpc
 import py_distributed_object_store as store_lib
@@ -69,6 +67,8 @@ def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, objec
         array = ray.get(object_id)
         ray.worker.global_worker.put_object(return_array, object_id=object_id2)
     barrier_exit(world_rank, notification_address, notification_port)
+    ray.internal.free([object_id, object_id2])
+
 
 @ray.remote(resources={'node': 1})
 def ray_multicast(args_dict, notification_address, world_size, world_rank, object_size):
@@ -90,6 +90,7 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
         print("Buffer received, hash =", hash(buffer), "duration =", duration)
         print(array)
     barrier_exit(world_rank, notification_address, notification_port)
+    ray.internal.free([object_id])
 
 
 @ray.remote(resources={'node': 1})
@@ -106,25 +107,26 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
         reduce_result = np.zeros(object_size//4, dtype=np.int32)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
-        arrays = ray_get_and_free(object_ids)
-        #ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
-        #while True:
-        #    assert ready_set
-        #    array = ray.get(ready_set[0])
-        #    reduce_result += array
-        #    if not unready_set:
-        #        break
-        #    ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
-        for array in arrays:
+        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
+        while True:
+            assert ready_set
+            array = ray.get(ready_set[0])
             reduce_result += array
+            if not unready_set:
+                break
+            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
         duration = time.time() - start
         buffer = store_lib.Buffer.from_buffer(reduce_result)
         print("Reduce completed, hash =", hash(buffer), "duration =", duration)
         print(reduce_result)
+        ray.internal.free(object_ids)
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
 
     barrier_exit(world_rank, notification_address, notification_port)
+    if world_rank != 0:
+        ray.internal.free([object_id])
+
 
 @ray.remote(resources={'node': 1})
 def ray_allreduce(args_dict, notification_address, world_size, world_rank, object_size):
@@ -141,19 +143,20 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
         object_ids = []
         for i in range(0, world_size):
             object_ids.append(ray.ObjectID(str(args_dict['seed'] + i).encode().rjust(20, b'\0')))
-#        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=5)
         allreduce_result = np.zeros(object_size//4, dtype=np.int32)
-#        while True:
-#            assert ready_set
-#            array = ray.get(ready_set[0])
-#            reduce_result += array
-#            if not unready_set:
-#                break
-#            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
-        arrays = ray_get_and_free(object_ids)
+        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=5)
+        while True:
+            assert ready_set
+            array = ray.get(ready_set[0])
+            reduce_result += array
+            if not unready_set:
+                break
+            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
+        arrays = ray.get(object_ids)
         for array in arrays:
             allreduce_result += array
         ray.worker.global_worker.put_object(allreduce_result, object_id=reduce_id)
+        ray.internal.free(object_ids)
     else:
         ready_set, unready_set = ray.wait([reduce_id], num_returns=1, timeout=500)
         allreduce_result = ray_get_and_free(ready_set[0])
@@ -162,6 +165,10 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
     print("Allreduce completed, hash =", hash(buffer), "duration =", duration)
     print(allreduce_result)
     barrier_exit(world_rank, notification_address, notification_port)
+    ray.internal.free([reduce_id])
+    if world_rank != 0:
+        ray.internal.free([object_id])
+ 
 
 @ray.remote(resources={'node': 1})
 def ray_gather(args_dict, notification_address, world_size, world_rank, object_size):
