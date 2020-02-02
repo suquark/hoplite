@@ -28,9 +28,9 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
   while (total_store_size_ > lru_bound_size_) {
     ObjectID front_id = lru_queue_.front();
     lru_queue_.pop();
-    std::shared_ptr<Buffer> = buffers_[front_id];
+    std::shared_ptr<Buffer> buffer_ptr = buffers_[front_id];
     buffers_.erase(front_id);
-    total_store_size_ -= buffers[front_id]->Size();
+    total_store_size_ -= buffer_ptr->Size();
   }
   return Status::OK();
 }
