@@ -11,6 +11,8 @@ import ray
 
 import utils
 
+from ray.rllib.utils.memory import ray_get_and_free
+
 import object_store_pb2
 import object_store_pb2_grpc
 import py_distributed_object_store as store_lib
@@ -104,7 +106,7 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
         reduce_result = np.zeros(object_size//4, dtype=np.int32)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
-        arrays = ray.get(object_ids)
+        arrays = ray_get_and_free(object_ids)
         #ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
         #while True:
         #    assert ready_set
@@ -148,13 +150,13 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
 #            if not unready_set:
 #                break
 #            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
-        arrays = ray.get(object_ids)
+        arrays = ray_get_and_free(object_ids)
         for array in arrays:
             allreduce_result += array
         ray.worker.global_worker.put_object(allreduce_result, object_id=reduce_id)
     else:
         ready_set, unready_set = ray.wait([reduce_id], num_returns=1, timeout=500)
-        allreduce_result = ray.get(ready_set[0])
+        allreduce_result = ray_get_and_free(ready_set[0])
     duration = time.time() - start
     buffer = store_lib.Buffer.from_buffer(allreduce_result)
     print("Allreduce completed, hash =", hash(buffer), "duration =", duration)
@@ -244,8 +246,7 @@ def sendrecv(args_dict, notification_address, world_size, world_rank, object_siz
         barrier(world_rank, notification_address, notification_port, world_size)
         buffer = store.get(object_id)
         store.put(return_buffer, object_id2)
-    time.sleep(30)
-
+    barrier_exit(world_rank, notification_address, notification_port)
 
 @ray.remote(resources={'node': 1})
 def multicast(args_dict, notification_address, world_size, world_rank, object_size):
