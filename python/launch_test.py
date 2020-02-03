@@ -156,6 +156,12 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
+        # this hack is to prevent RAY from failling when waiting for object
+        # without this hack, ray will think the object will never be created
+        if object_size >= 2**30:
+            time.sleep(30)
+        if object_size >= 2**29:
+            time.sleep(8)
         allreduce_result = ray.get(reduce_id, timeout=100)
     duration = time.time() - start
     buffer = store_lib.Buffer.from_buffer(allreduce_result)
