@@ -136,37 +136,36 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
     ray.worker.global_worker.put_object(array, object_id=object_id)
     buffer = store_lib.Buffer.from_buffer(array)
     print("Buffer created, hash =", hash(buffer))
-    allreduce_result = np.zeros(object_size//4, dtype=np.int32)
-    barrier(world_rank, notification_address, notification_port, world_size)
-    start = time.time()
     if world_rank == 0:
         object_ids = []
         for i in range(0, world_size):
             object_ids.append(ray.ObjectID(str(args_dict['seed'] + i).encode().rjust(20, b'\0')))
         allreduce_result = np.zeros(object_size//4, dtype=np.int32)
-        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=5)
+        barrier(world_rank, notification_address, notification_port, world_size)
+        start = time.time()
+        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=100)
         while True:
             assert ready_set
             array = ray.get(ready_set[0])
-            reduce_result += array
+            allreduce_result += array
             if not unready_set:
                 break
-            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=5)
-        arrays = ray.get(object_ids)
-        for array in arrays:
-            allreduce_result += array
+            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=100)
         ray.worker.global_worker.put_object(allreduce_result, object_id=reduce_id)
-        ray.internal.free(object_ids)
+        print("allreduce result is generated, size = ", allreduce_result.shape)
     else:
-        ready_set, unready_set = ray.wait([reduce_id], num_returns=1, timeout=500)
-        allreduce_result = ray_get_and_free(ready_set[0])
+        barrier(world_rank, notification_address, notification_port, world_size)
+        start = time.time()
+        allreduce_result = ray.get(reduce_id, timeout=100)
     duration = time.time() - start
     buffer = store_lib.Buffer.from_buffer(allreduce_result)
     print("Allreduce completed, hash =", hash(buffer), "duration =", duration)
     print(allreduce_result)
     barrier_exit(world_rank, notification_address, notification_port)
     ray.internal.free([reduce_id])
-    if world_rank != 0:
+    if world_rank == 0:
+        ray.internal.free(object_ids)
+    else:
         ray.internal.free([object_id])
  
 
