@@ -5,8 +5,8 @@
 #include "common/id.h"
 #include "common/status.h"
 #include <mutex>
-#include <unordered_map>
 #include <queue>
+#include <unordered_map>
 
 class LocalStoreClient {
 public:
