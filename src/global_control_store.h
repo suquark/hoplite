@@ -14,7 +14,7 @@
 
 struct NotificationListenerImpl;
 
-constexpr int64_t inband_data_size_limit = 4096;
+constexpr int64_t inband_data_size_limit = 65536;
 
 struct NotificationMessage {
   ObjectID object_id;
