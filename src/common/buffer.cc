@@ -3,8 +3,6 @@
 #include "logging.h"
 #include "common/buffer.h"
 #include <zlib.h>
-#include <iostream>
-#include <fstream>
 
 Buffer::Buffer(uint8_t* data_ptr, int64_t size): data_ptr_(data_ptr), size_(size), is_data_owner_(false) {}
 
