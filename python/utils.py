@@ -56,6 +56,11 @@ def object_id_from_int(n):
     return store_lib.ObjectID(str(n).encode().rjust(20, b'\0'))
 
 
+def random_object_id():
+    import random
+    return object_id_from_int(random.randint(0, 1e20-1))
+
+
 def register_cleanup(processes):
     def _cleanup_processes():
         for p in processes:
