@@ -141,9 +141,18 @@ message ConnectListenerRequest {}
 
 message ConnectListenerReply {}
 
+message ExitRequest {
+  bytes ip = 1;
+}
+
+message ExitReply {
+  bool ok = 1;
+}
+
 service NotificationServer {
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc IsReady(IsReadyRequest) returns (IsReadyReply);
+  rpc Exit(ExitRequest) returns (ExitReply);
   rpc Connect(ConnectRequest) returns (ConnectReply);
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);

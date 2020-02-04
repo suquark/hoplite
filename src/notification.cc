@@ -21,6 +21,8 @@ using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;
+using objectstore::ExitReply;
+using objectstore::ExitRequest;
 using objectstore::GetLocationAsyncAnswerReply;
 using objectstore::GetLocationAsyncAnswerRequest;
 using objectstore::GetLocationAsyncReply;
@@ -71,6 +73,27 @@ public:
 
     reply->set_ok(true);
     LOG(ERROR) << "barrier exits";
+    return grpc::Status::OK;
+  }
+
+  grpc::Status Exit(grpc::ServerContext *context, const ExitRequest *request,
+                    ExitReply *reply) {
+    {
+      std::lock_guard<std::mutex> guard(barrier_mutex_);
+      participants_.erase(request->ip());
+      LOG(INFO) << "Participant " << request->ip() << " wants to exit! " << participants_.size() << " nodes remaining!";
+    }
+
+    while (true) {
+      {
+        std::lock_guard<std::mutex> guard(barrier_mutex_);
+        if (participants_.empty()) {
+          break;
+        }
+      }
+      usleep(1);
+    }
+    LOG(INFO) << "Participant " << request->ip() << " exited!";
     return grpc::Status::OK;
   }
 
