@@ -19,6 +19,7 @@ class Buffer {
     const uint8_t* Data() const;
     int64_t Size() const;
     uint32_t CRC32() const;
+    void ShrinkForLRU();
     ~Buffer();
   private:
     uint8_t* data_ptr_;

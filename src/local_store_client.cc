@@ -3,7 +3,7 @@
 
 LocalStoreClient::LocalStoreClient(const bool use_plasma,
                                    const std::string &plasma_socket)
-    : use_plasma_(use_plasma) {
+    : use_plasma_(use_plasma), total_store_size_(0) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma) {
   //   plasma_client_.Connect(plasma_socket, "");
@@ -19,7 +19,16 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
 
   buffers_[object_id] = std::make_shared<Buffer>(data_size);
   *data = buffers_[object_id];
-
+  total_store_size_ += data_size;
+  lru_queue_.push(object_id);
+  while (total_store_size_ > lru_bound_size_) {
+    ObjectID front_id = lru_queue_.front();
+    lru_queue_.pop();
+    std::shared_ptr<Buffer> buffer_ptr = buffers_[front_id];
+    buffers_.erase(front_id);
+    total_store_size_ -= buffer_ptr->Size();
+    buffer_ptr->ShrinkForLRU();
+  }
   return Status::OK();
 }
 

@@ -38,6 +38,12 @@ void Buffer::CopyFrom(const std::string &data) {
   CopyFrom((const uint8_t *)data.data(), data.size());
 }
 
+void Buffer::ShrinkForLRU() {
+  delete[] data_ptr_;
+  data_ptr_ = new uint8_t[4];
+  size_ = 4;
+}
+
 Buffer::~Buffer() {
   if (is_data_owner_) {
     delete[] data_ptr_;
