@@ -51,7 +51,7 @@ bool LocalStoreClient::ObjectExists(const ObjectID &object_id,
                                     bool require_finished) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   auto search = buffers_.find(object_id);
-  return search == buffers_.end() &&
+  return search != buffers_.end() &&
          (!require_finished || search->second->IsFinished());
 }
 
