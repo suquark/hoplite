@@ -93,11 +93,11 @@ void ObjectNotifications::Rewind() {
 void ObjectNotifications::EraseRecords(
     const std::unordered_set<ObjectID> &records) {
   std::lock_guard<std::mutex> l(notification_mutex_);
-  std::vector<ObjectID> new_records;
+  std::vector<NotificationMessage> new_records;
   size_t cursor_shift = 0;
 
   for (int i = 0; i < ready_.size(); i++) {
-    if (records.find(ready_[i]) == records.end()) {
+    if (records.find(ready_[i].object_id) == records.end()) {
       new_records.push_back(ready_[i]);
     } else if (i < cursor_) {
       ++cursor_shift;
