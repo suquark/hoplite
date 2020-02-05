@@ -39,6 +39,9 @@ public:
 
   void Rewind();
 
+  void ObjectNotifications::EraseRecords(
+      const std::unordered_set<ObjectID> &records);
+
 private:
   std::mutex notification_mutex_;
   std::condition_variable notification_cv_;

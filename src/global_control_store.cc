@@ -90,6 +90,24 @@ void ObjectNotifications::Rewind() {
   cursor_ = 0;
 }
 
+void ObjectNotifications::EraseRecords(
+    const std::unordered_set<ObjectID> &records) {
+  std::lock_guard<std::mutex> l(notification_mutex_);
+  std::vector<ObjectID> new_records;
+  size_t cursor_shift = 0;
+
+  for (int i = 0; i < ready_.size(); i++) {
+    if (records.find(ready_[i]) == records.end()) {
+      new_records.push_back(ready_[i]);
+    } else if (i < cursor_) {
+      ++cursor_shift;
+    }
+  }
+  // shift the cursor due to the erase
+  cursor_ -= cursor_shift;
+  ready_ = std::move(new_records);
+}
+
 void ObjectNotifications::ReceiveObjectNotification(
     const ObjectID &object_id, const std::string &sender_ip, size_t object_size,
     const std::string &inband_data) {

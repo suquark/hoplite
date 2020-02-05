@@ -555,6 +555,8 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
     LOG(WARNING) << "too many objects are found local for grid reduction";
     // restore previous notifications
     notifications->Rewind();
+    notifications->EraseRecords(std::unordered_set<ObjectID>(
+        local_object_ids.begin(), local_object_ids.end()));
     poll_and_reduce_pipe_impl(notifications, notification_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
