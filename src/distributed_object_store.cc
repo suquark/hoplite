@@ -282,6 +282,8 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   auto search = reduction_tasks_.find(object_id);
   if (search != reduction_tasks_.end()) {
     l.unlock();
+    LOG(DEBUG) << "Reduction task " << object_id.ToString()
+              << " found.";
     // ==> This ObjectID belongs to a reduction task.
     // we must join the thread first, because the stream
     // pointer could still be nullptr at creation.
@@ -296,7 +298,11 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     l.unlock();
   } else {
     l.unlock();
+    LOG(DEBUG) << "Try to fetch " << object_id.ToString()
+              << " from local store.";
     if (!local_store_client_.ObjectExists(object_id)) {
+      LOG(DEBUG) << "Cannot find " << object_id.ToString()
+                << " in local store. Try to pull it from remote";
       // ==> This ObjectID refers to a remote object.
       SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
       if (!check_and_store_inband_data(object_id, reply.object_size,
