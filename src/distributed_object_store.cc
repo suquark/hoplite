@@ -559,6 +559,7 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
     poll_and_reduce_pipe_impl(notifications, notification_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
+    return;
   }
 
   std::vector<ObjectID> edge;
