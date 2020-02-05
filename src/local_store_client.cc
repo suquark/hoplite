@@ -83,8 +83,8 @@ Status LocalStoreClient::Get(const ObjectID &object_id,
 
 std::shared_ptr<Buffer>
 LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) {
-  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   DCHECK(ObjectExists(object_id, false));
+  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   return buffers_[object_id];
 }
 
@@ -97,9 +97,8 @@ Status LocalStoreClient::Delete(const ObjectID &object_id) {
 }
 
 Status LocalStoreClient::Wait(const ObjectID &object_id) {
-  DCHECK(ObjectExists(object_id, false))
-      << "specified object not found: " << object_id.ToString();
   LOG(DEBUG) << "waiting the stream with " << object_id.ToString();
-  buffers_[object_id]->Wait();
+  auto buffer = GetBufferNoExcept(object_id);
+  buffer->Wait();
   return Status::OK();
 }
