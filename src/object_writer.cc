@@ -57,7 +57,7 @@ inline void stream_write_next(int conn_fd, T *stream,
 template <typename T> void stream_write(int conn_fd, T *stream) {
   TIMELINE("stream_write");
   int64_t receive_progress = 0;
-  while (receive_progress < object_size) {
+  while (receive_progress < stream->Size()) {
     stream_write_next<T>(conn_fd, stream, &receive_progress);
     // update the progress
     stream->progress.store(receive_progress);
