@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
     for (int64_t i = 0; i < object_size; i++) {
       buf[i] = i % 256;
     }
+    result->Seal();
     store.Put(result, object_id);
 
     LOG(INFO) << object_id.ToString() << " is created!"

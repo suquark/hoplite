@@ -4,7 +4,7 @@
 #include "common/buffer.h"
 #include <zlib.h>
 
-Buffer::Buffer(uint8_t* data_ptr, int64_t size): progress(0), data_ptr_(data_ptr), size_(size), is_data_owner_(false) {}
+Buffer::Buffer(uint8_t* data_ptr, int64_t size): progress(size), data_ptr_(data_ptr), size_(size), is_data_owner_(false) {}
 
 Buffer::Buffer(int64_t size): progress(0), size_(size), is_data_owner_(true) {
   data_ptr_ = new uint8_t[size];
