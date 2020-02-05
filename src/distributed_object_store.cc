@@ -230,6 +230,7 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
     gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
                               buffer->Data());
   } else {
+    LOG(DEBUG) << "Put with streaming";
     gcs_client_.WriteLocation(object_id, my_address_, false, buffer->Size(),
                               buffer->Data());
     ptr->StreamCopy(*buffer);
