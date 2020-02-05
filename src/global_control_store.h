@@ -39,8 +39,7 @@ public:
 
   void Rewind();
 
-  void ObjectNotifications::EraseRecords(
-      const std::unordered_set<ObjectID> &records);
+  void EraseRecords(const std::unordered_set<ObjectID> &records);
 
 private:
   std::mutex notification_mutex_;
