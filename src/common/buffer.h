@@ -10,8 +10,8 @@
 
 class Buffer {
   public:
-    Buffer(uint8_t* data_ptr, int64_t size): progress(0);
-    Buffer(int64_t size): progress(0);
+    Buffer(uint8_t* data_ptr, int64_t size);
+    Buffer(int64_t size);
 
     void CopyFrom(const std::vector<uint8_t> &data);
     void CopyFrom(const uint8_t *data, size_t size);
