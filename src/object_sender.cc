@@ -106,6 +106,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
 
+  LOG(DEBUG) << "Connection built for " << request->puller_ip();
   auto object_id = ObjectID::FromBinary(request->object_id());
   // fetch object from local store
   auto stream = local_store_client_.GetBufferNoExcept(object_id);
