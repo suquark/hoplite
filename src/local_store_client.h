@@ -27,7 +27,7 @@ public:
   // Get single object from the store.
   Status Get(const ObjectID &object_id, ObjectBuffer *object_buffer);
 
-  std::shared_ptr<Buffer> GetBufferNoExcept(const ObjectID &object_id) noexcept;
+  std::shared_ptr<Buffer> GetBufferNoExcept(const ObjectID &object_id);
 
   Status Delete(const ObjectID &object_id);
 
