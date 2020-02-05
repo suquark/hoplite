@@ -82,7 +82,7 @@ Status LocalStoreClient::Get(const ObjectID &object_id,
 }
 
 std::shared_ptr<Buffer>
-LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) {
+LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) noexcept {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   DCHECK(ObjectExists(object_id, false));
   return buffers_[object_id];
