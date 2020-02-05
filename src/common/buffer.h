@@ -5,6 +5,8 @@
 #include <memory>
 #include <atomic>
 #include <vector>
+#include <mutex>
+#include <condition_variable>
 
 class Buffer {
   public:
