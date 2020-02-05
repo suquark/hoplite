@@ -203,18 +203,11 @@ DistributedObjectStore::~DistributedObjectStore() {
 
 bool DistributedObjectStore::IsLocalObject(const ObjectID &object_id,
                                            int64_t *size) {
-  if (local_store_client_.ObjectExists(object_id)) {
-    ObjectBuffer object_buffer;
-    local_store_client_.Get(object_id, &object_buffer);
+  if (local_store_client_.ObjectExists(object_id, false)) {
     if (size != nullptr) {
+      ObjectBuffer object_buffer;
+      local_store_client_.Get(object_id, &object_buffer);
       *size = object_buffer.data->Size();
-    }
-    return true;
-  }
-  auto stream = state_.get_progressive_stream(object_id);
-  if (stream) {
-    if (size != nullptr) {
-      *size = stream->size();
     }
     return true;
   }
@@ -237,10 +230,9 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
     gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
                               buffer->Data());
   } else {
-    auto stream = state_.create_progressive_stream(object_id, ptr);
     gcs_client_.WriteLocation(object_id, my_address_, false, buffer->Size(),
                               buffer->Data());
-    stream->stream_copy(buffer);
+    ptr->StreamCopy(*buffer);
     local_store_client_.Seal(object_id);
   }
 }
@@ -273,7 +265,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
     DCHECK(reduction_tasks_.find(reduction_id) == reduction_tasks_.end())
         << "Reduction task with " << reduction_id.ToString()
         << " already exists.";
-    reduction_tasks_[reduction_id] = {nullptr, std::move(reduction_thread)};
+    reduction_tasks_[reduction_id] = std::move(reduction_thread);
   }
 }
 
@@ -291,20 +283,14 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   if (search != reduction_tasks_.end()) {
     l.unlock();
     // ==> This ObjectID belongs to a reduction task.
-    auto &reduction_task_pair = search->second;
     // we must join the thread first, because the stream
     // pointer could still be nullptr at creation.
-    reduction_task_pair.reduction_thread.join();
-    auto &stream = reduction_task_pair.stream;
-    if (stream) {
-      LOG(DEBUG) << "waiting the reduction stream";
-      // wait until the object is fully reduced
-      stream->wait();
-      local_store_client_.Seal(object_id);
-    }
-    // TODO: should we add this line?
-    // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
-    //                           stream->data());
+    search->second.join();
+    local_store_client_.Wait(object_id);
+    // wait until the object is fully reduced
+    local_store_client_.Seal(object_id);
+    // Location is written in 'object_writer.cc'. So we skip writing the
+    // location here.
     l.lock();
     reduction_tasks_.erase(object_id);
     l.unlock();
@@ -455,14 +441,7 @@ void DistributedObjectStore::poll_and_reduce_pipe_impl(
       } else {
         // wait until at lease 2 objects in nodes except the master node are
         // ready.
-        if (node_index == 0) {
-          auto reduction_endpoint =
-              state_.create_progressive_stream(reduction_id, buffer);
-          {
-            std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
-            reduction_tasks_[reduction_id].stream = reduction_endpoint;
-          }
-        } else if (node_index == 1) {
+        if (node_index == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
           bool reply_ok = InvokeReduceTo(tail_address, reduction_id, {ready_id},
                                          address, false, &tail_objectid);

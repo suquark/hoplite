@@ -19,7 +19,7 @@ public:
 
   // Check if an object exists in the store.
   // We assume this function will never fail.
-  bool ObjectExists(const ObjectID &object_id);
+  bool ObjectExists(const ObjectID &object_id, bool require_finished = true);
 
   Status Get(const std::vector<ObjectID> &object_ids,
              std::vector<ObjectBuffer> *object_buffers);
@@ -27,7 +27,11 @@ public:
   // Get single object from the store.
   Status Get(const ObjectID &object_id, ObjectBuffer *object_buffer);
 
+  std::shared_ptr<Buffer> GetBufferNoExcept(const ObjectID &object_id) noexcept;
+
   Status Delete(const ObjectID &object_id);
+
+  Status Wait(const ObjectID &object_id);
 
 private:
   const bool use_plasma_;

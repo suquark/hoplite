@@ -81,7 +81,8 @@ public:
     {
       std::lock_guard<std::mutex> guard(barrier_mutex_);
       participants_.erase(request->ip());
-      LOG(INFO) << "Participant " << request->ip() << " wants to exit! " << participants_.size() << " nodes remaining!";
+      LOG(INFO) << "Participant " << request->ip() << " wants to exit! "
+                << participants_.size() << " nodes remaining!";
     }
 
     while (true) {

@@ -40,14 +40,19 @@ Status LocalStoreClient::Seal(const ObjectID &object_id) {
 
   auto search = buffers_.find(object_id);
   DCHECK(search != buffers_.end()) << "Sealing an object that does not exist.";
-  sealed_buffers_.insert(*search);
-  buffers_.erase(object_id);
+  if (!search->second->IsFinished()) {
+    LOG(WARNING) << "Sealing an unfinished buffer.";
+  }
+  search->second->Seal();
   return Status::OK();
 }
 
-bool LocalStoreClient::ObjectExists(const ObjectID &object_id) {
+bool LocalStoreClient::ObjectExists(const ObjectID &object_id,
+                                    bool require_finished) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  return sealed_buffers_.find(object_id) != sealed_buffers_.end();
+  auto search = buffers_.find(object_id);
+  return search == buffers_.end() &&
+         (!require_finished || search->second->IsFinished());
 }
 
 Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
@@ -59,22 +64,28 @@ Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
 
   for (auto &object_id : object_ids) {
     ObjectBuffer buf;
-    buf.data = sealed_buffers_[object_id];
+    buf.data = buffers_[object_id];
     buf.metadata = nullptr;
     buf.device_num = 0;
     object_buffers->push_back(buf);
   }
-
   return Status::OK();
 }
 
 Status LocalStoreClient::Get(const ObjectID &object_id,
                              ObjectBuffer *object_buffer) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  object_buffer->data = sealed_buffers_[object_id];
+  object_buffer->data = buffers_[object_id];
   object_buffer->metadata = nullptr;
   object_buffer->device_num = 0;
   return Status::OK();
+}
+
+std::shared_ptr<Buffer>
+LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) {
+  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
+  DCHECK(ObjectExists(object_id, false));
+  return buffers_[object_id];
 }
 
 Status LocalStoreClient::Delete(const ObjectID &object_id) {
@@ -82,5 +93,13 @@ Status LocalStoreClient::Delete(const ObjectID &object_id) {
   // if (use_plasma_) {
   //   return plasma_client_.Delete(object_id);
   // }
+  return Status::OK();
+}
+
+Status LocalStoreClient::Wait(const ObjectID &object_id) {
+  DCHECK(ObjectExists(object_id, false))
+      << "specified object not found: " << object_id.ToString();
+  LOG(DEBUG) << "waiting the stream with " << object_id.ToString();
+  buffers_[object_id]->Wait();
   return Status::OK();
 }
