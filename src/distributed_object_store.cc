@@ -558,9 +558,7 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
     size_t n_records_erased =
         notifications->EraseRecords(std::unordered_set<ObjectID>(
             local_object_ids.begin(), local_object_ids.end()));
-    DCHECK(n_records_erased == local_object_ids.size())
-        << "Incorrect number of records erased. Expected: " << local_object_ids.size()
-        << ", actually: " << n_records_erased;
+    LOG(DEBUG) << "Notification messages: " << n_records_erased << " records removed";
     auto ready_messages = notifications->GetNotifications(false, true);
     std::vector<ObjectID> remaining_candidates;
     for (const auto &msg : ready_messages) {
