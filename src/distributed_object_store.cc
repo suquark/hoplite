@@ -557,7 +557,12 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
     notifications->Rewind();
     notifications->EraseRecords(std::unordered_set<ObjectID>(
         local_object_ids.begin(), local_object_ids.end()));
-    poll_and_reduce_pipe_impl(notifications, notification_candidates,
+    auto ready_messages = notifications->GetNotifications(false);
+    std::vector<ObjectID> remaining_candidates;
+    for (const auto& msg: ready_messages) {
+      remaining_candidates.push_back(msg.object_id);
+    }
+    poll_and_reduce_pipe_impl(notifications, remaining_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
     return;
