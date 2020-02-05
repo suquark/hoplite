@@ -22,20 +22,24 @@ uint32_t Buffer::CRC32() const {
 void Buffer::CopyFrom(const std::vector<uint8_t> &data) {
   DCHECK(data.size() == size_) << "input size mismatch";
   std::copy(data.begin(), data.end(), data_ptr_);
+  Seal();
 }
 
 void Buffer::CopyFrom(const uint8_t *data, size_t size) {
   DCHECK(size == size_) << "input size mismatch";
   std::memcpy(data_ptr_, data, size);
+  Seal();
 }
 
 void Buffer::CopyFrom(const Buffer &buffer) {
   DCHECK(buffer.Size() == size_) << "input size mismatch";
   std::memcpy(data_ptr_, buffer.Data(), buffer.Size());
+  Seal();
 }
 
 void Buffer::CopyFrom(const std::string &data) {
   CopyFrom((const uint8_t *)data.data(), data.size());
+  Seal();
 }
 
 void Buffer::StreamCopy(const Buffer &src) {
