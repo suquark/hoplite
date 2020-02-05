@@ -106,9 +106,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
 
-  const uint8_t *buf = NULL;
-  size_t object_size = 0;
-  ObjectID object_id = ObjectID::FromBinary(request->object_id());
+  auto object_id = ObjectID::FromBinary(request->object_id());
   // fetch object from local store
   auto stream = local_store_client_.GetBufferNoExcept(object_id);
   if (stream->IsFinished()) {
@@ -122,7 +120,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   ObjectWriterRequest ow_request;
   auto ro_request = new ReceiveObjectRequest();
   ro_request->set_object_id(request->object_id());
-  ro_request->set_object_size(object_size);
+  ro_request->set_object_size(stream->Size());
   ow_request.set_allocated_receive_object(ro_request);
   SendMessage(conn_fd, ow_request);
 
