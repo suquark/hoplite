@@ -178,6 +178,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     auto stream = state_.get_reduction_stream(reduction_id);
     DCHECK(stream != nullptr) << "Stream should not be nullptr";
     stream_send<Buffer>(conn_fd, stream.get());
+    state_.release_reduction_stream(reduction_id);
   }
 
   // receive ack

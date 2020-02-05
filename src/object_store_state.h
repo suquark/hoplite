@@ -19,6 +19,8 @@ public:
 
   std::shared_ptr<Buffer> get_reduction_stream(const ObjectID &reduction_id);
 
+  void release_reduction_stream(const ObjectID &reduction_id);
+
 private:
   std::mutex reduction_stream_mutex_;
   std::condition_variable reduction_stream_cv_;
