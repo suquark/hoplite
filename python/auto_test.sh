@@ -4,7 +4,7 @@ if [ "$#" -gt 2 ]; then echo "ERROR: too many arguments: $#"; exit; fi
 
 mkdir -p log
 
-for test_name in ray-gather; do
+for test_name in ray-reduce; do
 for num_nodes in 4 8 12 16; do
   for i in 10 15 20 25 30; do
     for test_index in `seq 1 $1`; do

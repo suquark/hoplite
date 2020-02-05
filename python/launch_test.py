@@ -107,24 +107,29 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
         reduce_result = np.zeros(object_size//4, dtype=np.float)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
-        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
-        while True:
-            assert ready_set
-            array = ray.get(ready_set[0])
+#        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=600)
+#        while True:
+#            assert ready_set
+#            array = ray.get(ready_set[0])
+#            reduce_result += array
+#            if not unready_set:
+#                break
+#            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
+        for object_id in object_ids:
+            array = ray.get(object_id)
             reduce_result += array
-            if not unready_set:
-                break
-            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=600)
+
         duration = time.time() - start
         buffer = store_lib.Buffer.from_buffer(reduce_result)
         print("Reduce completed, hash =", hash(buffer), "duration =", duration)
         print(reduce_result)
-        ray.internal.free(object_ids)
     else:
         barrier(world_rank, notification_address, notification_port, world_size)
 
     barrier_exit(world_rank, notification_address, notification_port)
-    if world_rank != 0:
+    if world_rank == 0:
+        ray.internal.free(object_ids)
+    else:
         ray.internal.free([object_id])
 
 
@@ -143,14 +148,18 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
         allreduce_result = np.zeros(object_size//4, dtype=np.float)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
-        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=100)
-        while True:
-            assert ready_set
-            array = ray.get(ready_set[0])
+#        ready_set, unready_set = ray.wait(object_ids, num_returns=1, timeout=100)
+#        while True:
+#            assert ready_set
+#            array = ray.get(ready_set[0])
+#            allreduce_result += array
+#            if not unready_set:
+#                break
+#            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=100)
+        for object_id in object_ids:
+            array = ray.get(object_id)
             allreduce_result += array
-            if not unready_set:
-                break
-            ready_set, unready_set = ray.wait(unready_set, num_returns=1, timeout=100)
+
         ray.worker.global_worker.put_object(allreduce_result, object_id=reduce_id)
         print("allreduce result is generated, size = ", allreduce_result.shape)
     else:
@@ -158,11 +167,11 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
         start = time.time()
         # this hack is to prevent RAY from failling when waiting for object
         # without this hack, ray will think the object will never be created
-        if object_size >= 2**30:
-            time.sleep(30)
-        if object_size >= 2**29:
-            time.sleep(8)
-        allreduce_result = ray.get(reduce_id, timeout=100)
+#        if object_size >= 2**30:
+#            time.sleep(30)
+#        if object_size >= 2**29:
+#            time.sleep(8)
+        allreduce_result = ray.get(reduce_id)
     duration = time.time() - start
     buffer = store_lib.Buffer.from_buffer(allreduce_result)
     print("Allreduce completed, hash =", hash(buffer), "duration =", duration)
