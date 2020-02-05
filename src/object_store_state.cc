@@ -25,5 +25,6 @@ ObjectStoreState::get_reduction_stream(const ObjectID &reduction_id) {
 
 void ObjectStoreState::release_reduction_stream(const ObjectID &reduction_id) {
   std::unique_lock<std::mutex> l(reduction_stream_mutex_);
-  return reduction_stream_.erase(reduction_id);
+  // release the memory
+  reduction_stream_.erase(reduction_id);
 }
