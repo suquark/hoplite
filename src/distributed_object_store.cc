@@ -555,11 +555,14 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
     LOG(WARNING) << "too many objects are found local for grid reduction";
     // restore previous notifications
     notifications->Rewind();
-    notifications->EraseRecords(std::unordered_set<ObjectID>(
-        local_object_ids.begin(), local_object_ids.end()));
-    auto ready_messages = notifications->GetNotifications(false);
+    size_t n_records_erased =
+        notifications->EraseRecords(std::unordered_set<ObjectID>(
+            local_object_ids.begin(), local_object_ids.end()));
+    DCHECK(n_records_erased == local_object_ids.size())
+        << "Incorrect number of records erased.";
+    auto ready_messages = notifications->GetNotifications(false, true);
     std::vector<ObjectID> remaining_candidates;
-    for (const auto& msg: ready_messages) {
+    for (const auto &msg : ready_messages) {
       remaining_candidates.push_back(msg.object_id);
     }
     poll_and_reduce_pipe_impl(notifications, remaining_candidates,

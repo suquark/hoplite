@@ -74,9 +74,11 @@ private:
 ////////////////////////////////////////////////////////////////
 
 std::vector<NotificationMessage>
-ObjectNotifications::GetNotifications(bool delete_after_get) {
+ObjectNotifications::GetNotifications(bool delete_after_get, bool no_wait) {
   std::unique_lock<std::mutex> l(notification_mutex_);
-  notification_cv_.wait(l, [this]() { return ready_.size() > cursor_; });
+  if (!no_wait) {
+    notification_cv_.wait(l, [this]() { return ready_.size() > cursor_; });
+  }
   std::vector<NotificationMessage> notifications(ready_.begin() + cursor_,
                                                  ready_.end());
   if (delete_after_get) {
@@ -90,22 +92,26 @@ void ObjectNotifications::Rewind() {
   cursor_ = 0;
 }
 
-void ObjectNotifications::EraseRecords(
-    const std::unordered_set<ObjectID> &records) {
+size_t
+ObjectNotifications::EraseRecords(const std::unordered_set<ObjectID> &records) {
   std::lock_guard<std::mutex> l(notification_mutex_);
   std::vector<NotificationMessage> new_records;
   size_t cursor_shift = 0;
-
+  size_t n_records_erased = 0;
   for (int i = 0; i < ready_.size(); i++) {
     if (records.find(ready_[i].object_id) == records.end()) {
       new_records.push_back(ready_[i]);
-    } else if (i < cursor_) {
-      ++cursor_shift;
+    } else {
+      ++n_records_erased;
+      if (i < cursor_) {
+        ++cursor_shift;
+      }
     }
   }
   // shift the cursor due to the erase
   cursor_ -= cursor_shift;
   ready_ = std::move(new_records);
+  return n_records_erased;
 }
 
 void ObjectNotifications::ReceiveObjectNotification(

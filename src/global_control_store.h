@@ -30,7 +30,11 @@ struct SyncReply {
 
 class ObjectNotifications {
 public:
-  std::vector<NotificationMessage> GetNotifications(bool delete_after_get);
+  std::vector<NotificationMessage> GetNotifications(bool delete_after_get,
+                                                    bool no_wait = false);
+
+  std::vector<NotificationMessage>
+  GetNotificationsNoWait(bool delete_after_get);
 
   void ReceiveObjectNotification(const ObjectID &object_id,
                                  const std::string &sender_ip,
@@ -39,7 +43,7 @@ public:
 
   void Rewind();
 
-  void EraseRecords(const std::unordered_set<ObjectID> &records);
+  size_t EraseRecords(const std::unordered_set<ObjectID> &records);
 
 private:
   std::mutex notification_mutex_;
