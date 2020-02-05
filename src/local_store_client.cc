@@ -50,9 +50,7 @@ Status LocalStoreClient::Seal(const ObjectID &object_id) {
 bool LocalStoreClient::ObjectExists(const ObjectID &object_id,
                                     bool require_finished) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  auto search = buffers_.find(object_id);
-  return search != buffers_.end() &&
-         (!require_finished || search->second->IsFinished());
+  return object_exists_unsafe(object_id, require_finished);
 }
 
 Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
@@ -83,8 +81,8 @@ Status LocalStoreClient::Get(const ObjectID &object_id,
 
 std::shared_ptr<Buffer>
 LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) {
-  DCHECK(ObjectExists(object_id, false));
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
+  DCHECK(object_exists_unsafe(object_id, false));
   return buffers_[object_id];
 }
 
@@ -101,4 +99,11 @@ Status LocalStoreClient::Wait(const ObjectID &object_id) {
   auto buffer = GetBufferNoExcept(object_id);
   buffer->Wait();
   return Status::OK();
+}
+
+bool LocalStoreClient::object_exists_unsafe(const ObjectID &object_id,
+                                            bool require_finished) {
+  auto search = buffers_.find(object_id);
+  return search != buffers_.end() &&
+         (!require_finished || search->second->IsFinished());
 }

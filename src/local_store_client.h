@@ -34,6 +34,7 @@ public:
   Status Wait(const ObjectID &object_id);
 
 private:
+  bool object_exists_unsafe(const ObjectID &object_id, bool require_finished);
   const bool use_plasma_;
   std::mutex local_store_mutex_;
   std::unordered_map<ObjectID, std::shared_ptr<Buffer>> buffers_;
