@@ -109,6 +109,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   auto object_id = ObjectID::FromBinary(request->object_id());
   // fetch object from local store
   auto stream = local_store_client_.GetBufferNoExcept(object_id);
+  LOG(DEBUG) << object_id->ToString() << " find in local store. Ready to send.";
   if (stream->IsFinished()) {
     LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store: "
                << object_id.ToString();
