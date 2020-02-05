@@ -225,6 +225,7 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
                        << object_id.Hex() << " size = " << buffer->Size()
                        << ", status = " << pstatus.ToString();
   if (buffer->Size() <= inband_data_size_limit) {
+    LOG(DEBUG) << "Put a small object, copy without streaming";
     ptr->CopyFrom(*buffer);
     local_store_client_.Seal(object_id);
     gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
