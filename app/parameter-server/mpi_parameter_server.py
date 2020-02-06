@@ -27,8 +27,7 @@ class ParameterServer(object):
         zero_grad = np.zeros(self.model.n_param, dtype=np.float32)
         grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
         comm.Reduce(zero_grad, grad_buffer, op=MPI.SUM, root=0)
-        grad_buffer = grad_buffer.view(np.uint8)
-        summed_gradients = self.model.buffer_to_tensors(grad_buffer)
+        summed_gradients = self.model.buffer_to_tensors(grad_buffer.view(np.uint8))
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
@@ -42,7 +41,7 @@ class DataWorker(object):
     def compute_gradients(self):
         parameter_buffer = np.empty(self.model.n_param, dtype=np.float32)
         comm.Bcast(parameter_buffer, root=0)
-        parameters = self.model.buffer_to_tensors(parameter_buffer)
+        parameters = self.model.buffer_to_tensors(parameter_buffer.view(np.uint8))
         self.model.set_parameters(parameters)
         try:
             data, target = next(self.data_iterator)
@@ -62,7 +61,7 @@ iterations = 20
 
 
 if rank == 0:
-    print("rank = 0")
+    print("rank == 0")
     ps = ParameterServer(1e-2)
     step_start = time.time()
     for i in range(iterations):
