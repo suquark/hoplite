@@ -115,7 +115,7 @@ parser.add_argument('--no-test', action='store_true',
                     help='skip all tests except the last one')
 
 args = parser.parse_args()
-iterations = 20
+iterations = 200
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
