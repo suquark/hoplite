@@ -152,6 +152,7 @@ if args.num_async is None:
             print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 else:
     print("Running Asynchronous Parameter Server Training.")
+    step_start = time.time()
     gradients = {}
     for worker in workers:
         gradients[worker.compute_gradients.remote(current_weights)] = worker
@@ -162,6 +163,9 @@ else:
         for ready_gradient_id in ready_gradient_list:
             worker = gradients.pop(ready_gradient_id)
             gradients[worker.compute_gradients.remote(current_weights)] = worker
+        now = time.time()
+        print("step time:", now - step_start)
+        step_start = now
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model after every 10 updates.

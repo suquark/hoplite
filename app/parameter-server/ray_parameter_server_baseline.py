@@ -181,6 +181,7 @@ else:
     # new gradient, the server will send back a copy of the current weights to the
     # worker. The worker will then update the weights and repeat.
     print("Running Asynchronous Parameter Server Training.")
+    step_start = time.time()
 
     gradients = {}
     for worker in workers:
@@ -192,6 +193,9 @@ else:
         for ready_gradient_id in ready_gradient_list:
             worker = gradients.pop(ready_gradient_id)
             gradients[worker.compute_gradients.remote(current_weights)] = worker
+        now = time.time()
+        print("step time:", now - step_start)
+        step_start = now
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model after every 10 updates.
