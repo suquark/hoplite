@@ -20,20 +20,18 @@ class ParameterServer(object):
         self.model = ConvNet()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
-    def apply_gradients(self, grad_buffer):
+    def apply_gradients(self):
+        new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
+        cont_p = np.concatenate([p.ravel() for p in new_parameters])
+        comm.Bcast(cont_p, root=0)
+        zero_grad = np.zeros(self.model.n_param, dtype=np.float32)
+        grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
+        comm.Reduce(zero_grad, grad_buffer, op=MPI.SUM, root=0)
         grad_buffer = grad_buffer.view(np.uint8)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
-        return self.model.get_weights()
-
-    def get_weights(self):
-        parameters = self.model.buffer_to_tensors(parameter_buffer)
-        self.model.set_parameters(parameters)
-        new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
-        cont_p = np.concatenate([p.ravel() for p in new_parameters])
-        return cont_p
 
 
 class DataWorker(object):
@@ -41,7 +39,9 @@ class DataWorker(object):
         self.model = ConvNet()
         self.data_iterator = iter(get_data_loader()[0])
 
-    def compute_gradients(self, parameter_buffer):
+    def compute_gradients(self):
+        parameter_buffer = np.empty(self.model.n_param, dtype=np.float32)
+        comm.Bcast(parameter_buffer, root=0)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
         self.model.set_parameters(parameters)
         try:
@@ -53,34 +53,24 @@ class DataWorker(object):
         output = self.model(data)
         loss = criterion(output, target)
         loss.backward()
-        return self.model.get_gradients()
+        gradients = self.model.get_gradients()
+        cont_grad = np.concatenate([p.ravel() for p in gradients])
+        grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
+        comm.Reduce(cont_grad, grad_buffer, op=MPI.SUM, root=0)
 
 iterations = 20
 
-start = time.time()
+
 if rank == 0:
     ps = ParameterServer(1e-2)
+    step_start = time.time()
     for i in range(iterations):
+        ps.apply_gradients()
+        now = time.time()
+        print("step time:", now - step_start)
+        step_start = now
 
 else:
-    worker = [DataWorker() for i in range(num_workers)]
+    worker = DataWorker()
     for i in range(iterations):
-
-model = ConvNet()
-
-# get initial weights
-current_weights = ps.get_weights.remote()
-
-step_start = time.time()
-for i in range(iterations):
-    gradients = [
-        worker.compute_gradients.remote(current_weights) for worker in workers
-    ]
-    current_weights = ps.apply_gradients.remote(*gradients)
-    ray.wait([current_weights])
-    now = time.time()
-    print("step time:", now - step_start)
-    step_start = now
-
-during = time.time() - start
-print(f"during = {during}s")
+        worker.compute_gradients()

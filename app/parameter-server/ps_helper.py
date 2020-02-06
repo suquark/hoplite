@@ -75,8 +75,10 @@ class ConvNet(nn.Module):
             self.weights_info.append(
                 (p.numel() * p.element_size(), tuple(p.shape)))
         self.total_gradient_size = 0
+        self.n_param = 0
         for p in self.parameters():
             if p.requires_grad:
+                self.n_param += p.numel()
                 self.total_gradient_size += p.numel() * p.element_size()
         print("model size:", self.total_gradient_size)
 
