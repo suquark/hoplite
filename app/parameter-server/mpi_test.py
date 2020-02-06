@@ -9,7 +9,7 @@ if rank == 0:
     data = np.ones(10, dtype=np.float32)
     data_sum = np.empty(10, dtype=np.float32)
 else:
-    time.sleep(rank * 3)
+    time.sleep((4 - rank) * 3)
     data = np.ones(10, dtype=np.float32)
     data_sum = np.empty(10, dtype=np.float32)
 comm.Bcast(data, root=0)
