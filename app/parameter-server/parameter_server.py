@@ -141,7 +141,7 @@ if not args.enable_async:
         ]
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
-        ray.wait(current_weights)
+        ray.wait([current_weights])
         now = time.time()
         print("step time:", now - step_start)
         step_start = now
