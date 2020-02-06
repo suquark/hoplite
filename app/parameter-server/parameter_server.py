@@ -19,7 +19,6 @@ import utils
 import py_distributed_object_store as store_lib
 
 from ps_helper import ConvNet, get_data_loader, evaluate, criterion
-from parameter_server_remote import ParameterServer, DataWorker
 
 
 ###########################################################################

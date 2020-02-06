@@ -37,7 +37,6 @@ import torch.nn.functional as F
 import numpy as np
 
 from ps_helper import ConvNet, get_data_loader, evaluate, criterion
-from ray_parameter_server_remote import ParameterServer, DataWorker
 
 import ray
 
