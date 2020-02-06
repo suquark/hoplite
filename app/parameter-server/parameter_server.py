@@ -116,7 +116,7 @@ hoplite.utils.start_location_server()
 args = parser.parse_args()
 args_dict = hoplite.utils.extract_dict_from_args(args)
 
-iterations = 20
+iterations = 200
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
@@ -144,7 +144,7 @@ if not args.enable_async:
             # Evaluate the current model.
             model.set_weights(ray.get(current_weights))
             accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
+            print("Iter {}: \taccuracy is {:.1f} time is {:.7f}".format(i, accuracy, time.time() - start))
 else:
     print("Running Asynchronous Parameter Server Training.")
     gradients = {}
@@ -164,7 +164,7 @@ else:
             # Evaluate the current model after every 10 updates.
             model.set_weights(ray.get(current_weights))
             accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
+            print("Iter {}: \taccuracy is {:.1f} time is {:.7f}".format(i, accuracy, time.time() - start))
 
 ps.set_parameters.remote(current_weights)
 model.set_weights(ray.get(ps.get_weights.remote()))
