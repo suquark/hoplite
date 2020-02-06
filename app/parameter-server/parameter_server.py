@@ -14,6 +14,7 @@ import numpy as np
 import ray
 
 import ray.rllib.utils.hoplite as hoplite
+store_lib = hoplite.store_lib
 
 from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
@@ -116,7 +117,7 @@ hoplite.utils.start_location_server()
 args = parser.parse_args()
 args_dict = hoplite.utils.extract_dict_from_args(args)
 
-iterations = 200
+iterations = 20
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
@@ -133,18 +134,22 @@ start = time.time()
 
 if not args.enable_async:
     print("Running synchronous parameter server training.")
+    step_start = time.time()
     for i in range(iterations):
         gradients = [
             worker.compute_gradients.remote(current_weights) for worker in workers
         ]
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
-
+        ray.wait(current_weights)
+        now = time.time()
+        print("step time:", now - step_start)
+        step_start = now
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model.
             model.set_weights(ray.get(current_weights))
             accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f} time is {:.7f}".format(i, accuracy, time.time() - start))
+            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 else:
     print("Running Asynchronous Parameter Server Training.")
     gradients = {}
@@ -164,7 +169,7 @@ else:
             # Evaluate the current model after every 10 updates.
             model.set_weights(ray.get(current_weights))
             accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f} time is {:.7f}".format(i, accuracy, time.time() - start))
+            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 
 ps.set_parameters.remote(current_weights)
 model.set_weights(ray.get(ps.get_weights.remote()))
