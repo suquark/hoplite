@@ -105,7 +105,7 @@ class DataWorker(object):
 
 
 parser = argparse.ArgumentParser(description='parameter server')
-parser.add_argument('-a', '--enable-async', action='store_true',
+parser.add_argument('-a', '--num-async', tyoe=int, default=None,
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
@@ -117,7 +117,7 @@ hoplite.utils.start_location_server()
 args = parser.parse_args()
 args_dict = hoplite.utils.extract_dict_from_args(args)
 
-iterations = 20
+iterations = 200
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
@@ -132,7 +132,7 @@ current_weights = ps.get_parameter_id.remote()
 
 start = time.time()
 
-if not args.enable_async:
+if args.num_async is None:
     print("Running synchronous parameter server training.")
     step_start = time.time()
     for i in range(iterations):
@@ -156,14 +156,12 @@ else:
     for worker in workers:
         gradients[worker.compute_gradients.remote(current_weights)] = worker
 
-    for i in range(iterations * num_workers):
-        ready_gradient_list, _ = ray.wait(list(gradients))
-        ready_gradient_id = ready_gradient_list[0]
-        worker = gradients.pop(ready_gradient_id)
-
-        # Compute and apply gradients.
-        current_weights = ps.apply_gradients.remote(*[ready_gradient_id])
-        gradients[worker.compute_gradients.remote(current_weights)] = worker
+    for i in range(iterations):
+        ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
+        current_weights = ps.apply_gradients.remote(*ready_gradient_list)
+        for ready_gradient_id in ready_gradient_list:
+            worker = gradients.pop(ready_gradient_id)
+            gradients[worker.compute_gradients.remote(current_weights)] = worker
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model after every 10 updates.
