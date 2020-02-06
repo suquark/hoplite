@@ -107,7 +107,7 @@ class DataWorker(object):
 
 
 parser = argparse.ArgumentParser(description='parameter server')
-parser.add_argument('-a', '--enable-async', action='store_true',
+parser.add_argument('-a', '--num-async', tyoe=int, default=None,
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
@@ -130,7 +130,7 @@ current_weights = ps.get_weights.remote()
 
 start = time.time()
 
-if not args.enable_async:
+if args.num_async is None:
     ###########################################################################
     # Synchronous Parameter Server Training
     # -------------------------------------
