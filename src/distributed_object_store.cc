@@ -203,18 +203,11 @@ DistributedObjectStore::~DistributedObjectStore() {
 
 bool DistributedObjectStore::IsLocalObject(const ObjectID &object_id,
                                            int64_t *size) {
-  if (local_store_client_.ObjectExists(object_id)) {
-    ObjectBuffer object_buffer;
-    local_store_client_.Get(object_id, &object_buffer);
+  if (local_store_client_.ObjectExists(object_id, false)) {
     if (size != nullptr) {
+      ObjectBuffer object_buffer;
+      local_store_client_.Get(object_id, &object_buffer);
       *size = object_buffer.data->Size();
-    }
-    return true;
-  }
-  auto stream = state_.get_progressive_stream(object_id);
-  if (stream) {
-    if (size != nullptr) {
-      *size = stream->size();
     }
     return true;
   }
@@ -231,10 +224,19 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
   DCHECK(pstatus.ok()) << "Plasma failed to create object_id = "
                        << object_id.Hex() << " size = " << buffer->Size()
                        << ", status = " << pstatus.ToString();
-  ptr->CopyFrom(*buffer);
-  local_store_client_.Seal(object_id);
-  gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
-                            buffer->Data());
+  if (buffer->Size() <= inband_data_size_limit) {
+    LOG(DEBUG) << "Put a small object, copy without streaming";
+    ptr->CopyFrom(*buffer);
+    local_store_client_.Seal(object_id);
+    gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
+                              buffer->Data());
+  } else {
+    LOG(DEBUG) << "Put with streaming";
+    gcs_client_.WriteLocation(object_id, my_address_, false, buffer->Size(),
+                              buffer->Data());
+    ptr->StreamCopy(*buffer);
+    local_store_client_.Seal(object_id);
+  }
 }
 
 ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
@@ -265,7 +267,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
     DCHECK(reduction_tasks_.find(reduction_id) == reduction_tasks_.end())
         << "Reduction task with " << reduction_id.ToString()
         << " already exists.";
-    reduction_tasks_[reduction_id] = {nullptr, std::move(reduction_thread)};
+    reduction_tasks_[reduction_id] = std::move(reduction_thread);
   }
 }
 
@@ -282,27 +284,26 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   auto search = reduction_tasks_.find(object_id);
   if (search != reduction_tasks_.end()) {
     l.unlock();
+    LOG(DEBUG) << "Reduction task " << object_id.ToString() << " found.";
     // ==> This ObjectID belongs to a reduction task.
-    auto &reduction_task_pair = search->second;
     // we must join the thread first, because the stream
     // pointer could still be nullptr at creation.
-    reduction_task_pair.reduction_thread.join();
-    auto &stream = reduction_task_pair.stream;
-    if (stream) {
-      LOG(DEBUG) << "waiting the reduction stream";
-      // wait until the object is fully reduced
-      stream->wait();
-      local_store_client_.Seal(object_id);
-    }
-    // TODO: should we add this line?
-    // gcs_client_.WriteLocation(object_id, my_address_, true, stream->size(),
-    //                           stream->data());
+    search->second.join();
+    local_store_client_.Wait(object_id);
+    // wait until the object is fully reduced
+    local_store_client_.Seal(object_id);
+    // Location is written in 'object_writer.cc'. So we skip writing the
+    // location here.
     l.lock();
     reduction_tasks_.erase(object_id);
     l.unlock();
   } else {
     l.unlock();
+    LOG(DEBUG) << "Try to fetch " << object_id.ToString()
+               << " from local store.";
     if (!local_store_client_.ObjectExists(object_id)) {
+      LOG(DEBUG) << "Cannot find " << object_id.ToString()
+                 << " in local store. Try to pull it from remote";
       // ==> This ObjectID refers to a remote object.
       SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
       if (!check_and_store_inband_data(object_id, reply.object_size,
@@ -447,14 +448,7 @@ void DistributedObjectStore::poll_and_reduce_pipe_impl(
       } else {
         // wait until at lease 2 objects in nodes except the master node are
         // ready.
-        if (node_index == 0) {
-          auto reduction_endpoint =
-              state_.create_progressive_stream(reduction_id, buffer);
-          {
-            std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
-            reduction_tasks_[reduction_id].stream = reduction_endpoint;
-          }
-        } else if (node_index == 1) {
+        if (node_index == 1) {
           // Send 'ReduceTo' command to the first node in the chain.
           bool reply_ok = InvokeReduceTo(tail_address, reduction_id, {ready_id},
                                          address, false, &tail_objectid);
@@ -561,9 +555,20 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
     LOG(WARNING) << "too many objects are found local for grid reduction";
     // restore previous notifications
     notifications->Rewind();
-    poll_and_reduce_pipe_impl(notifications, notification_candidates,
+    size_t n_records_erased =
+        notifications->EraseRecords(std::unordered_set<ObjectID>(
+            local_object_ids.begin(), local_object_ids.end()));
+    LOG(DEBUG) << "Notification messages: " << n_records_erased
+               << " records removed";
+    auto ready_messages = notifications->GetNotifications(false, true);
+    std::vector<ObjectID> remaining_candidates;
+    for (const auto &msg : ready_messages) {
+      remaining_candidates.push_back(msg.object_id);
+    }
+    poll_and_reduce_pipe_impl(notifications, remaining_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
+    return;
   }
 
   std::vector<ObjectID> edge;

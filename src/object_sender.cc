@@ -28,10 +28,14 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
 }
 
 template <typename T> void stream_send(int conn_fd, T *stream) {
-  const uint8_t *data_ptr = stream->data();
-  const int64_t object_size = stream->size();
+  const uint8_t *data_ptr = stream->Data();
+  const int64_t object_size = stream->Size();
 
-  // send object
+  if (stream->IsFinished()) {
+    int status = send_all(conn_fd, data_ptr, object_size);
+    DCHECK(!status) << "Failed to send object";
+    return;
+  }
   int64_t cursor = 0;
   while (cursor < object_size) {
     int64_t current_progress = stream->progress;
@@ -102,41 +106,27 @@ void ObjectSender::send_object(const PullRequest *request) {
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
 
-  const uint8_t *object_buffer = NULL;
-  size_t object_size = 0;
-  ObjectID object_id = ObjectID::FromBinary(request->object_id());
-  auto stream = state_.get_progressive_stream(object_id);
-  if (stream) {
-    // fetch partial object in memory
-    LOG(DEBUG) << "[GrpcServer] fetching a partial object";
-    object_size = stream->size();
-    // we need this data pointer for 'WriteLocation'
-    object_buffer = stream->data();
-  } else {
-    // fetch object from Plasma
-    LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
-    std::vector<ObjectBuffer> object_buffers;
-    local_store_client_.Get({object_id}, &object_buffers);
-    LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store, "
+  LOG(DEBUG) << "Connection built for " << request->puller_ip();
+  auto object_id = ObjectID::FromBinary(request->object_id());
+  // fetch object from local store
+  auto stream = local_store_client_.GetBufferNoExcept(object_id);
+  LOG(DEBUG) << object_id.ToString() << " find in local store. Ready to send.";
+  if (stream->IsFinished()) {
+    LOG(DEBUG) << "[GrpcServer] fetched a completed object from local store: "
                << object_id.ToString();
-    object_buffer = object_buffers[0].data->Data();
-    object_size = object_buffers[0].data->Size();
+  } else {
+    LOG(DEBUG) << "[GrpcServer] fetching a partial object: "
+               << object_id.ToString();
   }
 
   ObjectWriterRequest ow_request;
   auto ro_request = new ReceiveObjectRequest();
   ro_request->set_object_id(request->object_id());
-  ro_request->set_object_size(object_size);
+  ro_request->set_object_size(stream->Size());
   ow_request.set_allocated_receive_object(ro_request);
   SendMessage(conn_fd, ow_request);
 
-  if (stream) {
-    stream_send<ProgressiveStream>(conn_fd, stream.get());
-  } else {
-    int status = send_all(conn_fd, object_buffer, object_size);
-    DCHECK(!status) << "Failed to send object";
-  }
-
+  stream_send<Buffer>(conn_fd, stream.get());
   LOG(DEBUG) << "send " << object_id.ToString() << " done";
 
   // receive ack
@@ -153,8 +143,8 @@ void ObjectSender::send_object(const PullRequest *request) {
   // reduce the reference count. This line is used to increase the ref count
   // back after we finish the sending. It is better to move this line to the
   // receiver side since the decrease is done by the receiver.
-  gcs_client_.WriteLocation(object_id, my_address_, true, object_size,
-                            object_buffer);
+  gcs_client_.WriteLocation(object_id, my_address_, true, stream->Size(),
+                            stream->Data());
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
@@ -173,25 +163,22 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   ow_request.set_allocated_receive_and_reduce_object(ro_request);
   SendMessage(conn_fd, ow_request);
 
-  size_t object_size = 0;
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
     LOG(INFO) << "[GrpcServer] fetching a complete object from local store";
     // TODO: there could be multiple source objects.
     ObjectID src_object_id = ObjectID::FromBinary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
     local_store_client_.Get({src_object_id}, &object_buffers);
-    auto &buffer_ptr = object_buffers[0].data;
-    int status = send_all(conn_fd, buffer_ptr->Data(), buffer_ptr->Size());
-    DCHECK(!status) << "Failed to send object";
-    object_size = buffer_ptr->Size();
+    auto &stream = object_buffers[0].data;
+    stream_send<Buffer>(conn_fd, stream.get());
   } else {
     LOG(INFO)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
     DCHECK(stream != nullptr) << "Stream should not be nullptr";
-    stream_send<ReductionStream>(conn_fd, stream.get());
-    object_size = stream->size();
+    stream_send<Buffer>(conn_fd, stream.get());
+    state_.release_reduction_stream(reduction_id);
   }
 
   // receive ack
