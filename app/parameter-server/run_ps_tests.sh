@@ -1,3 +1,4 @@
+worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 slaves=()
 for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
 slaves=(${slaves[@]:0:$(($1-1))})
@@ -9,7 +10,7 @@ echo Nodes: ${all_nodes[@]} "("${#all_nodes[@]}")"
 
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
-mpirun --map-by ppr:1:node -hosts $all_hosts "python mpi_parameter_server.py -n 15 --no-test"
+mpirun --map-by ppr:1:node -hosts $all_hosts python mpi_parameter_server.py -n 15 --no-test
 
 # mkdir -p ps-log/
 
