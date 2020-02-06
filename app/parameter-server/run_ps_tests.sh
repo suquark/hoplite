@@ -8,7 +8,7 @@ slaves=()
 for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
 all_nodes=($my_address ${slaves[@]})
 for node in ${all_nodes[@]}; do
-    echo $node "slots=1" > hostfile
+    echo $node "slots=1" >> hostfile
 done
 echo "================ hostfile ================"
 cat hostfile
