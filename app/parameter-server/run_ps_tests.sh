@@ -9,7 +9,7 @@ echo Nodes: ${all_nodes[@]} "("${#all_nodes[@]}")"
 
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
-mpirun --map-by ppr:1:node -hosts $all_hosts python mpi_parameter_server.py -n 15 --no-test
+mpirun --map-by ppr:1:node -hosts $all_hosts "python mpi_parameter_server.py -n 15 --no-test"
 
 # mkdir -p ps-log/
 
