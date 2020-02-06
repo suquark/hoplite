@@ -14,8 +14,6 @@ import numpy as np
 import ray
 
 import ray.rllib.utils.hoplite as hoplite
-utils = hoplite.utils
-store_lib = hoplite.store_lib
 
 from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
@@ -39,12 +37,12 @@ from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 @ray.remote(resources={'node': 1})
 class ParameterServer(object):
     def __init__(self, args_dict, lr):
-        self.store = utils.create_store_using_dict(args_dict)
+        self.store = hoplite.utils.create_store_using_dict(args_dict)
         self.model = ConvNet()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
-        reduced_gradient_id = self.store.reduce_async(gradients, store_lib.ReduceOp.SUM)
+        reduced_gradient_id = self.store.reduce_async(gradients, hoplite.store_lib.ReduceOp.SUM)
         grad_buffer = self.store.get(reduced_gradient_id)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()
@@ -55,7 +53,7 @@ class ParameterServer(object):
     def get_parameter_id(self):
         new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
         cont_p = np.concatenate([p.ravel().view(np.uint8) for p in new_parameters])
-        buffer = store_lib.Buffer.from_buffer(cont_p)
+        buffer = hoplite.store_lib.Buffer.from_buffer(cont_p)
         parameter_id = self.store.put(buffer)
         return parameter_id
 
@@ -80,7 +78,7 @@ class ParameterServer(object):
 @ray.remote(resources={'node': 1})
 class DataWorker(object):
     def __init__(self, args_dict):
-        self.store = utils.create_store_using_dict(args_dict)
+        self.store = hoplite.utils.create_store_using_dict(args_dict)
         self.model = ConvNet()
         self.data_iterator = iter(get_data_loader()[0])
 
@@ -100,7 +98,7 @@ class DataWorker(object):
         loss.backward()
         gradients = self.model.get_gradients()
         cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
-        buffer = store_lib.Buffer.from_buffer(cont_g)
+        buffer = hoplite.store_lib.Buffer.from_buffer(cont_g)
         gradient_id = self.store.put(buffer)
         return gradient_id
 
@@ -112,11 +110,11 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 parser.add_argument('--no-test', action='store_true',
                     help='skip all tests except the last one')
-utils.add_arguments(parser)
+hoplite.utils.add_arguments(parser)
 
-utils.start_location_server()
+hoplite.utils.start_location_server()
 args = parser.parse_args()
-args_dict = utils.extract_dict_from_args(args)
+args_dict = hoplite.utils.extract_dict_from_args(args)
 
 iterations = 20
 num_workers = args.num_workers
