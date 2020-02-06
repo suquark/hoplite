@@ -149,12 +149,17 @@ if not args.enable_async:
     # 2. Updating the parameter server's weights with the gradients.
 
     print("Running synchronous parameter server training.")
+    step_start = time.time()
     for i in range(iterations):
         gradients = [
             worker.compute_gradients.remote(current_weights) for worker in workers
         ]
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
+        ray.wait([current_weights])
+        now = time.time()
+        print("step time:", now - step_start)
+        step_start = now
 
         if i % 10 == 0 and not args.no_test:
             # Evaluate the current model.
