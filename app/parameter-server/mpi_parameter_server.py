@@ -62,6 +62,7 @@ iterations = 20
 
 
 if rank == 0:
+    print("rank = 0")
     ps = ParameterServer(1e-2)
     step_start = time.time()
     for i in range(iterations):
@@ -71,6 +72,7 @@ if rank == 0:
         step_start = now
 
 else:
+    print("rank > 0")
     worker = DataWorker()
     for i in range(iterations):
         worker.compute_gradients()
