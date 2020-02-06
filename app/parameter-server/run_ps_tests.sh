@@ -1,18 +1,15 @@
-rm hostfile
-
-my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
-
-# get cluster info
-worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 slaves=()
 for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
-all_nodes=($my_address ${slaves[@]})
-for node in ${all_nodes[@]}; do
-    echo $node "slots=1" >> hostfile
-done
-echo "================ hostfile ================"
-cat hostfile
-echo "============== hostfile end =============="
+slaves=(${slaves[@]:0:$(($1-1))})
+
+all_nodes=($master ${slaves[@]})
+
+echo Number of nodes: $1, data size: $2
+echo Nodes: ${all_nodes[@]} "("${#all_nodes[@]}")"
+
+all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
+
+mpirun --map-by ppr:1:node -hosts $all_hosts python mpi_parameter_server.py -n 15 --no-test
 
 # mkdir -p ps-log/
 
