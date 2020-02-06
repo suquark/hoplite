@@ -13,10 +13,9 @@ import numpy as np
 
 import ray
 
-python_src = '/home/ubuntu/efs/zhuohan/object_store/python'
-sys.path.insert(0, str(python_src))
-import utils
-import py_distributed_object_store as store_lib
+import ray.rllib.utils.hoplite as hoplite
+utils = hoplite.utils
+store_lib = hoplite.store_lib
 
 from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
