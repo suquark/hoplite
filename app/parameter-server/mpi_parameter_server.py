@@ -67,7 +67,7 @@ if rank == 0:
     for i in range(iterations):
         ps.apply_gradients()
         now = time.time()
-        print("step time:", now - step_start)
+        print("step time:", now - step_start, flush=True)
         step_start = now
 
 else:

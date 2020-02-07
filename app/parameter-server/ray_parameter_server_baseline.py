@@ -158,7 +158,7 @@ if args.num_async is None:
         current_weights = ps.apply_gradients.remote(*gradients)
         ray.wait([current_weights])
         now = time.time()
-        print("step time:", now - step_start)
+        print("step time:", now - step_start, flush=True)
         step_start = now
 
         if i % 10 == 0 and not args.no_test:
@@ -187,14 +187,14 @@ else:
     for worker in workers:
         gradients[worker.compute_gradients.remote(current_weights)] = worker
 
-    for i in range(iterations * num_workers):
+    for i in range(iterations):
         ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
         current_weights = ps.apply_gradients.remote(*ready_gradient_list)
         for ready_gradient_id in ready_gradient_list:
             worker = gradients.pop(ready_gradient_id)
             gradients[worker.compute_gradients.remote(current_weights)] = worker
         now = time.time()
-        print("step time:", now - step_start)
+        print("step time:", now - step_start, flush=True)
         step_start = now
 
         if i % 10 == 0 and not args.no_test:
