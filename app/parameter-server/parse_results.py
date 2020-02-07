@@ -8,7 +8,7 @@ for log_file in sorted(os.listdir(log_dir)):
             if "step time:" in line:
                 all_time.append(float(line.split()[-1]))
         all_time = all_time[1:]
-        all_time = all_time[1:-10]
+        all_time = np.array(all_time[1:-10])
         if log_file.split('-')[0] == 'async':
             all_time = 8 * ((int(log_file.split('-')[1]) - 1) // 2) / all_time
         else:
