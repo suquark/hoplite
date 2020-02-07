@@ -1,7 +1,7 @@
 import numpy as np
 import os
 log_dir = 'ps-log/'
-for log_file in os.listdir(log_dir):
+for log_file in sorted(os.listdir(log_dir)):
     with open(os.path.join(log_dir, log_file), "r") as f:
         all_time = []
         for line in f:
