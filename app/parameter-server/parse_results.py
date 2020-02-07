@@ -13,4 +13,7 @@ for log_file in sorted(os.listdir(log_dir)):
             all_time = 8 * ((int(log_file.split('-')[1]) - 1) // 2) / all_time
         else:
             all_time = 8 * int(log_file.split('-')[1]) / all_time
-        print(log_file.ljust(20), np.mean(all_time), np.std(all_time), sep='\t')
+        new_all_time = []
+        for i in range(0, len(all_time), 4):
+            new_all_time.append(np.mean(all_time[i:i + 4]))
+        print(log_file.ljust(20), np.mean(new_all_time), np.std(new_all_time), sep='\t')
