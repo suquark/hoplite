@@ -7,4 +7,6 @@ for log_file in os.listdir(log_dir):
         for line in f:
             if "step time:" in line:
                 all_time.append(float(line.split()[-1]))
-        print(log_file, all_time)
+        all_time = all_time[1:]
+        all_time = all_time[1:-10]
+        print(log_file, )
