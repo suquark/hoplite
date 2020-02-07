@@ -83,7 +83,7 @@ class DataWorker(object):
         self.model = ConvNet()
         self.data_iterator = iter(get_data_loader()[0])
 
-    def compute_gradients(self, parameter_id):
+    def compute_gradients(self, parameter_id, gradient_id=None):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
         self.model.set_parameters(parameters)
@@ -100,7 +100,7 @@ class DataWorker(object):
         gradients = self.model.get_gradients()
         cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
         buffer = hoplite.store_lib.Buffer.from_buffer(cont_g)
-        gradient_id = self.store.put(buffer)
+        gradient_id = self.store.put(buffer, gradient_id)
         return gradient_id
 
 
@@ -136,9 +136,11 @@ if args.num_async is None:
     print("Running synchronous parameter server training.")
     step_start = time.time()
     for i in range(iterations):
-        gradients = [
-            worker.compute_gradients.remote(current_weights) for worker in workers
-        ]
+        gradients = []
+        for worker in workers
+            gradient_id = hoplite.utils.random_object_id()
+            gradients.append(gradient_id)
+            worker.compute_gradients.remote(current_weights) 
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
         ray.wait([current_weights])
