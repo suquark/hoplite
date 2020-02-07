@@ -137,10 +137,10 @@ if args.num_async is None:
     step_start = time.time()
     for i in range(iterations):
         gradients = []
-        for worker in workers
+        for worker in workers:
             gradient_id = hoplite.utils.random_object_id()
             gradients.append(gradient_id)
-            worker.compute_gradients.remote(current_weights) 
+            worker.compute_gradients.remote(current_weights, gradient_id) 
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
         ray.wait([current_weights])

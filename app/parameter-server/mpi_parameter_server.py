@@ -23,11 +23,9 @@ class ParameterServer(object):
     def apply_gradients(self):
         new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
         cont_p = np.concatenate([p.ravel() for p in new_parameters])
-        comm.Barrier()
         comm.Bcast(cont_p, root=0)
         zero_grad = np.zeros(self.model.n_param, dtype=np.float32)
         grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
-        comm.Barrier()
         comm.Reduce(zero_grad, grad_buffer, op=MPI.SUM, root=0)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer.view(np.uint8))
         self.optimizer.zero_grad()
@@ -42,7 +40,6 @@ class DataWorker(object):
 
     def compute_gradients(self):
         parameter_buffer = np.empty(self.model.n_param, dtype=np.float32)
-        comm.Barrier()
         comm.Bcast(parameter_buffer, root=0)
         parameters = self.model.buffer_to_tensors(parameter_buffer.view(np.uint8))
         self.model.set_parameters(parameters)
@@ -58,7 +55,6 @@ class DataWorker(object):
         gradients = self.model.get_gradients()
         cont_grad = np.concatenate([p.ravel() for p in gradients])
         grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
-        comm.Barrier()
         comm.Reduce(cont_grad, grad_buffer, op=MPI.SUM, root=0)
 
 iterations = 20
