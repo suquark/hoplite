@@ -67,8 +67,8 @@ class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 3 * 64, kernel_size=3)
-        self.fc1 = nn.Linear(192 * 64, 1024)
-        self.fc2 = nn.Linear(1024, 10)
+        self.fc1 = nn.Linear(192 * 64, 2048)
+        self.fc2 = nn.Linear(2048, 10)
 
         self.weights_info = []
         for p in self.parameters():
