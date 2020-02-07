@@ -9,4 +9,4 @@ for log_file in os.listdir(log_dir):
                 all_time.append(float(line.split()[-1]))
         all_time = all_time[1:]
         all_time = all_time[1:-10]
-        print(log_file, np.mean(all_time), np.std(all_time), sep='\t')
+        print(log_file.rjust(20), np.mean(all_time), np.std(all_time))
