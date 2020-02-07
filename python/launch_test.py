@@ -261,20 +261,23 @@ def sendrecv(args_dict, notification_address, world_size, world_rank, object_siz
     if world_rank == 0:
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
         buffer = store_lib.Buffer.from_buffer(array)
+        hash_s = hash(buffer)
+        print("Buffer created, hash =", hash_s)
         barrier(world_rank, notification_address, notification_port, world_size)
         start = time.time()
         store.put(buffer, object_id)
         buffer = store.get(object_id2)
         duration = time.time() - start
-        print("Buffer created, hash =", hash(buffer))
+        hash_r =  hash(buffer)
+        print("Buffer received, hash =", hash_r)
         print("duration = ", duration)
+        assert hash_s == hash_r, "Hash mismatch!"
     else:
-        return_array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
-        return_buffer = store_lib.Buffer.from_buffer(return_array)
         barrier(world_rank, notification_address, notification_port, world_size)
         buffer = store.get(object_id)
-        store.put(return_buffer, object_id2)
+        store.put(buffer, object_id2)
     barrier_exit(world_rank, notification_address, notification_port)
+
 
 @ray.remote(resources={'node': 1})
 def multicast(args_dict, notification_address, world_size, world_rank, object_size):

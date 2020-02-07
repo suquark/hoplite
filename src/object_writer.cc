@@ -30,16 +30,16 @@ void ReceiveMessage(int conn_fd, ObjectWriterRequest *request) {
 }
 
 template <typename T>
-void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
-                       int64_t object_size) {
-  int remaining_size = object_size - stream->receive_progress;
+inline void stream_write_next(int conn_fd, T *stream,
+                              int64_t *receive_progress) {
+  int remaining_size = stream->Size() - *receive_progress;
   // here we receive no more than STREAM_MAX_BLOCK_SIZE for streaming
   int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
                             ? STREAM_MAX_BLOCK_SIZE
                             : remaining_size;
   while (true) {
-    int bytes_recv =
-        recv(conn_fd, data_ptr + stream->receive_progress, recv_block_size, 0);
+    int bytes_recv = recv(conn_fd, stream->MutableData() + *receive_progress,
+                          recv_block_size, 0);
     if (bytes_recv < 0) {
       LOG(ERROR) << "[stream_write_next] socket send error (" << strerror(errno)
                  << ", code=" << errno << ")";
@@ -49,19 +49,18 @@ void stream_write_next(int conn_fd, T *stream, uint8_t *data_ptr,
       LOG(FATAL) << "[stream_write_next] socket send error (" << strerror(errno)
                  << ", code=" << errno << ")";
     }
-    stream->receive_progress += bytes_recv;
+    *receive_progress += bytes_recv;
     return;
   }
 }
 
 template <typename T> void stream_write(int conn_fd, T *stream) {
   TIMELINE("stream_write");
-  const int64_t object_size = stream->size();
-  uint8_t *data_ptr = stream->mutable_data();
-  while (stream->receive_progress < object_size) {
-    stream_write_next<T>(conn_fd, stream, data_ptr, object_size);
+  int64_t receive_progress = 0;
+  while (receive_progress < stream->Size()) {
+    stream_write_next<T>(conn_fd, stream, &receive_progress);
     // update the progress
-    stream->progress.store(stream->receive_progress);
+    stream->progress.store(receive_progress);
   }
 }
 
@@ -69,15 +68,15 @@ template <typename T, typename DT>
 void stream_reduce_add(int conn_fd, T *stream,
                        std::vector<uint8_t *> reduce_buffers) {
   TIMELINE("stream_reduce_add");
+  int64_t receive_progress = 0;
   const size_t element_size = sizeof(DT);
-  uint8_t *data_ptr = stream->mutable_data();
-  const int64_t object_size = stream->size();
-  while (stream->receive_progress < object_size) {
-    stream_write_next<T>(conn_fd, stream, data_ptr, object_size);
+  uint8_t *data_ptr = stream->MutableData();
+  const int64_t object_size = stream->Size();
+  while (receive_progress < object_size) {
+    stream_write_next<T>(conn_fd, stream, &receive_progress);
     // reduce related objects
     auto progress = stream->progress.load();
-    int64_t n_reduce_elements =
-        (stream->receive_progress - progress) / element_size;
+    int64_t n_reduce_elements = (receive_progress - progress) / element_size;
     DT *cursor = (DT *)(data_ptr + progress);
     for (auto &buffer : reduce_buffers) {
       DT *own_data_cursor = (DT *)(buffer + progress);
@@ -184,7 +183,7 @@ void TCPServer::receive_and_reduce_object(
   int64_t object_size;
   // TODO: should we include the reduce size in the message?
   if (is_endpoint) {
-    object_size = state_.get_progressive_stream(reduction_id)->size();
+    object_size = local_store_client_.GetBufferNoExcept(reduction_id)->Size();
   } else {
     object_size = object_buffers[0].data->Size();
   }
@@ -201,14 +200,14 @@ void TCPServer::receive_and_reduce_object(
   if (is_endpoint) {
     // notify other nodes that our stream is on progress
     gcs_client_.WriteLocation(reduction_id, server_ipaddr_, false, object_size);
-    std::shared_ptr<ProgressiveStream> stream =
-        state_.get_progressive_stream(reduction_id);
-    stream_reduce_add<ProgressiveStream, float>(conn_fd, stream.get(), buffers);
-    stream->finish();
+    auto stream = local_store_client_.GetBufferNoExcept(reduction_id);
+    stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
+    // notify other threads that we have finished
+    stream->NotifyFinished();
   } else {
-    std::shared_ptr<ReductionStream> stream =
+    std::shared_ptr<Buffer> stream =
         state_.create_reduction_stream(reduction_id, object_size);
-    stream_reduce_add<ReductionStream, float>(conn_fd, stream.get(), buffers);
+    stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
   }
 
   // reply message
@@ -224,16 +223,15 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
              << ", size = " << object_size;
 
   // receive object buffer
-  std::shared_ptr<Buffer> ptr;
-  auto pstatus = local_store_client_.Create(object_id, object_size, &ptr);
+  std::shared_ptr<Buffer> stream;
+  auto pstatus = local_store_client_.Create(object_id, object_size, &stream);
   DCHECK(pstatus.ok()) << "Plasma failed to allocate " << object_id.ToString()
                        << " size = " << object_size
                        << ", status = " << pstatus.ToString();
 
-  auto stream = state_.create_progressive_stream(object_id, ptr);
   // notify other nodes that our stream is on progress
   gcs_client_.WriteLocation(object_id, server_ipaddr_, false, object_size);
-  stream_write<ProgressiveStream>(conn_fd, stream.get());
+  stream_write<Buffer>(conn_fd, stream.get());
   local_store_client_.Seal(object_id);
 
   // reply message
