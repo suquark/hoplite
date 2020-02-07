@@ -57,7 +57,7 @@ class DataWorker(object):
         grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
         comm.Reduce(cont_grad, grad_buffer, op=MPI.SUM, root=0)
 
-iterations = 20
+iterations = 50
 
 
 if rank == 0:

@@ -117,7 +117,7 @@ hoplite.utils.start_location_server()
 args = parser.parse_args()
 args_dict = hoplite.utils.extract_dict_from_args(args)
 
-iterations = 20
+iterations = 50
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
