@@ -67,16 +67,18 @@ class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 3 * 64, kernel_size=3)
-        self.fc1 = nn.Linear(192 * 64, 1024)
-        self.fc2 = nn.Linear(1024, 10)
+        self.fc1 = nn.Linear(192 * 64, 2048)
+        self.fc2 = nn.Linear(2048, 10)
 
         self.weights_info = []
         for p in self.parameters():
             self.weights_info.append(
                 (p.numel() * p.element_size(), tuple(p.shape)))
         self.total_gradient_size = 0
+        self.n_param = 0
         for p in self.parameters():
             if p.requires_grad:
+                self.n_param += p.numel()
                 self.total_gradient_size += p.numel() * p.element_size()
         print("model size:", self.total_gradient_size)
 
