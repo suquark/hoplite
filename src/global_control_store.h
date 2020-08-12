@@ -5,6 +5,7 @@
 #include "object_store.grpc.pb.h"
 #include <condition_variable>
 #include <grpcpp/server.h>
+#include <grpcpp/channel.h>
 #include <mutex>
 #include <string>
 #include <thread>
