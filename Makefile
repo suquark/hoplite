@@ -1,9 +1,9 @@
-LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++ plasma arrow hiredis`\
+LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
 	  -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed\
 	  -lgrpc -ldl -lpthread -lz
 
 CXX = g++
-CPPFLAGS += `pkg-config --cflags protobuf grpc plasma hiredis` -Isrc/util -Isrc
+CPPFLAGS += `pkg-config --cflags protobuf grpc` -Isrc/util -Isrc
 CXXFLAGS += -std=c++11 -O2 -g -fPIC
 
 PROTOC = protoc
