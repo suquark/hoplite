@@ -4,7 +4,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
 
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc` -Isrc -I src/util
-CXXFLAGS += -std=c++11 -g -O2 -fPIC
+CXXFLAGS += -std=c++11 -O2 -g -fPIC
 
 PROTOC = protoc
 PROTOS_PATH = src/
