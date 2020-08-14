@@ -5,8 +5,8 @@ sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
 
 ## setup
-my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
-working_dir=$(dirname $(realpath -s $0))
+root_dir=$(dirname $(realpath -s $0))
+my_address=$($root_dir/get_ip_address.sh)
 
 pkill '^notification$'
 pkill '^notification_server_test$'

@@ -6,6 +6,9 @@ all: ${EXECS}
 compare_bcast: compare_bcast.c
 	${MPICC} -O2 -o compare_bcast compare_bcast.c
 
+multicast: multicast.c
+	${MPICC} -O2 -o multicast multicast.c
+
 reduce: reduce.c
 	${MPICC} -O2 -o reduce reduce.c
 

@@ -1,10 +1,11 @@
 #!/bin/bash
 
-my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
+root_dir=$(dirname $(realpath -s $0))
+my_address=$($root_dir/get_ip_address.sh)
 # get cluster info
 worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 slaves=()
-for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
+for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
 all_nodes=($my_address ${slaves[@]})
 
 ray stop

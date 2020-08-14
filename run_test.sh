@@ -9,14 +9,14 @@ sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
 
 ## setup
-my_address=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
+root_dir=$(dirname $(realpath -s $0))
+my_address=$($root_dir/get_ip_address.sh)
 # plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
 # sleep 2
 
 test_name=$1
 test_executable=$test_name
-working_dir=$(dirname $(realpath -s $0))
-test_executable_abspath=$working_dir/$test_executable
+test_executable_abspath=$root_dir/$test_executable
 world_size=$2
 object_size=$3
 
@@ -30,9 +30,9 @@ if [ "$#" -eq 3 ]; then
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) Running test $(tput setaf 3)$(tput bold)$test_name$(tput sgr 0)"
 
     # create logging dir
-    log_dir=$working_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+    log_dir=$root_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
     mkdir -p $log_dir
-    ln -sfn $log_dir/ $working_dir/log/latest
+    ln -sfn $log_dir/ $root_dir/log/latest
 
     pkill notification
     sleep 2
@@ -42,7 +42,7 @@ if [ "$#" -eq 3 ]; then
     # get cluster info
     worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
     slaves=()
-    for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
+    for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
     slaves=(${slaves[@]:0:$(($world_size-1))})
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $my_address; slaves: ${slaves[@]}"
 
