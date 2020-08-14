@@ -1,4 +1,4 @@
-# object_store
+# Hoplite: Efficient Collective Communication for Task-Based Distributed Systems
 
 ## Install dependencies
 
@@ -6,25 +6,37 @@
 ./install_dependencies.sh
 ```
 
-## Multicast
+## Microbenchmarks
 
-### MPI (baseline)
+`${test_name}` includes `multicast`, `reduce`, `gather`, `allreduce`, `allgather`.
 
-`cd mpi && ./mpi_broadcast.sh $node_number $data_size`
+### Hoplite
 
-### Our library
+**C++**
 
-`./multicast_test.sh $data_size`
+`./run_tests.sh ${test_name}_test ${total_number_of_nodes} ${input_size_in_bytes}`
 
-## Reduce
+**Python**
 
-### MPI (baseline)
+```
+cd python
+./launch_test.py -t ray-${test_name} -n ${total_number_of_nodes} -s ${input_size_in_bytes}
+```
 
-`cd mpi && ./mpi_reduce.sh $node_number $data_size`
+**Round-trip**
 
-### Our library
+```
+cd python
+./launch_test.py -t sendrecv -n 2 -s ${input_size_in_bytes}
+```
 
-`./reduce_test.sh $data_size`
+### MPI
+
+`cd mpi && ./mpi_{test_name}.sh ${total_number_of_nodes} ${input_size_in_bytes}`
+
+**Round trip**
+
+`cd mpi && ./mpi_sendrecv.sh ${input_size_in_bytes}`
 
 ## Lint
 
