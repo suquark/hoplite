@@ -13,7 +13,7 @@ make $test_name > /dev/null
 
 worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 
-my_address=$($root_dir/get_ip_address.sh)
+master=$($root_dir/get_ip_address.sh)
 
 slaves=()
 for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
@@ -25,5 +25,6 @@ echo Number of nodes: $world_size "(actually ${#all_nodes[@]})", data size: $obj
 echo Nodes: ${all_nodes[@]} "("${#all_nodes[@]}")"
 
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
+echo $all_hosts
 
-mpirun --map-by ppr:1:node -hosts $all_hosts $test_executable_abspath $[$object_size/4]
+mpirun --mca btl_tcp_if_include ens5 --map-by ppr:1:node -H $all_hosts $test_executable_abspath $[$object_size/4]

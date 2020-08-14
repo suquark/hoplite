@@ -18,4 +18,4 @@ echo Nodes: ${all_nodes[@]}
 
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
-mpirun --map-by ppr:1:node -hosts $all_hosts $(realpath -s compare_bcast) $[$2/4] 1
+mpirun --mca btl_tcp_if_include ens5 --map-by ppr:1:node -H $all_hosts $(realpath -s compare_bcast) $[$2/4] 1
