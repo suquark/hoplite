@@ -5,10 +5,12 @@ make send_recv > /dev/null
 
 worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
 
-master=$(ifconfig | grep 'inet.*broadcast' | awk '{print $2}')
+root_dir=$(dirname $(realpath -s $0))/../
+
+master=$($root_dir/get_ip_address.sh)
 
 slaves=()
-for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s ifconfig | grep 'inet.*broadcast' | awk '{print $2}')); done
+for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
 slaves=(${slaves[@]:0:1})
 
 all_nodes=($master ${slaves[@]})
