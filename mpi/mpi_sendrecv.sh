@@ -3,21 +3,11 @@ if [ -z "$1" ]; then echo "ERROR: input size required"; exit; fi
 
 make send_recv > /dev/null
 
-worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
-
-root_dir=$(dirname $(realpath -s $0))/../
-
-master=$($root_dir/get_ip_address.sh)
-
-slaves=()
-for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
-slaves=(${slaves[@]:0:1})
-
-all_nodes=($master ${slaves[@]})
+source ../../load_cluster_env.sh
+all_nodes=(${ALL_IPADDR[@]:0:2})  # only pick 2 nodes
+all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
 echo data size: $1
 echo Nodes: ${all_nodes[@]}
 
-all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
-
-mpirun --map-by ppr:1:node -hosts $all_hosts $(realpath -s send_recv) $[$1/4]
+../mpirun_pernode.sh $all_hosts $(realpath -s send_recv) $[$1/4]

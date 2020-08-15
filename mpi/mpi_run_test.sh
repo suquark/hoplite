@@ -2,8 +2,9 @@
 
 if [ -z "$3" ]; then echo "ERROR: test name, node number and input size required"; exit; fi
 
+source ../load_cluster_env.sh
+
 test_name=$1 # can be allgather/allreduce/gather/multicast/reduce
-root_dir=$(dirname $(realpath -s $0))/../
 test_executable=$test_name
 test_executable_abspath=$(realpath -s $test_executable)
 world_size=$2
@@ -11,20 +12,10 @@ object_size=$3
 
 make $test_name > /dev/null
 
-worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
-
-master=$($root_dir/get_ip_address.sh)
-
-slaves=()
-for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
-slaves=(${slaves[@]:0:$(($world_size-1))})
-
-all_nodes=($master ${slaves[@]})
+all_nodes=(${ALL_IPADDR[@]:0:$world_size})
+all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
 echo Number of nodes: $world_size "(actually ${#all_nodes[@]})", data size: $object_size
 echo Nodes: ${all_nodes[@]} "("${#all_nodes[@]}")"
 
-all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
-echo $all_hosts
-
-mpirun --mca btl_tcp_if_include ens5 --map-by ppr:1:node -H $all_hosts $test_executable_abspath $[$object_size/4]
+../mpirun_pernode.sh $all_hosts $test_executable_abspath $[$object_size/4]
