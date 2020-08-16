@@ -12,7 +12,7 @@ root_dir=$(dirname $(realpath -s $0))
 
 test_name=$1
 test_executable=$test_name
-test_executable_abspath=$(realpath -s $test_executable)
+test_executable_abspath=$root_dir/$test_executable
 world_size=$2
 object_size=$3
 
