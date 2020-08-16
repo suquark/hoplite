@@ -7,7 +7,7 @@ for n_nodes in 8; do
 
     echo "==========" sync-$n_nodes-hoplite "=========="
     pkill notification
-    $root_dir/restart_all_workers.sh
+    ../../restart_all_workers.sh
     python parameter_server.py -n $(($n_nodes - 1)) --no-test | tee ps-log-cmp/sync-$n_nodes-hoplite.log
 
     echo "==========" sync-$n_nodes-mpi "=========="

@@ -2,12 +2,14 @@
 
 cd $HOME
 
+sudo apt update
+
 ## build grpc
 if [ ! -d grpc ]; then
      git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc.git
 
      sudo apt-get install \
-          build-essential \
+       build-essential \
 	  autoconf \
 	  libtool \
 	  pkg-config \
@@ -19,13 +21,15 @@ if [ ! -d grpc ]; then
      pushd grpc
      git submodule update --init --recursive
 
-     make -j && sudo make install
+     mkdir build && cd build
+     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+     make -j8 && sudo make install
      popd
 
      pushd grpc/third_party/protobuf
      ./autogen.sh
      ./configure
-     make -j && sudo make install
+     make -j8 && sudo make install
      popd
 fi
 
