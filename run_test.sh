@@ -42,7 +42,7 @@ if [ "$#" -eq 3 ]; then
     # execute remote commands
     for index in ${!OTHERS_IPADDR[@]}
     do
-        rank=((index+1))
+        rank=$((index+1))
         ssh -t -t ${OTHERS_IPADDR[$index]} "$(realpath -s $0) $test_name $world_size $object_size $MY_IPADDR $rank $log_dir" &
     done
     # start local process (rank=0)
