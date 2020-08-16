@@ -3,7 +3,7 @@ if [ -z "$1" ]; then echo "ERROR: input size required"; exit; fi
 
 make send_recv > /dev/null
 
-source ../../load_cluster_env.sh
+source ../load_cluster_env.sh
 all_nodes=(${ALL_IPADDR[@]:0:2})  # only pick 2 nodes
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
