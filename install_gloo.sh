@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# See https://github.com/facebookincubator/gloo
+
 sudo apt-get install -y libhiredis-dev redis-server
 
 cd ..
