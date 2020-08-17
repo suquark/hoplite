@@ -31,6 +31,3 @@ for node in ${ALL_IPADDR[@]}; do
 done
 wait ${PIDS[@]}
 kill $REDIS_PID
-
-
-
