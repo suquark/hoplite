@@ -5,7 +5,8 @@ sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
 
 ## setup
-source load_cluster_env.sh
+ROOT_DIR=$(dirname $(realpath -s $0))
+source $ROOT_DIR/load_cluster_env.sh
 
 pkill '^notification$'
 pkill '^notification_server_test$'

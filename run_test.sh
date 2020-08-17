@@ -8,11 +8,11 @@ sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
 
 ## setup
-root_dir=$(dirname $(realpath -s $0))
+ROOT_DIR=$(dirname $(realpath -s $0))
 
 test_name=$1
 test_executable=$test_name
-test_executable_abspath=$root_dir/$test_executable
+test_executable_abspath=$ROOT_DIR/$test_executable
 world_size=$2
 object_size=$3
 
@@ -23,16 +23,16 @@ fi
 
 if [ "$#" -eq 3 ]; then
     # get cluster info
-    source load_cluster_env.sh
+    source $ROOT_DIR/load_cluster_env.sh
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $MY_IPADDR; others: ${OTHERS_IPADDR[@]}"
 
     # prompt test info
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) Running test $(tput setaf 3)$(tput bold)$test_name$(tput sgr 0)"
 
     # create logging dir
-    log_dir=$root_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+    log_dir=$ROOT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
     mkdir -p $log_dir
-    ln -sfn $log_dir/ $root_dir/log/latest
+    ln -sfn $log_dir/ $ROOT_DIR/log/latest
 
     pkill notification
     sleep 2

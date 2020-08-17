@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source load_cluster_env.sh
+ROOT_DIR=$(dirname $(realpath -s $0))
+source $ROOT_DIR/load_cluster_env.sh
 
 ./fornode ray stop
 
