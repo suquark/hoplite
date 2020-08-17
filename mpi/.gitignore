@@ -1,2 +1,6 @@
 compare_bcast
 reduce
+allgather
+allreduce
+gather
+multicast
