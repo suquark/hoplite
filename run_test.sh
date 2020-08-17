@@ -2,21 +2,17 @@
 if [ "$#" -lt 3 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) test name, number of nodes & input size required"; exit -1; fi
 if [ "$#" -gt 6 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many arguments: $#"; exit -1; fi
 
-
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
 sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
 
 ## setup
-root_dir=$(dirname $(realpath -s $0))
-my_address=$($root_dir/get_ip_address.sh)
-# plasma-store-server -m 4000000000 -s /tmp/multicast_plasma &> /dev/null &
-# sleep 2
+ROOT_DIR=$(dirname $(realpath -s $0))
 
 test_name=$1
 test_executable=$test_name
-test_executable_abspath=$root_dir/$test_executable
+test_executable_abspath=$ROOT_DIR/$test_executable
 world_size=$2
 object_size=$3
 
@@ -26,36 +22,34 @@ if [ ! -f $test_executable_abspath ]; then
 fi
 
 if [ "$#" -eq 3 ]; then
+    # get cluster info
+    source $ROOT_DIR/load_cluster_env.sh
+    echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $MY_IPADDR; others: ${OTHERS_IPADDR[@]}"
+
     # prompt test info
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) Running test $(tput setaf 3)$(tput bold)$test_name$(tput sgr 0)"
 
     # create logging dir
-    log_dir=$root_dir/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+    log_dir=$ROOT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
     mkdir -p $log_dir
-    ln -sfn $log_dir/ $root_dir/log/latest
+    ln -sfn $log_dir/ $ROOT_DIR/log/latest
 
     pkill notification
     sleep 2
-    (./notification $my_address 2>&1 | tee $log_dir/$my_address.notification.log) &
+    (./notification $MY_IPADDR 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
     sleep 2
 
-    # get cluster info
-    worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
-    slaves=()
-    for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
-    slaves=(${slaves[@]:0:$(($world_size-1))})
-    echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $my_address; slaves: ${slaves[@]}"
-
     # execute remote commands
-    for index in ${!slaves[@]}
+    for index in ${!OTHERS_IPADDR[@]}
     do
-        ssh -t -t ${slaves[$index]} "$(realpath -s $0) $test_name $world_size $object_size $my_address $((index+1)) $log_dir" &
+        rank=$((index+1))
+        ssh -t -t ${OTHERS_IPADDR[$index]} "$(realpath -s $0) $test_name $world_size $object_size $MY_IPADDR $rank $log_dir" &
     done
-
     # start local process (rank=0)
-    $test_executable_abspath $my_address $my_address $world_size 0 $object_size 2>&1 | tee $log_dir/$my_address.server.log
+    $test_executable_abspath $MY_IPADDR $MY_IPADDR $world_size 0 $object_size 2>&1 | tee $log_dir/$MY_IPADDR.server.log
 else
     sleep 5
+    my_address=$(hostname -i)
 
     redis_address=$4
     rank=$5

@@ -1,27 +1,19 @@
 #!/bin/bash
+ROOT_DIR=$(dirname $(realpath -s $0))
+source $ROOT_DIR/load_cluster_env.sh
 
-worker_pubips=$(ray get-worker-ips ~/ray_bootstrap_config.yaml)
-
-root_dir=$(dirname $(realpath -s $0))
-my_address=$($root_dir/get_ip_address.sh)
-
-slaves=()
-for s in $worker_pubips; do slaves+=($(ssh -o StrictHostKeyChecking=no $s $root_dir/get_ip_address.sh)); done
-
-all_nodes=(${slaves[@]})
-all_nodes+=($master)
-echo ${all_nodes[@]}, ${#all_nodes[@]}
+echo ${ALL_IPADDR[@]}, ${#ALL_IPADDR[@]}
 
 # start iperf server
-for s in ${all_nodes[@]}
+for s in ${ALL_IPADDR[@]}
 do
 	ssh -o StrictHostKeyChecking=no $s pkill iperf
 	ssh $s iperf -s &> /dev/null &
 done
 
-for s in ${all_nodes[@]}
+for s in ${ALL_IPADDR[@]}
 do
-	for t in ${all_nodes[@]}
+	for t in ${ALL_IPADDR[@]}
 	do
 		if [ "$s" == "$t" ]
 		then continue
@@ -33,7 +25,8 @@ do
 done
 
 # shutdown iperf server
-for s in ${all_nodes[@]}
+
+for s in ${ALL_IPADDR[@]}
 do
-        ssh $s pkill iperf &> /dev/null &
+    ssh $s pkill iperf &> /dev/null &
 done
