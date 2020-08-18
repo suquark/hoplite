@@ -10,6 +10,7 @@ for test_name in allreduce_ring allreduce_ring_chunked allreduce_halving_doublin
     for test_index in `seq 1 $1`; do
       obj_size=$((2**$i))
       ./run_benchmark.sh $test_name $num_nodes $obj_size
+      sleep 0.1
     done
   done
 done
