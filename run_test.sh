@@ -24,6 +24,7 @@ fi
 if [ "$#" -eq 3 ]; then
     # get cluster info
     source $ROOT_DIR/load_cluster_env.sh
+    OTHERS_IPADDR=(${OTHERS_IPADDR[@]:0:$(($world_size-1))})
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) master: $MY_IPADDR; others: ${OTHERS_IPADDR[@]}"
 
     # prompt test info
