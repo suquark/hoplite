@@ -14,5 +14,6 @@ cd gloo
 rm -rf build
 mkdir build
 cd build
-cmake ../ -DBUILD_BENCHMARK=1
+# Redis is required for the benchmark.
+cmake ../ -DBUILD_BENCHMARK=1 -DUSE_REDIS=ON
 make -j8
