@@ -25,9 +25,13 @@ PIDS=()
 
 GLOO_DIR=$HOME/efs/gloo/
 
-redis-server --port 7777 --protected-mode no &
+log_dir=$ROOT_DIR/gloo_log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+mkdir -p $log_dir
+ln -sfn $log_dir/ $ROOT_DIR/gloo_log/latest
 
+redis-server --port 7777 --protected-mode no &> /dev/null &
 REDIS_PID=$!
+sleep 2
 
 i=0
 echo $MY_IPADDR
