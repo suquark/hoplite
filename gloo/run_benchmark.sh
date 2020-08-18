@@ -47,7 +47,8 @@ for node in ${ALL_IPADDR[@]}; do
     --transport tcp \
     --elements $(($object_size / 4)) \
     --iteration-count 1 \
-    $test_name &
+    $test_name \
+    2>&1 | tee $log_dir/$i.log &
   PIDS+=($!)
   i=$(($i + 1))
 done
