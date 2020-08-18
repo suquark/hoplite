@@ -12,7 +12,7 @@ if [ "$#" -gt 6 ]; then
   exit -1
 fi
 
-trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
+# trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
 test_name=$1
 world_size=$2
