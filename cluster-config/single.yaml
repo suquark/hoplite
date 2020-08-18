@@ -15,7 +15,7 @@ provider:
 
 head_node:
     InstanceType: m5.16xlarge
-    ImageId: ami-08ae95c4447c1d387 # hoplite-nsdi-3
+    ImageId: ami-0a483fb9db628acb2 # hoplite-nsdi-8
     KeyName: shared_key
 
     # Set primary volume to 50 GiB
@@ -26,10 +26,12 @@ head_node:
 
     SecurityGroupIds:
         - "sg-f55048b4"
+    Placement:
+        GroupName: hoplite-group
 
 worker_nodes:
     InstanceType: m5.16xlarge
-    ImageId: ami-08ae95c4447c1d387 # hoplite-nsdi-3
+    ImageId: ami-0a483fb9db628acb2 # hoplite-nsdi-8
     KeyName: shared_key
 
     # Set primary volume to 50 GiB
@@ -40,6 +42,8 @@ worker_nodes:
 
     SecurityGroupIds:
         - "sg-f55048b4"
+    Placement:
+        GroupName: hoplite-group
 
 
 # How Ray will authenticate with newly launched nodes.

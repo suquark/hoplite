@@ -1,8 +1,8 @@
 cluster_name: hoplite
 
-min_workers: 3
-max_workers: 3
-initial_workers: 3
+min_workers: 15
+max_workers: 15
+initial_workers: 15
 
 provider:
     type: aws
@@ -18,17 +18,21 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-08ae95c4447c1d387 # hoplite-nsdi-3
+    ImageId: ami-0a483fb9db628acb2 # hoplite-nsdi-8
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
+    Placement:
+        GroupName: hoplite-group
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-08ae95c4447c1d387 # hoplite-nsdi-3
+    ImageId: ami-0a483fb9db628acb2 # hoplite-nsdi-8
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
+    Placement:
+        GroupName: hoplite-group
 
 setup_commands:
     - sudo mount -t efs fs-6dad81c6:/ efs
