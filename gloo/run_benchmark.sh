@@ -31,7 +31,7 @@ ln -sfn $log_dir/ $ROOT_DIR/gloo_log/latest
 
 redis-server --port 7777 --protected-mode no &> /dev/null &
 REDIS_PID=$!
-sleep 2
+sleep 1
 
 i=0
 echo $MY_IPADDR
