@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 def parse_multicast(folder_path):
     last_retrieval_time = 0
@@ -93,13 +94,13 @@ def main(log_dir):
     tasks = {}
 
     for filename in files:
-        splited = filename.split('-');
+        splited = filename.split('-')
         if len(splited) != 5:
             exit(-1)
         task_name = splited[2]
         number_of_nodes = splited[3]
         object_size = splited[4]
-        
+
         task = task_name + '-' + number_of_nodes + '-' + object_size
 
         if task not in tasks:
@@ -108,14 +109,14 @@ def main(log_dir):
         tasks[task].append(filename)
 
     results = {}
-    
-    for task in tasks:
-        result = 0
-        for foldername in tasks[task]:
-            result += parse_file(task.split('-')[0], log_dir, foldername);
-        result /= len(tasks[task])
 
-        results[task] = result
+    for task in tasks:
+        task_results = []
+        for foldername in tasks[task]:
+            task_results.append(parse_file(task.split('-')[0], log_dir, foldername))
+        task_results = np.array(task_results)
+
+        results[task] = task_results
 
     task_list = []
     for task in results:
@@ -124,7 +125,7 @@ def main(log_dir):
     task_list = sorted(task_list, reverse=True)
 
     for task in task_list:
-        print (task.replace('-',','), ',', results[task])
+        print(", ".join(task.split("-") + [str(np.mean(results[task])), str(np.std(results[task])), str(len(results[task]))]))
 
 
 if __name__ == "__main__":
