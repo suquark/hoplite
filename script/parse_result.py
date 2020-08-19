@@ -76,15 +76,15 @@ def parse_allreduce(folder_path):
 def parse_file(task_name, log_dir, foldername):
     path = os.path.join(log_dir, foldername)
 
-    if task_name == 'multicast':
+    if task_name == 'multicast_test':
         return parse_multicast(path)
 
-    if task_name == 'reduce':
+    if task_name == 'reduce_test':
         return parse_reduce(path)
 
-    if task_name == 'allreduce':
+    if task_name == 'allreduce_test':
         return parse_allreduce(path)
-
+    print(task_name)
     assert (False)
 
 def main(log_dir):

@@ -15,6 +15,7 @@ for test_name in multicast reduce allreduce gather allgather; do
       pushd mpi
       ./mpi_run_test.sh $test_name $num_nodes $obj_size > ../mpi_log/$test_name-$num_nodes-$obj_size-$test_index
       popd
+      sleep 0.1
     done
   done
 done
