@@ -6,9 +6,9 @@ def parse_file(task_name, log_dir, foldername):
     file_name = os.path.join(log_dir, foldername, "0.log")
     with open(file_name) as f:
         try:
-            return float(f.readlines()[5].split(" ")[2]) / 1000 / 1000
-        except:
-            return math.float("nan")
+            return float(f.readlines()[5].split()[2]) / 1000 / 1000
+        except Exception as e:
+            return float("nan")
 
 
 def main(log_dir):
@@ -17,6 +17,8 @@ def main(log_dir):
     tasks = {}
 
     for filename in files:
+        if filename == "latest":
+            continue
         splited = filename.split('-')
         if len(splited) != 5:
             exit(-1)
@@ -36,7 +38,9 @@ def main(log_dir):
     for task in tasks:
         task_results = []
         for foldername in tasks[task]:
-            task_results.append(parse_file(task.split('-')[0], log_dir, foldername))
+            result = parse_file(task.split('-')[0], log_dir, foldername)
+            if not np.isnan(result):
+                task_results.append(result)
         task_results = np.array(task_results)
 
         results[task] = task_results
@@ -48,7 +52,7 @@ def main(log_dir):
     task_list = sorted(task_list, reverse=True)
 
     for task in task_list:
-        print(", ".join(task + [np.mean(results[task]), np.std(results[task])]))
+        print(", ".join(task.split("-") + [str(np.mean(results[task])), str(np.std(results[task])), str(len(results[task]))]))
 
 
 if __name__ == "__main__":
