@@ -21,7 +21,7 @@ def main(pp, object_size):
     receiver = client.submit(gather_object, senders, workers=['Dask-0'])
 
     before = time.time()
-    print(receiver.result())
+    receiver.result()
     after = time.time()
 
     print (after-before)
