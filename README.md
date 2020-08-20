@@ -10,6 +10,24 @@
 
 `${test_name}` includes `multicast`, `reduce`, `gather`, `allreduce`, `allgather`.
 
+### Automatic benchmarking
+
+**Automatic benchmarking for MPI and Hoplite**:
+
+`./auto_test.sh`
+
+`python script/parse_result.py log/`
+
+`python script/parse_mpi_result.py mpi_log/`
+
+**Automatic benchmarking for Gloo**:
+
+`cd gloo`
+
+`./auto_test_gloo.sh ${NUM_TRIALS}`
+
+`python parse_gloo_result.py ../gloo_log/`
+
 ### Hoplite
 
 **C++**
@@ -37,6 +55,10 @@ cd python
 **Round trip**
 
 `cd mpi && ./mpi_sendrecv.sh ${input_size_in_bytes}`
+
+### Gloo
+
+`cd gloo && ./run_benchmark.sh ${gloo_test_name} ${total_number_of_nodes} ${input_size_in_bytes}`
 
 ## Lint
 
