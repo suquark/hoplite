@@ -12,7 +12,7 @@ def get_object(o):
 def main(np, object_size):
     client = Client("127.0.0.1:8786")
     senders = []
-    for i in range(1, np):   
+    for i in range(0, np):   
         senders.append(client.submit(create_object, object_size, workers=['Dask-' + str(i)]))
     
     receiver = client.submit(get_object, senders, workers=['Dask-0'])

@@ -6,10 +6,13 @@ import sys
 def create_object(object_size):
     return np.empty(object_size//4, dtype=np.float32)
 
-def get_object(obj_list, object_size):
+def reduce_object(obj_list, object_size):
     a = np.empty(object_size//4, dtype=np.float32)
     for obj in obj_list:
         a += obj
+    return a
+
+def get_object(o):
     return True
 
 def main(np, object_size):
@@ -18,10 +21,15 @@ def main(np, object_size):
     for i in range(0, np):   
         senders.append(client.submit(create_object, object_size, workers=['Dask-' + str(i)]))
     
-    receiver = client.submit(get_object, senders, object_size, workers=['Dask-0'])
-    
+    receiver = client.submit(reduce_object, senders, object_size, workers=['Dask-0'])
+
+    other_receivers = []
+    for i in range(1, np):   
+        other_receivers.append(client.submit(get_object, receiver, workers=['Dask-' + str(i)]))
+ 
     before = time.time()
-    receiver.result()
+    for r in other_receivers:
+        r.result()
     after = time.time()
 
     print (after-before)
