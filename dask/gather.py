@@ -2,23 +2,26 @@ from dask.distributed import Client
 import numpy as np
 import time
 import sys
+import os
 
-def create_object(object_size):
-    return np.empty(object_size//4, dtype=np.float32)
+def create_object(index, object_size):
+    a = np.empty(object_size//4, dtype=np.float32)
+    return a
 
-def get_object(o):
+def gather_object(o):
     return True
 
-def main(np, object_size):
+def main(pp, object_size):
     client = Client("127.0.0.1:8786")
     senders = []
-    for i in range(0, np):   
-        senders.append(client.submit(create_object, object_size, workers=['Dask-' + str(i)]))
-    
-    receiver = client.submit(get_object, senders, workers=['Dask-0'])
-    
+    b = time.time()
+    for i in range(0, pp):   
+        senders.append(client.submit(create_object, i, object_size, workers=['Dask-' + str(i)]))
+   
+    receiver = client.submit(gather_object, senders, workers=['Dask-0'])
+
     before = time.time()
-    receiver.result()
+    print(receiver.result())
     after = time.time()
 
     print (after-before)

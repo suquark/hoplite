@@ -3,7 +3,7 @@ import numpy as np
 import time
 import sys
 
-def create_object(object_size):
+def create_object(index, object_size):
     return np.empty(object_size//4, dtype=np.float32)
 
 def get_object(obj_list, object_size):
@@ -16,7 +16,7 @@ def main(np, object_size):
     client = Client("127.0.0.1:8786")
     senders = []
     for i in range(0, np):   
-        senders.append(client.submit(create_object, object_size, workers=['Dask-' + str(i)]))
+        senders.append(client.submit(create_object, i, object_size, workers=['Dask-' + str(i)]))
     
     receiver = client.submit(get_object, senders, object_size, workers=['Dask-0'])
     

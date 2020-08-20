@@ -6,7 +6,7 @@ import sys
 def create_object(object_size):
     return np.empty(object_size//4, dtype=np.float32)
 
-def get_object(o):
+def get_object(index, o):
     return True
 
 def main(np, object_size):
@@ -15,7 +15,7 @@ def main(np, object_size):
     
     receivers = []
     for i in range(1, np):
-        receivers.append(client.submit(get_object, sender, workers=['Dask-' + str(i)]))
+        receivers.append(client.submit(get_object, i, sender, workers=['Dask-' + str(i)]))
     
     before = time.time()
     for receiver in receivers:
