@@ -210,9 +210,7 @@ void TCPServer::receive_and_reduce_object(
     stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
   }
 
-  // reply message
-  auto status = send_all(conn_fd, "OK", 3);
-  DCHECK(!status) << "socket send error: object ack";
+  send_ack(conn_fd);
 }
 
 void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
@@ -234,8 +232,6 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   stream_write<Buffer>(conn_fd, stream.get());
   local_store_client_.Seal(object_id);
 
-  // reply message
-  auto status = send_all(conn_fd, "OK", 3);
-  DCHECK(!status) << "socket send error: object ack";
+  send_ack(conn_fd);
   LOG(DEBUG) << object_id.ToString() << " received";
 }

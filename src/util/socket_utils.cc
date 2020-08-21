@@ -91,3 +91,21 @@ void tcp_bind_and_listen(int port, struct sockaddr_in *address,
   status = listen(*server_fd, BACKLOG);
   DCHECK(!status) << "Socket listen error.";
 }
+
+void recv_ack(int fd) {
+#ifdef HOPLITE_ENABLE_ACK
+  char ack[5];
+  auto status = recv_all(fd, ack, 3);
+  DCHECK(!status) << "socket recv error: ack, error code = " << errno;
+  if (strcmp(ack, "OK") != 0) {
+    LOG(FATAL) << "ack is wrong";
+  }
+#endif
+}
+
+void send_ack(int fd) {
+#ifdef HOPLITE_ENABLE_ACK
+  auto status = send_all(fd, "OK", 3);
+  DCHECK(!status) << "socket send error: object ack";
+#endif
+}

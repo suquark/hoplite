@@ -129,13 +129,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   stream_send<Buffer>(conn_fd, stream.get());
   LOG(DEBUG) << "send " << object_id.ToString() << " done";
 
-  // receive ack
-  char ack[5];
-  status = recv_all(conn_fd, ack, 3);
-  DCHECK(!status) << "socket recv error: ack, error code = " << errno;
-  if (strcmp(ack, "OK") != 0)
-    LOG(FATAL) << "ack is wrong";
-
+  recv_ack(conn_fd);
   close(conn_fd);
 
   // TODO: this is for reference counting in the notification service.
@@ -181,12 +175,6 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     state_.release_reduction_stream(reduction_id);
   }
 
-  // receive ack
-  char ack[5];
-  status = recv_all(conn_fd, ack, 3);
-  DCHECK(!status) << "socket recv error: ack, error code = " << errno;
-  if (strcmp(ack, "OK") != 0)
-    LOG(FATAL) << "ack is wrong";
-
+  recv_ack(conn_fd);
   close(conn_fd);
 }
