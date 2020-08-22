@@ -97,8 +97,8 @@ TCPServer::TCPServer(ObjectStoreState &state,
   TIMELINE(std::string("TCPServer construction function ") + server_ipaddr +
            ":" + std::to_string(port));
   tcp_bind_and_listen(port, &address_, &server_fd_);
-  LOG(INFO) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
-            << port;
+  LOG(DEBUG) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
+             << port;
 }
 
 void TCPServer::Shutdown() {
@@ -111,7 +111,7 @@ void TCPServer::Shutdown() {
 }
 
 void handle_signal(int sig) {
-  LOG(INFO) << "Signal received on object writer";
+  LOG(DEBUG) << "Signal received on object writer";
   pthread_exit(NULL);
 }
 
@@ -130,7 +130,7 @@ void TCPServer::worker_loop() {
     }
     DCHECK(conn_fd >= 0) << "socket accept error";
     char *incoming_ip = inet_ntoa(address_.sin_addr);
-    LOG(INFO) << "recieve a TCP connection from " << incoming_ip;
+    LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
 
     ObjectWriterRequest message;
     ReceiveMessage(conn_fd, &message);

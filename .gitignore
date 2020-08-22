@@ -52,3 +52,4 @@ mpi_log/
 gloo_log/
 
 python/*.cpp
+.DS_Store

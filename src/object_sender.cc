@@ -64,7 +64,7 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
       local_store_client_(local_store_client), my_address_(my_address),
       exit_(false) {
   TIMELINE("ObjectSender construction function");
-  LOG(INFO) << "[ObjectSender] object sender is ready.";
+  LOG(DEBUG) << "[ObjectSender] object sender is ready.";
 }
 
 void ObjectSender::worker_loop() {
@@ -158,7 +158,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   SendMessage(conn_fd, ow_request);
 
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
-    LOG(INFO) << "[GrpcServer] fetching a complete object from local store";
+    LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
     // TODO: there could be multiple source objects.
     ObjectID src_object_id = ObjectID::FromBinary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
@@ -166,7 +166,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     auto &stream = object_buffers[0].data;
     stream_send<Buffer>(conn_fd, stream.get());
   } else {
-    LOG(INFO)
+    LOG(DEBUG)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
