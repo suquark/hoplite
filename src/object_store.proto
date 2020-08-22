@@ -122,12 +122,32 @@ message GetLocationAsyncAnswerRequest {
     bytes sender_ip = 2;
     bytes query_id = 3;
     int64 object_size = 4;
-    bytes inband_data = 5;  
+    bytes inband_data = 5;
   }
-  repeated ObjectInfo objects = 1; 
+  repeated ObjectInfo objects = 1;
 }
 
 message GetLocationAsyncAnswerReply {
+  bool ok = 1;
+}
+
+message AddObjectsToReducePoolRequest {
+  bytes reduce_pool_id = 1;
+  repeated bytes object_ids = 2;
+}
+
+message AddObjectsToReducePoolReply {
+  bool ok = 1;
+}
+
+message CreateReducePoolRequest {
+  bytes reduce_pool_id = 1;
+  int64 min_reduce_size = 2;
+  int64 max_reduce_size = 3;
+  repeated bytes object_ids = 4;
+}
+
+message CreateReducePoolReply {
   bool ok = 1;
 }
 
@@ -157,6 +177,8 @@ service NotificationServer {
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
   rpc GetLocationAsync(GetLocationAsyncRequest) returns (GetLocationAsyncReply);
+  rpc AddObjectsToReducePool(AddObjectsToReducePoolRequest) returns (AddObjectsToReducePoolReply);
+  rpc CreateReducePool(CreateReducePoolRequest) returns (CreateReducePoolReply);
 }
 
 service NotificationListener {

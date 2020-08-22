@@ -36,6 +36,23 @@ using objectstore::RegisterRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
+class ReducePool {
+public:
+  ReducePool(ssize_t min_reduce_size, ssize_t max_reduce_size)
+      : min_reduce_size_(min_reduce_size), max_reduce_size_(max_reduce_size) {}
+  void AddObjects(const std::vector<ObjectID> &objects) {
+    for (const auto &object : objects) {
+      objects_to_reduce_.insert(object);
+    }
+  }
+
+private:
+  std::unordered_set<ObjectID> objects_to_reduce_;
+  ssize_t min_reduce_size_;
+  ssize_t max_reduce_size_;
+  // TODO: Support more operators
+};
+
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
 public:
@@ -185,6 +202,41 @@ public:
     return grpc::Status::OK;
   }
 
+  grpc::Status
+  CreateReducePool(grpc::ServerContext *context,
+                   const CreateReducePoolRequest *request,
+                   CreateReducePoolReply *reply) {
+    TIMELINE("notification CreateReducePool");
+    ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
+    DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
+          << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
+    auto reduce_pool_it = reduce_pools_.emplace(reduce_pool_id, ReducePool(request->min_reduce_size, request->max_reduce_size)).first;
+    std::vector<ObjectID> object_ids;
+    for (const auto &object_id : request->object_ids()) {
+      object_ids.push_back(ObjectID::FromBinary(object_id));
+    }
+    reduce_pool_it->second.AddObjectsToReducePool(object_ids);
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status
+  AddObjectsToReducePool(grpc::ServerContext *context,
+                         const AddObjectToReducePoolRequest *request,
+                         AddObjectsToReducePoolReply *reply) {
+    ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
+    auto reduce_pool_it = reduce_pools_.find(reduce_pool_id)
+    DCHECK(reduce_pool_it != reduce_pools_.end())
+          << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
+    std::vector<ObjectID> object_ids;
+    for (const auto &object_id : request->object_ids()) {
+      object_ids.push_back(ObjectID::FromBinary(object_id));
+    }
+    reduce_pool_it->second.AddObjectsToReducePool(object_ids);
+    reply->set_ok(true);
+    return grpc::Status::OK;
+  }
+
 private:
   void put_inband_data(const ObjectID &key, const std::string &value) {
     while (directory_lock_.test_and_set(std::memory_order_acquire))
@@ -322,6 +374,8 @@ private:
       object_location_store_ready_; // (weight, ip) in priority queue, weight=1
                                     // means finished
   std::unordered_map<ObjectID, size_t> object_size_;
+  // ReducePoolID -> ReducePool
+  std::unordered_map<ObjectID, ReducePool> reduce_pools_;
   void create_stub(const std::string &remote_grpc_address) {
     if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
       channel_pool_[remote_grpc_address] = grpc::CreateChannel(
