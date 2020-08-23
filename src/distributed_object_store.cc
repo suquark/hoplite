@@ -8,6 +8,7 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 
+#include "common/config.h"
 #include "distributed_object_store.h"
 #include "logging.h"
 
@@ -386,8 +387,8 @@ void DistributedObjectStore::poll_and_reduce(
   // L: latency (in second)
   // B: bandwidth (in bytes)
   // S: object size (in bytes)
-  double L = 750 * 1e-6;
-  double B = 9.68 * pow(2, 30) / 8;
+  double L = HOPLITE_RPC_LATENCY;
+  double B = HOPLITE_BANDWIDTH;
   double P = notification_candidates.size();
   double S = object_size;
   LOG(DEBUG) << "grid/pipe boundary object size = "

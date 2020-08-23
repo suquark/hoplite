@@ -7,6 +7,7 @@
 #include <vector>
 #include <mutex>
 #include <condition_variable>
+#include "common/config.h"
 
 class Buffer {
   public:
@@ -30,7 +31,11 @@ class Buffer {
 
     void Wait();
     void NotifyFinished();
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     std::atomic_int64_t progress;
+#else
+    volatile int64_t progress;
+#endif
   private:
     uint8_t* data_ptr_;
     int64_t size_;

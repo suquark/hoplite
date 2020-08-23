@@ -43,8 +43,6 @@ int recv_all(int conn_fd, void *buf, const size_t size) {
   while (cursor < size) {
     int bytes_recv = recv(conn_fd, (uint8_t *)buf + cursor, size - cursor, 0);
     if (bytes_recv < 0) {
-      LOG(ERROR) << "Socket recv error (" << strerror(errno)
-                 << ", code=" << errno << ")";
       if (errno == EAGAIN) {
         continue;
       }
@@ -93,19 +91,15 @@ void tcp_bind_and_listen(int port, struct sockaddr_in *address,
 }
 
 void recv_ack(int fd) {
-#ifdef HOPLITE_ENABLE_ACK
   char ack[5];
   auto status = recv_all(fd, ack, 3);
   DCHECK(!status) << "socket recv error: ack, error code = " << errno;
   if (strcmp(ack, "OK") != 0) {
     LOG(FATAL) << "ack is wrong";
   }
-#endif
 }
 
 void send_ack(int fd) {
-#ifdef HOPLITE_ENABLE_ACK
   auto status = send_all(fd, "OK", 3);
   DCHECK(!status) << "socket send error: object ack";
-#endif
 }

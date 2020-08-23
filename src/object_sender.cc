@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "object_sender.h"
+#include "common/config.h"
 
 using objectstore::ObjectWriterRequest;
 using objectstore::PullRequest;
@@ -129,7 +130,9 @@ void ObjectSender::send_object(const PullRequest *request) {
   stream_send<Buffer>(conn_fd, stream.get());
   LOG(DEBUG) << "send " << object_id.ToString() << " done";
 
+#ifdef HOPLITE_ENABLE_ACK
   recv_ack(conn_fd);
+#endif
   close(conn_fd);
 
   // TODO: this is for reference counting in the notification service.
@@ -175,6 +178,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     state_.release_reduction_stream(reduction_id);
   }
 
+#ifdef HOPLITE_ENABLE_ACK
   recv_ack(conn_fd);
+#endif
   close(conn_fd);
 }
