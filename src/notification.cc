@@ -17,10 +17,14 @@
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 
+using objectstore::AddObjectsToReducePoolReply;
+using objectstore::AddObjectsToReducePoolRequest;
 using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;
+using objectstore::CreateReducePoolReply;
+using objectstore::CreateReducePoolRequest;
 using objectstore::ExitReply;
 using objectstore::ExitRequest;
 using objectstore::GetLocationAsyncAnswerReply;
@@ -35,10 +39,6 @@ using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
-using objectstore::AddObjectsToReducePoolRequest;
-using objectstore::AddObjectsToReducePoolReply;
-using objectstore::CreateReducePoolRequest;
-using objectstore::CreateReducePoolReply;
 
 class ReducePool {
 public:
@@ -180,7 +180,9 @@ public:
     sync_mutex->lock();
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
-    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement::SYNC, sync_mutex, result_sender_ip, {}, {}, request->occupying(), {});
+    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement(
+        ReceiverQueueElement::SYNC, sync_mutex, result_sender_ip, {}, {},
+        request->occupying(), {}));
     try_send_notification({object_id});
     l.unlock();
     sync_mutex->lock();
@@ -205,15 +207,17 @@ public:
     return grpc::Status::OK;
   }
 
-  grpc::Status
-  CreateReducePool(grpc::ServerContext *context,
-                   const CreateReducePoolRequest *request,
-                   CreateReducePoolReply *reply) {
+  grpc::Status CreateReducePool(grpc::ServerContext *context,
+                                const CreateReducePoolRequest *request,
+                                CreateReducePoolReply *reply) {
     TIMELINE("notification CreateReducePool");
     ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
     DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
-          << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
-    auto reduce_pool_it = reduce_pools_.emplace(reduce_pool_id, ReducePool(request->min_reduce_size(), request->max_reduce_size())).first;
+        << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
+    auto reduce_pool_it = reduce_pools_.emplace(
+        reduce_pool_id,
+        ReducePool(request->min_reduce_size(), request->max_reduce_size())
+            .first);
     std::vector<ObjectID> object_ids;
     for (const auto &object_id : request->object_ids()) {
       object_ids.push_back(ObjectID::FromBinary(object_id));
@@ -230,7 +234,7 @@ public:
     ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
     auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
     DCHECK(reduce_pool_it != reduce_pools_.end())
-          << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
+        << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
     std::vector<ObjectID> object_ids;
     for (const auto &object_id : request->object_ids()) {
       object_ids.push_back(ObjectID::FromBinary(object_id));
@@ -294,30 +298,26 @@ private:
           }
           pending_receiver_ips_[object_id].pop();
           switch (receiver.type) {
-            case ReceiverQueueElement::SYNC:
-              {
-                // Reply to synchronous get_lcoation call
-                *receiver.result_sender_ip = sender_ip;
-                DCHECK(!receiver.sync_mutex->try_lock())
-                    << "sync_mutex should be locked";
-                receiver.sync_mutex->unlock();
-              }
-              break;
-            case ReceiverQueueElement::ASYNC:
-              {
-                // Batching replies to asynchronous get_lcoation call
-                GetLocationAsyncAnswerRequest::ObjectInfo *object =
+          case ReceiverQueueElement::SYNC: {
+            // Reply to synchronous get_lcoation call
+            *receiver.result_sender_ip = sender_ip;
+            DCHECK(!receiver.sync_mutex->try_lock())
+                << "sync_mutex should be locked";
+            receiver.sync_mutex->unlock();
+          } break;
+          case ReceiverQueueElement::ASYNC: {
+            // Batching replies to asynchronous get_lcoation call
+            GetLocationAsyncAnswerRequest::ObjectInfo *object =
                 request_pool[receiver.receiver_ip].add_objects();
-                object->set_object_id(object_id.Binary());
-                object->set_sender_ip(sender_ip);
-                object->set_query_id(receiver.query_id);
-                object->set_object_size(object_size_[object_id]);
-                object->set_inband_data(get_inband_data(object_id));
-              }
-              break;
-            case ReceiverQueueElement::REDUCE_POOL:
-              //TODO(zhuohan): implement reduce pool;
-              break;
+            object->set_object_id(object_id.Binary());
+            object->set_sender_ip(sender_ip);
+            object->set_query_id(receiver.query_id);
+            object->set_object_size(object_size_[object_id]);
+            object->set_inband_data(get_inband_data(object_id));
+          } break;
+          case ReceiverQueueElement::REDUCE_POOL:
+            // TODO(zhuohan): implement reduce pool;
+            break;
           }
         }
       }
@@ -338,7 +338,8 @@ private:
     for (auto object_id_it : request.object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
       pending_receiver_ips_[object_id].emplace(
-          ReceiverQueueElement::ASYNC, {}, {}, receiver_ip, query_id, request.occupying(), {});
+          ReceiverQueueElement(ReceiverQueueElement::ASYNC, {}, {}, receiver_ip,
+                               query_id, request.occupying(), {}));
       object_ids.push_back(object_id);
     }
     try_send_notification(object_ids);
@@ -368,7 +369,7 @@ private:
   std::unordered_set<std::string> participants_;
   const int port_;
   struct ReceiverQueueElement {
-    enum {SYNC, ASYNC, REDUCE_POOL} type;
+    enum { SYNC, ASYNC, REDUCE_POOL } type;
     // For synchronous recevier
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
