@@ -105,7 +105,8 @@ TCPServer::TCPServer(ObjectStoreState &state,
                      LocalStoreClient &local_store_client,
                      const std::string &server_ipaddr, int port)
     : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr),
-      local_store_client_(local_store_client) {
+      local_store_client_(local_store_client),
+      pool_(HOPLITE_MAX_INFLOW_CONCURRENCY) {
   TIMELINE(std::string("TCPServer construction function ") + server_ipaddr +
            ":" + std::to_string(port));
   tcp_bind_and_listen(port, &address_, &server_fd_);
@@ -157,9 +158,9 @@ void TCPServer::worker_loop() {
       auto request = message.receive_object();
       ObjectID object_id = ObjectID::FromBinary(request.object_id());
       int64_t object_size = request.object_size();
-      receive_object(conn_fd, object_id, object_size);
-      break;
-    }
+      (void)pool_.push(
+          [=](int fd) { receive_object(conn_fd, object_id, object_size); });
+    } break;
     case ObjectWriterRequest::kReceiveAndReduceObject: {
       auto request = message.receive_and_reduce_object();
       ObjectID reduction_id = ObjectID::FromBinary(request.reduction_id());
@@ -172,13 +173,14 @@ void TCPServer::worker_loop() {
         LOG(DEBUG) << "targeted object id = " << object_id.ToString();
       }
       bool is_endpoint = request.is_endpoint();
-      receive_and_reduce_object(conn_fd, reduction_id, object_ids, is_endpoint);
-      break;
-    }
+      (void)pool_.push([=](int fd) {
+        receive_and_reduce_object(conn_fd, reduction_id, object_ids,
+                                  is_endpoint);
+      });
+    } break;
     default:
       LOG(FATAL) << "unrecognized message type " << message.message_type_case();
     }
-    close(conn_fd);
   }
 }
 
@@ -230,6 +232,7 @@ void TCPServer::receive_and_reduce_object(
 #ifdef HOPLITE_ENABLE_ACK
   send_ack(conn_fd);
 #endif
+  close(conn_fd);
 }
 
 void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
@@ -254,4 +257,5 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   send_ack(conn_fd);
 #endif
   LOG(DEBUG) << object_id.ToString() << " received";
+  close(conn_fd);
 }

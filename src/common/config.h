@@ -13,4 +13,7 @@
 // Use atomic type for buffer progress.
 // #define HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
 
+// Maximum inflow concurrency for a node
+#define HOPLITE_MAX_INFLOW_CONCURRENCY 2
+
 // NOTE: SO_ZEROCOPY & TCP_NODELAY is not working.
