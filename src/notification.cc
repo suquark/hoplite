@@ -213,7 +213,7 @@ public:
     ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
     DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
           << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
-    auto reduce_pool_it = reduce_pools_.emplace(reduce_pool_id, ReducePool(request->min_reduce_size, request->max_reduce_size)).first;
+    auto reduce_pool_it = reduce_pools_.emplace(reduce_pool_id, ReducePool(request->min_reduce_size(), request->max_reduce_size())).first;
     std::vector<ObjectID> object_ids;
     for (const auto &object_id : request->object_ids()) {
       object_ids.push_back(ObjectID::FromBinary(object_id));
@@ -225,11 +225,11 @@ public:
 
   grpc::Status
   AddObjectsToReducePool(grpc::ServerContext *context,
-                         const AddObjectToReducePoolRequest *request,
+                         const AddObjectsToReducePoolRequest *request,
                          AddObjectsToReducePoolReply *reply) {
     ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
-    auto reduce_pool_it = reduce_pools_.find(reduce_pool_id)
-    DCHECK(reduce_pool_it != reduce_pools_.end())
+    auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
+    DCHECK(reduce_pool_it != reduce_pools_.end());
           << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
     std::vector<ObjectID> object_ids;
     for (const auto &object_id : request->object_ids()) {
@@ -293,21 +293,27 @@ private:
             object_location_store_ready_[object_id].pop();
           }
           pending_receiver_ips_[object_id].pop();
-          if (receiver.sync) {
-            // Reply to synchronous get_lcoation call
-            *receiver.result_sender_ip = sender_ip;
-            DCHECK(!receiver.sync_mutex->try_lock())
-                << "sync_mutex should be locked";
-            receiver.sync_mutex->unlock();
-          } else {
-            // Batching replies to asynchronous get_lcoation call
-            GetLocationAsyncAnswerRequest::ObjectInfo *object =
-                request_pool[receiver.receiver_ip].add_objects();
-            object->set_object_id(object_id.Binary());
-            object->set_sender_ip(sender_ip);
-            object->set_query_id(receiver.query_id);
-            object->set_object_size(object_size_[object_id]);
-            object->set_inband_data(get_inband_data(object_id));
+          switch (receiver.type) {
+            case ReceiverQueueElement::SYNC:
+              // Reply to synchronous get_lcoation call
+              *receiver.result_sender_ip = sender_ip;
+              DCHECK(!receiver.sync_mutex->try_lock())
+                  << "sync_mutex should be locked";
+              receiver.sync_mutex->unlock();
+              break;
+            case ReceiverQueueElement::ASYNC:
+              // Batching replies to asynchronous get_lcoation call
+              GetLocationAsyncAnswerRequest::ObjectInfo *object =
+                  request_pool[receiver.receiver_ip].add_objects();
+              object->set_object_id(object_id.Binary());
+              object->set_sender_ip(sender_ip);
+              object->set_query_id(receiver.query_id);
+              object->set_object_size(object_size_[object_id]);
+              object->set_inband_data(get_inband_data(object_id));
+              break;
+            case ReceiverQueueElement::REDUCE_POOL:
+              //TODO(zhuohan): implement reduce pool;
+              break;
           }
         }
       }
@@ -358,7 +364,7 @@ private:
   std::unordered_set<std::string> participants_;
   const int port_;
   struct ReceiverQueueElement {
-    enum {Sync, Async, ReducePool} receiver_type;
+    enum {SYNC, ASYNC, REDUCE_POOL} type;
     // For synchronous recevier
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
