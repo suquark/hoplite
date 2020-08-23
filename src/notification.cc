@@ -180,7 +180,7 @@ public:
     sync_mutex->lock();
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
-    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement::Sync, sync_mutex, result_sender_ip, {}, {}, request->occupying(), {});
+    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement::SYNC, sync_mutex, result_sender_ip, {}, {}, request->occupying(), {});
     try_send_notification({object_id});
     l.unlock();
     sync_mutex->lock();
@@ -218,7 +218,7 @@ public:
     for (const auto &object_id : request->object_ids()) {
       object_ids.push_back(ObjectID::FromBinary(object_id));
     }
-    reduce_pool_it->second.AddObjectsToReducePool(object_ids);
+    reduce_pool_it->second.AddObjects(object_ids);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -229,13 +229,13 @@ public:
                          AddObjectsToReducePoolReply *reply) {
     ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
     auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
-    DCHECK(reduce_pool_it != reduce_pools_.end());
+    DCHECK(reduce_pool_it != reduce_pools_.end())
           << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
     std::vector<ObjectID> object_ids;
     for (const auto &object_id : request->object_ids()) {
       object_ids.push_back(ObjectID::FromBinary(object_id));
     }
-    reduce_pool_it->second.AddObjectsToReducePool(object_ids);
+    reduce_pool_it->second.AddObjects(object_ids);
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -334,7 +334,7 @@ private:
     for (auto object_id_it : request.object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
       pending_receiver_ips_[object_id].emplace(
-          ReceiverQueueElement::Sync, {}, {}, receiver_ip, query_id, request->occupying(), {});
+          ReceiverQueueElement::ASYNC, {}, {}, receiver_ip, query_id, request.occupying(), {});
       object_ids.push_back(object_id);
     }
     try_send_notification(object_ids);
