@@ -214,10 +214,11 @@ public:
     ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
     DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
         << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
-    auto reduce_pool_it = reduce_pools_.emplace(
-        reduce_pool_id,
-        ReducePool(request->min_reduce_size(), request->max_reduce_size())
-            .first);
+    auto reduce_pool_it =
+        reduce_pools_
+            .emplace(reduce_pool_id, ReducePool(request->min_reduce_size(),
+                                                request->max_reduce_size()))
+            .first;
     std::vector<ObjectID> object_ids;
     for (const auto &object_id : request->object_ids()) {
       object_ids.push_back(ObjectID::FromBinary(object_id));
