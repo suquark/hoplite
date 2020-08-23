@@ -176,8 +176,7 @@ public:
     sync_mutex->lock();
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
-    pending_receiver_ips_[object_id].push(
-        {true, sync_mutex, result_sender_ip, "", "", request->occupying()});
+    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement::Sync, sync_mutex, result_sender_ip, {}, {}, request->occupying(), {});
     try_send_notification({object_id});
     l.unlock();
     sync_mutex->lock();
@@ -281,7 +280,7 @@ private:
                !object_location_store_ready_[object_id].empty()) {
           std::string sender_ip =
               object_location_store_ready_[object_id].top().second;
-          receiver_queue_element receiver =
+          ReceiverQueueElement receiver =
               pending_receiver_ips_[object_id].front();
           if (!has_inband_data(object_id) && receiver.occupying) {
             // In this case, the client will take the ownership
@@ -324,9 +323,8 @@ private:
     // TODO: pass in repeated object ids will send twice.
     for (auto object_id_it : request.object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].push({false, nullptr, nullptr,
-                                             receiver_ip, query_id,
-                                             request.occupying()});
+      pending_receiver_ips_[object_id].emplace(
+          ReceiverQueueElement::Sync, {}, {}, receiver_ip, query_id, request->occupying(), {});
       object_ids.push_back(object_id);
     }
     try_send_notification(object_ids);
@@ -355,15 +353,21 @@ private:
   int number_of_nodes_;
   std::unordered_set<std::string> participants_;
   const int port_;
-  struct receiver_queue_element {
-    bool sync;
+  struct ReceiverQueueElement {
+    enum {Sync, Async, ReducePool} receiver_type;
+    // For synchronous recevier
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
+    // For asynchronous receiver
     std::string receiver_ip;
     std::string query_id;
+    // For both synchronous and asynchronous receivers
+    // Whether to delete the reference to the object or not
     bool occupying;
+    // For ReducePool receiver
+    ObjectID reduce_pool_id;
   };
-  std::unordered_map<ObjectID, std::queue<receiver_queue_element>>
+  std::unordered_map<ObjectID, std::queue<ReceiverQueueElement>>
       pending_receiver_ips_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
   std::unordered_map<std::string,
