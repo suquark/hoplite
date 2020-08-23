@@ -35,6 +35,10 @@ using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
+using objectstore::AddObjectsToReducePoolRequest;
+using objectstore::AddObjectsToReducePoolReply;
+using objectstore::CreateReducePoolRequest;
+using objectstore::CreateReducePoolReply;
 
 class ReducePool {
 public:
