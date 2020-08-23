@@ -7,8 +7,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "object_sender.h"
 #include "common/config.h"
+#include "object_sender.h"
 
 using objectstore::ObjectWriterRequest;
 using objectstore::PullRequest;
@@ -29,6 +29,7 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
 }
 
 template <typename T> void stream_send(int conn_fd, T *stream) {
+  TIMELINE("ObjectSender::stream_send()");
   const uint8_t *data_ptr = stream->Data();
   const int64_t object_size = stream->Size();
 
@@ -101,7 +102,7 @@ void ObjectSender::AppendTask(const ReduceToRequest *request) {
 }
 
 void ObjectSender::send_object(const PullRequest *request) {
-  TIMELINE("ObjectSender::send_object()");
+  TIMELINE("ObjectSender::send_object(), puller_ip = " + request->puller_ip());
   // create a TCP connection, send the object through the TCP connection
   int conn_fd;
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
@@ -145,7 +146,8 @@ void ObjectSender::send_object(const PullRequest *request) {
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
-  TIMELINE("ObjectSender::send_object_for_reduce()");
+  TIMELINE("ObjectSender::send_object_for_reduce(), dst_address = " +
+           request->dst_address());
   int conn_fd;
   auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";

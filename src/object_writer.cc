@@ -4,7 +4,7 @@
 #include <cstring>
 
 #include <arpa/inet.h>
-#include <fcntl.h>  // for non-blocking socket
+#include <fcntl.h> // for non-blocking socket
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -45,7 +45,8 @@ inline void stream_write_next(int conn_fd, T *stream,
     if (bytes_recv < 0) {
       if (errno == EAGAIN) {
 #ifndef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
-        LOG(WARNING) << "[stream_write_next] socket recv error (EAGAIN). Ignored.";
+        LOG(WARNING)
+            << "[stream_write_next] socket recv error (EAGAIN). Ignored.";
 #endif
         continue;
       }
@@ -129,7 +130,6 @@ void handle_signal(int sig) {
 void TCPServer::worker_loop() {
   signal(SIGUSR1, handle_signal);
   while (true) {
-    TIMELINE("TCPServer::worker_loop() step");
     LOG(DEBUG) << "waiting for a connection";
     socklen_t addrlen = sizeof(address_);
     int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
@@ -142,10 +142,13 @@ void TCPServer::worker_loop() {
     DCHECK(conn_fd >= 0) << "socket accept error";
 #ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
     DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
-        << "Cannot enable non-blocking for the socket (errno = " << errno << ").";
+        << "Cannot enable non-blocking for the socket (errno = " << errno
+        << ").";
 #endif
     char *incoming_ip = inet_ntoa(address_.sin_addr);
     LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
+    TIMELINE(std::string("TCPServer::worker_loop(), requester_ip = ") +
+             incoming_ip);
 
     ObjectWriterRequest message;
     ReceiveMessage(conn_fd, &message);
