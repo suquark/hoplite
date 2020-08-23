@@ -180,9 +180,9 @@ public:
     sync_mutex->lock();
     std::shared_ptr<std::string> result_sender_ip =
         std::make_shared<std::string>();
-    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement(
+    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement{
         ReceiverQueueElement::SYNC, sync_mutex, result_sender_ip, {}, {},
-        request->occupying(), {}));
+        request->occupying(), {}});
     try_send_notification({object_id});
     l.unlock();
     sync_mutex->lock();
@@ -339,8 +339,8 @@ private:
     for (auto object_id_it : request.object_ids()) {
       ObjectID object_id = ObjectID::FromBinary(object_id_it);
       pending_receiver_ips_[object_id].emplace(
-          ReceiverQueueElement(ReceiverQueueElement::ASYNC, {}, {}, receiver_ip,
-                               query_id, request.occupying(), {}));
+          ReceiverQueueElement{ReceiverQueueElement::ASYNC, {}, {}, receiver_ip,
+                               query_id, request.occupying(), {}});
       object_ids.push_back(object_id);
     }
     try_send_notification(object_ids);
