@@ -13,6 +13,7 @@
 #include "local_store_client.h"
 #include "object_store.grpc.pb.h"
 #include "object_store_state.h"
+#include "util/ctpl_stl.h"
 
 class TCPServer {
 public:
@@ -44,6 +45,8 @@ private:
   std::thread server_thread_;
   const std::string &server_ipaddr_;
   struct sockaddr_in address_;
+  // thread pool for launching tasks
+  ctpl::thread_pool pool_;
 };
 
 #endif // OBJECT_WRITER_H

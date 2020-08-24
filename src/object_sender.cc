@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "common/config.h"
 #include "object_sender.h"
 
 using objectstore::ObjectWriterRequest;
@@ -28,6 +29,7 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
 }
 
 template <typename T> void stream_send(int conn_fd, T *stream) {
+  TIMELINE("ObjectSender::stream_send()");
   const uint8_t *data_ptr = stream->Data();
   const int64_t object_size = stream->Size();
 
@@ -64,7 +66,7 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
       local_store_client_(local_store_client), my_address_(my_address),
       exit_(false) {
   TIMELINE("ObjectSender construction function");
-  LOG(INFO) << "[ObjectSender] object sender is ready.";
+  LOG(DEBUG) << "[ObjectSender] object sender is ready.";
 }
 
 void ObjectSender::worker_loop() {
@@ -100,7 +102,7 @@ void ObjectSender::AppendTask(const ReduceToRequest *request) {
 }
 
 void ObjectSender::send_object(const PullRequest *request) {
-  TIMELINE("ObjectSender::send_object()");
+  TIMELINE("ObjectSender::send_object(), puller_ip = " + request->puller_ip());
   // create a TCP connection, send the object through the TCP connection
   int conn_fd;
   auto status = tcp_connect(request->puller_ip(), 6666, &conn_fd);
@@ -129,7 +131,9 @@ void ObjectSender::send_object(const PullRequest *request) {
   stream_send<Buffer>(conn_fd, stream.get());
   LOG(DEBUG) << "send " << object_id.ToString() << " done";
 
+#ifdef HOPLITE_ENABLE_ACK
   recv_ack(conn_fd);
+#endif
   close(conn_fd);
 
   // TODO: this is for reference counting in the notification service.
@@ -142,7 +146,8 @@ void ObjectSender::send_object(const PullRequest *request) {
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
-  TIMELINE("ObjectSender::send_object_for_reduce()");
+  TIMELINE("ObjectSender::send_object_for_reduce(), dst_address = " +
+           request->dst_address());
   int conn_fd;
   auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
@@ -158,7 +163,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
   SendMessage(conn_fd, ow_request);
 
   if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
-    LOG(INFO) << "[GrpcServer] fetching a complete object from local store";
+    LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
     // TODO: there could be multiple source objects.
     ObjectID src_object_id = ObjectID::FromBinary(request->src_object_id());
     std::vector<ObjectBuffer> object_buffers;
@@ -166,7 +171,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     auto &stream = object_buffers[0].data;
     stream_send<Buffer>(conn_fd, stream.get());
   } else {
-    LOG(INFO)
+    LOG(DEBUG)
         << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
@@ -175,6 +180,8 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     state_.release_reduction_stream(reduction_id);
   }
 
+#ifdef HOPLITE_ENABLE_ACK
   recv_ack(conn_fd);
+#endif
   close(conn_fd);
 }

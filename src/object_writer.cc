@@ -4,10 +4,12 @@
 #include <cstring>
 
 #include <arpa/inet.h>
+#include <fcntl.h> // for non-blocking socket
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "common/config.h"
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_writer.h"
@@ -41,12 +43,14 @@ inline void stream_write_next(int conn_fd, T *stream,
     int bytes_recv = recv(conn_fd, stream->MutableData() + *receive_progress,
                           recv_block_size, 0);
     if (bytes_recv < 0) {
-      LOG(ERROR) << "[stream_write_next] socket send error (" << strerror(errno)
-                 << ", code=" << errno << ")";
       if (errno == EAGAIN) {
+#ifndef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
+        LOG(WARNING)
+            << "[stream_write_next] socket recv error (EAGAIN). Ignored.";
+#endif
         continue;
       }
-      LOG(FATAL) << "[stream_write_next] socket send error (" << strerror(errno)
+      LOG(FATAL) << "[stream_write_next] socket recv error (" << strerror(errno)
                  << ", code=" << errno << ")";
     }
     *receive_progress += bytes_recv;
@@ -60,7 +64,11 @@ template <typename T> void stream_write(int conn_fd, T *stream) {
   while (receive_progress < stream->Size()) {
     stream_write_next<T>(conn_fd, stream, &receive_progress);
     // update the progress
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     stream->progress.store(receive_progress);
+#else
+    stream->progress = receive_progress;
+#endif
   }
 }
 
@@ -75,7 +83,11 @@ void stream_reduce_add(int conn_fd, T *stream,
   while (receive_progress < object_size) {
     stream_write_next<T>(conn_fd, stream, &receive_progress);
     // reduce related objects
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     auto progress = stream->progress.load();
+#else
+    auto progress = stream->progress;
+#endif
     int64_t n_reduce_elements = (receive_progress - progress) / element_size;
     DT *cursor = (DT *)(data_ptr + progress);
     for (auto &buffer : reduce_buffers) {
@@ -93,12 +105,13 @@ TCPServer::TCPServer(ObjectStoreState &state,
                      LocalStoreClient &local_store_client,
                      const std::string &server_ipaddr, int port)
     : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr),
-      local_store_client_(local_store_client) {
+      local_store_client_(local_store_client),
+      pool_(HOPLITE_MAX_INFLOW_CONCURRENCY) {
   TIMELINE(std::string("TCPServer construction function ") + server_ipaddr +
            ":" + std::to_string(port));
   tcp_bind_and_listen(port, &address_, &server_fd_);
-  LOG(INFO) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
-            << port;
+  LOG(DEBUG) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
+             << port;
 }
 
 void TCPServer::Shutdown() {
@@ -111,14 +124,13 @@ void TCPServer::Shutdown() {
 }
 
 void handle_signal(int sig) {
-  LOG(INFO) << "Signal received on object writer";
+  LOG(DEBUG) << "Signal received on object writer";
   pthread_exit(NULL);
 }
 
 void TCPServer::worker_loop() {
   signal(SIGUSR1, handle_signal);
   while (true) {
-    TIMELINE("TCPServer::worker_loop() step");
     LOG(DEBUG) << "waiting for a connection";
     socklen_t addrlen = sizeof(address_);
     int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
@@ -129,8 +141,15 @@ void TCPServer::worker_loop() {
       return;
     }
     DCHECK(conn_fd >= 0) << "socket accept error";
+#ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
+    DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
+        << "Cannot enable non-blocking for the socket (errno = " << errno
+        << ").";
+#endif
     char *incoming_ip = inet_ntoa(address_.sin_addr);
-    LOG(INFO) << "recieve a TCP connection from " << incoming_ip;
+    LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
+    TIMELINE(std::string("TCPServer::worker_loop(), requester_ip = ") +
+             incoming_ip);
 
     ObjectWriterRequest message;
     ReceiveMessage(conn_fd, &message);
@@ -139,9 +158,9 @@ void TCPServer::worker_loop() {
       auto request = message.receive_object();
       ObjectID object_id = ObjectID::FromBinary(request.object_id());
       int64_t object_size = request.object_size();
-      receive_object(conn_fd, object_id, object_size);
-      break;
-    }
+      (void)pool_.push(
+          [=](int fd) { receive_object(conn_fd, object_id, object_size); });
+    } break;
     case ObjectWriterRequest::kReceiveAndReduceObject: {
       auto request = message.receive_and_reduce_object();
       ObjectID reduction_id = ObjectID::FromBinary(request.reduction_id());
@@ -154,13 +173,14 @@ void TCPServer::worker_loop() {
         LOG(DEBUG) << "targeted object id = " << object_id.ToString();
       }
       bool is_endpoint = request.is_endpoint();
-      receive_and_reduce_object(conn_fd, reduction_id, object_ids, is_endpoint);
-      break;
-    }
+      (void)pool_.push([=](int fd) {
+        receive_and_reduce_object(conn_fd, reduction_id, object_ids,
+                                  is_endpoint);
+      });
+    } break;
     default:
       LOG(FATAL) << "unrecognized message type " << message.message_type_case();
     }
-    close(conn_fd);
   }
 }
 
@@ -209,8 +229,10 @@ void TCPServer::receive_and_reduce_object(
         state_.create_reduction_stream(reduction_id, object_size);
     stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
   }
-
+#ifdef HOPLITE_ENABLE_ACK
   send_ack(conn_fd);
+#endif
+  close(conn_fd);
 }
 
 void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
@@ -231,7 +253,9 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   gcs_client_.WriteLocation(object_id, server_ipaddr_, false, object_size);
   stream_write<Buffer>(conn_fd, stream.get());
   local_store_client_.Seal(object_id);
-
+#ifdef HOPLITE_ENABLE_ACK
   send_ack(conn_fd);
+#endif
   LOG(DEBUG) << object_id.ToString() << " received";
+  close(conn_fd);
 }

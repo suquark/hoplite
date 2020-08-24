@@ -8,6 +8,7 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 
+#include "common/config.h"
 #include "distributed_object_store.h"
 #include "logging.h"
 
@@ -198,7 +199,7 @@ DistributedObjectStore::~DistributedObjectStore() {
   Shutdown();
   gcs_client_.Shutdown();
   notification_thread_.join();
-  LOG(INFO) << "Object store has been shutdown.";
+  LOG(DEBUG) << "Object store has been shutdown.";
 }
 
 bool DistributedObjectStore::IsLocalObject(const ObjectID &object_id,
@@ -386,20 +387,20 @@ void DistributedObjectStore::poll_and_reduce(
   // L: latency (in second)
   // B: bandwidth (in bytes)
   // S: object size (in bytes)
-  double L = 750 * 1e-6;
-  double B = 9.68 * pow(2, 30) / 8;
+  double L = HOPLITE_RPC_LATENCY;
+  double B = HOPLITE_BANDWIDTH;
   double P = notification_candidates.size();
   double S = object_size;
-  LOG(INFO) << "grid/pipe boundary object size = "
-            << pow(sqrt(P) - 1, 2) * B * L;
+  LOG(DEBUG) << "grid/pipe boundary object size = "
+             << pow(sqrt(P) - 1, 2) * B * L;
   if (sqrt(P) - 1 > sqrt(S / (B * L)) && P > 3.5) {
     // NOTE: for P = 16 (including one local node), S < 7.67 MB
-    LOG(INFO) << "Grid reduce algorithm is used.";
+    LOG(DEBUG) << "Grid reduce algorithm is used.";
     poll_and_reduce_grid_impl(notifications, notification_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
   } else {
-    LOG(INFO) << "Pipe reduce algorithm is used.";
+    LOG(DEBUG) << "Pipe reduce algorithm is used.";
     poll_and_reduce_pipe_impl(notifications, notification_candidates,
                               local_object_ids, object_size, buffer,
                               reduction_id);
@@ -438,8 +439,8 @@ void DistributedObjectStore::poll_and_reduce_pipe_impl(
       DCHECK(address != "")
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
-      LOG(INFO) << "Received notification, address = " << address
-                << ", object_id = " << ready_id.ToString();
+      LOG(DEBUG) << "Received notification, address = " << address
+                 << ", object_id = " << ready_id.ToString();
 
       if (address == my_address_) {
         // move local objects to another address, because there's no
@@ -472,7 +473,7 @@ void DistributedObjectStore::poll_and_reduce_pipe_impl(
   bool reply_ok = false;
   if (node_index == 0) {
     // all the objects are local, we just reduce them locally
-    LOG(INFO) << "All the objects to be reduced are local";
+    LOG(DEBUG) << "All the objects to be reduced are local";
     // TODO: support more reduction types & ops
     reduce_local_objects<float>(local_object_ids, buffer.get());
     local_store_client_.Seal(reduction_id);
@@ -502,7 +503,7 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
   // in a thread.
 
   int rows = round(sqrt(notification_candidates.size()));
-  LOG(INFO) << "number of rows: " << rows;
+  LOG(DEBUG) << "number of rows: " << rows;
 
   std::vector<std::pair<std::string, ObjectID>> lines;
 
@@ -527,8 +528,8 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
       DCHECK(address != "")
           << ready_id.ToString()
           << " location is not ready, but notification is received!";
-      LOG(INFO) << "Received notification, address = " << address
-                << ", object_id = " << ready_id.ToString();
+      LOG(DEBUG) << "Received notification, address = " << address
+                 << ", object_id = " << ready_id.ToString();
 
       if (address == my_address_) {
         // move local objects to another address, because there's no
@@ -597,7 +598,7 @@ void DistributedObjectStore::poll_and_reduce_grid_impl(
 }
 
 void DistributedObjectStore::worker_loop() {
-  LOG(INFO) << "[GprcServer] grpc server " << my_address_ << " started";
+  LOG(DEBUG) << "[GprcServer] grpc server " << my_address_ << " started";
   grpc_server_->Wait();
 }
 
