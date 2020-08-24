@@ -40,27 +40,11 @@ using objectstore::RegisterRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
-class ReducePool {
-public:
-  ReducePool(ssize_t min_reduce_size, ssize_t max_reduce_size)
-      : min_reduce_size_(min_reduce_size), max_reduce_size_(max_reduce_size) {}
-  void AddObjects(const std::vector<ObjectID> &objects) {
-    for (const auto &object : objects) {
-      objects_to_reduce_.insert(object);
-    }
-  }
-
-private:
-  std::unordered_set<ObjectID> objects_to_reduce_;
-  ssize_t min_reduce_size_;
-  ssize_t max_reduce_size_;
-  // TODO: Support more operators
-};
-
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
 public:
-  NotificationServiceImpl(const int port);
+  NotificationServiceImpl(const int notification_listener_port,
+                          const int object_store_port);
 
   grpc::Status Register(grpc::ServerContext *context,
                         const RegisterRequest *request, RegisterReply *reply);
@@ -109,7 +93,10 @@ private:
   bool send_notification(const std::string &receiver_ip,
                          const GetLocationAsyncAnswerRequest &request);
 
-  void create_stub(const std::string &remote_grpc_address);
+  void
+  create_notification_listener_stub(const std::string &remote_grpc_address);
+
+  void create_object_store_stub(const std::string &remote_grpc_address);
 
   // Inband data directory and its atomic lock.
   // TODO: We should implement LRU gabage collection for the inband data
@@ -121,7 +108,8 @@ private:
   std::mutex barrier_mutex_;
   int number_of_nodes_;
   std::unordered_set<std::string> participants_;
-  const int port_;
+  const int notification_listener_port_;
+  const int object_store_port_;
   struct ReceiverQueueElement {
     enum { SYNC, ASYNC, REDUCE_POOL } type;
     // For synchronous recevier
@@ -142,17 +130,32 @@ private:
   std::unordered_map<std::string,
                      std::unique_ptr<objectstore::NotificationListener::Stub>>
       notification_listener_stub_pool_;
+  std::unordered_map<std::string,
+                     std::unique_ptr<objectstore::ObjectStore::Stub>>
+      object_store_stub_pool_;
   std::mutex object_location_mutex_;
   std::unordered_map<ObjectID, std::priority_queue<std::pair<int, std::string>>>
       object_location_store_ready_; // (weight, ip) in priority queue, weight=1
                                     // means finished
   std::unordered_map<ObjectID, size_t> object_size_;
+  struct ReducePool {
+    std::vector<ObjectID> objects_to_reduce;
+    // object_ids and sender IP addresses of ready objects
+    std::vector<std::pair<ObjectID, std::string>> ready_objects;
+    ssize_t reduced_objects_num = 0;
+    ssize_t min_reduce_size;
+    ssize_t max_reduce_size;
+    // TODO: Support more reduce operators
+  };
   // ReducePoolID -> ReducePool
   std::unordered_map<ObjectID, ReducePool> reduce_pools_;
 };
 
-NotificationServiceImpl::NotificationServiceImpl(const int port)
-    : objectstore::NotificationServer::Service(), port_(port) {}
+NotificationServiceImpl::NotificationServiceImpl(
+    const int notification_listener_port, const int object_store_port)
+    : objectstore::NotificationServer::Service(),
+      notification_listener_port_(notification_listener_port),
+      object_store_port_(object_store_port) {}
 
 grpc::Status NotificationServiceImpl::Register(grpc::ServerContext *context,
                                                const RegisterRequest *request,
@@ -218,8 +221,8 @@ grpc::Status NotificationServiceImpl::Connect(grpc::ServerContext *context,
                                               ConnectReply *reply) {
   // Create reverse stub
   std::string sender_address =
-      request->sender_ip() + ":" + std::to_string(port_);
-  create_stub(sender_address);
+      request->sender_ip() + ":" + std::to_string(notification_listener_port_);
+  create_notification_listener_stub(sender_address);
   grpc::ClientContext client_context;
   ConnectListenerRequest connect_request;
   ConnectListenerReply connect_reply;
@@ -317,15 +320,15 @@ grpc::Status NotificationServiceImpl::CreateReducePool(
   DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
       << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
   auto reduce_pool_it =
-      reduce_pools_
-          .emplace(reduce_pool_id, ReducePool(request->min_reduce_size(),
-                                              request->max_reduce_size()))
-          .first;
-  std::vector<ObjectID> object_ids;
-  for (const auto &object_id : request->object_ids()) {
-    object_ids.push_back(ObjectID::FromBinary(object_id));
+      reduce_pools_.emplace(reduce_pool_id, ReducePool()).first;
+  reduce_pool_it->second.min_reduce_size = request->min_reduce_size();
+  reduce_pool_it->second.max_reduce_size = request->max_reduce_size();
+  for (const auto &object_id_binary : request->object_ids()) {
+    ObjectID object_id = ObjectID::FromBinary(object_id_binary);
+    reduce_pool_it->second.objects_to_reduce.push_back(object_id);
+    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement{
+        ReceiverQueueElement::REDUCE_POOl, {}, {}, {}, {}, {}, reduce_pool_id});
   }
-  reduce_pool_it->second.AddObjects(object_ids);
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -337,11 +340,11 @@ grpc::Status NotificationServiceImpl::AddObjectsToReducePool(
   auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
   DCHECK(reduce_pool_it != reduce_pools_.end())
       << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
-  std::vector<ObjectID> object_ids;
   for (const auto &object_id : request->object_ids()) {
-    object_ids.push_back(ObjectID::FromBinary(object_id));
+    reduce_pool_it->second.objects_to_reduce.push_back(object_id);
+    pending_receiver_ips_[object_id].emplace(ReceiverQueueElement{
+        ReceiverQueueElement::REDUCE_POOl, {}, {}, {}, {}, {}, reduce_pool_id});
   }
-  reduce_pool_it->second.AddObjects(object_ids);
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -417,9 +420,16 @@ void NotificationServiceImpl::try_send_notification(
           object->set_object_size(object_size_[object_id]);
           object->set_inband_data(get_inband_data(object_id));
         } break;
-        case ReceiverQueueElement::REDUCE_POOL:
-          // TODO(zhuohan): implement reduce pool;
-          break;
+        case ReceiverQueueElement::REDUCE_POOL: {
+          auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
+          if (reduce_pool_it->second.reduced_objects_num <
+              reduce_pool_it->second.max_reduce_size) {
+            reduce_pool_it->second.ready_objects.emplace_back(object_id,
+                                                              sender_ip);
+            reduce_pool_it->second.reduced_objects_num++;
+            // TODO: Add port to the sender IP & add reduce logic
+          }
+        } break;
         }
       }
     }
@@ -457,8 +467,9 @@ bool NotificationServiceImpl::send_notification(
     const std::string &receiver_ip,
     const GetLocationAsyncAnswerRequest &request) {
   TIMELINE("notification send_notification");
-  auto remote_address = receiver_ip + ":" + std::to_string(port_);
-  create_stub(remote_address);
+  auto remote_address =
+      receiver_ip + ":" + std::to_string(notification_listener_port_);
+  create_notification_listener_stub(remote_address);
   grpc::ClientContext context;
   GetLocationAsyncAnswerReply reply;
   notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
@@ -466,7 +477,7 @@ bool NotificationServiceImpl::send_notification(
   return reply.ok();
 }
 
-void NotificationServiceImpl::create_stub(
+void NotificationServiceImpl::create_notification_listener_stub(
     const std::string &remote_grpc_address) {
   if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
     channel_pool_[remote_grpc_address] = grpc::CreateChannel(
@@ -480,12 +491,30 @@ void NotificationServiceImpl::create_stub(
   }
 }
 
+void NotificationServiceImpl::create_object_store_stub(
+    const std::string &remote_grpc_address) {
+  if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
+    channel_pool_[remote_grpc_address] = grpc::CreateChannel(
+        remote_grpc_address, grpc::InsecureChannelCredentials());
+  }
+  if (object_store_stub_pool_.find(remote_grpc_address) ==
+      object_store_stub_pool_.end()) {
+    object_store_stub_pool_[remote_grpc_address] =
+        objectstore::ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
+  }
+}
+
 NotificationServer::NotificationServer(const std::string &my_address,
-                                       const int grpc_port,
-                                       const int notification_port)
-    : grpc_port_(grpc_port), notification_port_(notification_port),
-      service_(std::make_shared<NotificationServiceImpl>(notification_port)) {
-  std::string grpc_address = my_address + ":" + std::to_string(grpc_port);
+                                       const int notification_server_port,
+                                       const int notification_listener_port,
+                                       const int object_store_port)
+    : notification_server_port_(notification_server_port),
+      notification_listener_port_(notification_listener_port),
+      object_store_port_(object_store_port),
+      service_(std::make_shared<NotificationServiceImpl>(
+          notification_listener_port, object_store_port)) {
+  std::string grpc_address =
+      my_address + ":" + std::to_string(notification_server_port);
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&*service_);

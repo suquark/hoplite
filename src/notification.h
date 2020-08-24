@@ -23,8 +23,9 @@ public:
 private:
   void worker_loop();
 
-  const int grpc_port_;
-  const int notification_port_;
+  const int notification_server_port_;
+  const int notification_client_port_;
+  const int object_store_port_;
 
   std::unique_ptr<grpc::Server> grpc_server_;
   std::shared_ptr<NotificationServiceImpl> service_;

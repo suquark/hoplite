@@ -127,17 +127,17 @@ void ObjectNotifications::ReceiveObjectNotification(
 GlobalControlStoreClient::GlobalControlStoreClient(
     const std::string &notification_server_address,
     const std::string &my_address, int notification_server_port,
-    int notification_listen_port)
+    int notification_listener_port)
     : notification_server_address_(notification_server_address),
       my_address_(my_address),
       notification_server_port_(notification_server_port),
-      notification_listen_port_(notification_listen_port),
+      notification_listener_port_(notification_listener_port),
       notifications_pool_mutex_(std::make_shared<std::mutex>()),
       service_(std::make_shared<NotificationListenerImpl>(
           notifications_pool_, notifications_pool_mutex_)) {
   TIMELINE("GlobalControlStoreClient");
   std::string grpc_address =
-      my_address + ":" + std::to_string(notification_listen_port_);
+      my_address + ":" + std::to_string(notification_listener_port_);
   LOG(INFO) << "grpc_address " << grpc_address;
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
