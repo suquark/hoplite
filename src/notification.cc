@@ -88,41 +88,12 @@ public:
 
   grpc::Status CreateReducePool(grpc::ServerContext *context,
                                 const CreateReducePoolRequest *request,
-                                CreateReducePoolReply *reply) {
-    TIMELINE("notification CreateReducePool");
-    ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
-    DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
-        << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
-    auto reduce_pool_it =
-        reduce_pools_
-            .emplace(reduce_pool_id, ReducePool(request->min_reduce_size(),
-                                                request->max_reduce_size()))
-            .first;
-    std::vector<ObjectID> object_ids;
-    for (const auto &object_id : request->object_ids()) {
-      object_ids.push_back(ObjectID::FromBinary(object_id));
-    }
-    reduce_pool_it->second.AddObjects(object_ids);
-    reply->set_ok(true);
-    return grpc::Status::OK;
-  }
+                                CreateReducePoolReply *reply);
 
   grpc::Status
   AddObjectsToReducePool(grpc::ServerContext *context,
                          const AddObjectsToReducePoolRequest *request,
-                         AddObjectsToReducePoolReply *reply) {
-    ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
-    auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
-    DCHECK(reduce_pool_it != reduce_pools_.end())
-        << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
-    std::vector<ObjectID> object_ids;
-    for (const auto &object_id : request->object_ids()) {
-      object_ids.push_back(ObjectID::FromBinary(object_id));
-    }
-    reduce_pool_it->second.AddObjects(object_ids);
-    reply->set_ok(true);
-    return grpc::Status::OK;
-  }
+                         AddObjectsToReducePoolReply *reply);
 
 private:
   void put_inband_data(const ObjectID &key, const std::string &value);
@@ -133,27 +104,7 @@ private:
 
   void try_send_notification(std::vector<ObjectID> object_ids);
 
-  void push_async_request_into_queue(GetLocationAsyncRequest request) {
-    TIMELINE("notification push_async_request_into_queue");
-    std::lock_guard<std::mutex> guard(object_location_mutex_);
-    std::string receiver_ip = request.receiver_ip();
-    std::string query_id = request.query_id();
-    std::vector<ObjectID> object_ids;
-    // TODO: pass in repeated object ids will send twice.
-    for (auto object_id_it : request.object_ids()) {
-      ObjectID object_id = ObjectID::FromBinary(object_id_it);
-      pending_receiver_ips_[object_id].emplace(
-          ReceiverQueueElement{ReceiverQueueElement::ASYNC,
-                               {},
-                               {},
-                               receiver_ip,
-                               query_id,
-                               request.occupying(),
-                               {}});
-      object_ids.push_back(object_id);
-    }
-    try_send_notification(object_ids);
-  }
+  void push_async_request_into_queue(GetLocationAsyncRequest request);
 
   bool send_notification(const std::string &receiver_ip,
                          const GetLocationAsyncAnswerRequest &request);
@@ -328,12 +279,12 @@ NotificationServiceImpl::GetLocationSync(grpc::ServerContext *context,
       std::make_shared<std::string>();
   pending_receiver_ips_[object_id].emplace(
       ReceiverQueueElement{ReceiverQueueElement::SYNC,
-                            sync_mutex,
-                            result_sender_ip,
-                            {},
-                            {},
-                            request->occupying(),
-                            {}});
+                           sync_mutex,
+                           result_sender_ip,
+                           {},
+                           {},
+                           request->occupying(),
+                           {}});
   try_send_notification({object_id});
   l.unlock();
   sync_mutex->lock();
@@ -354,6 +305,43 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(
   std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this,
                 *request);
   t.detach();
+  reply->set_ok(true);
+  return grpc::Status::OK;
+}
+
+grpc::Status NotificationServiceImpl::CreateReducePool(
+    grpc::ServerContext *context, const CreateReducePoolRequest *request,
+    CreateReducePoolReply *reply) {
+  TIMELINE("notification CreateReducePool");
+  ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
+  DCHECK(reduce_pools_.find(reduce_pool_id) == reduce_pools_.end())
+      << "Reduce pool " << reduce_pool_id.Hex() << " already exists.";
+  auto reduce_pool_it =
+      reduce_pools_
+          .emplace(reduce_pool_id, ReducePool(request->min_reduce_size(),
+                                              request->max_reduce_size()))
+          .first;
+  std::vector<ObjectID> object_ids;
+  for (const auto &object_id : request->object_ids()) {
+    object_ids.push_back(ObjectID::FromBinary(object_id));
+  }
+  reduce_pool_it->second.AddObjects(object_ids);
+  reply->set_ok(true);
+  return grpc::Status::OK;
+}
+
+grpc::Status NotificationServiceImpl::AddObjectsToReducePool(
+    grpc::ServerContext *context, const AddObjectsToReducePoolRequest *request,
+    AddObjectsToReducePoolReply *reply) {
+  ObjectID reduce_pool_id = ObjectID::FromBinary(request->reduce_pool_id());
+  auto reduce_pool_it = reduce_pools_.find(reduce_pool_id);
+  DCHECK(reduce_pool_it != reduce_pools_.end())
+      << "Reduce pool " << reduce_pool_id.Hex() << " does not exist.";
+  std::vector<ObjectID> object_ids;
+  for (const auto &object_id : request->object_ids()) {
+    object_ids.push_back(ObjectID::FromBinary(object_id));
+  }
+  reduce_pool_it->second.AddObjects(object_ids);
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -393,14 +381,13 @@ void NotificationServiceImpl::try_send_notification(
   TIMELINE("notification try_send_notification");
   std::unordered_map<std::string, GetLocationAsyncAnswerRequest> request_pool;
   for (auto &object_id : object_ids) {
-    if (pending_receiver_ips_.find(object_id) !=
-            pending_receiver_ips_.end() &&
+    if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
         object_location_store_ready_.find(object_id) !=
             object_location_store_ready_.end()) {
       // if both the pending receivers queue and pending senders queue are
       // not empty, we can pair the receiver and senders.
       while (!pending_receiver_ips_[object_id].empty() &&
-              !object_location_store_ready_[object_id].empty()) {
+             !object_location_store_ready_[object_id].empty()) {
         std::string sender_ip =
             object_location_store_ready_[object_id].top().second;
         ReceiverQueueElement receiver =
@@ -441,7 +428,7 @@ void NotificationServiceImpl::try_send_notification(
     DCHECK(send_notification(request.first, request.second))
         << "Failed to send notification";
   }
-  }
+}
 
 void NotificationServiceImpl::push_async_request_into_queue(
     GetLocationAsyncRequest request) {
@@ -453,8 +440,14 @@ void NotificationServiceImpl::push_async_request_into_queue(
   // TODO: pass in repeated object ids will send twice.
   for (auto object_id_it : request.object_ids()) {
     ObjectID object_id = ObjectID::FromBinary(object_id_it);
-    pending_receiver_ips_[object_id].push(
-        {false, nullptr, nullptr, receiver_ip, query_id, request.occupying()});
+    pending_receiver_ips_[object_id].emplace(
+        ReceiverQueueElement{ReceiverQueueElement::ASYNC,
+                             {},
+                             {},
+                             receiver_ip,
+                             query_id,
+                             request.occupying(),
+                             {}});
     object_ids.push_back(object_id);
   }
   try_send_notification(object_ids);
