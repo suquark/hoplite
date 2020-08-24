@@ -18,7 +18,7 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-0a483fb9db628acb2 # hoplite-nsdi-8
+    ImageId: ami-0756ff9e23bb59c19 # hoplite-nsdi-9
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
@@ -27,7 +27,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-0a483fb9db628acb2 # hoplite-nsdi-8
+    ImageId: ami-0756ff9e23bb59c19 # hoplite-nsdi-9
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"

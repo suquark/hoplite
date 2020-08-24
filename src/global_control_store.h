@@ -34,9 +34,6 @@ public:
   std::vector<NotificationMessage> GetNotifications(bool delete_after_get,
                                                     bool no_wait = false);
 
-  std::vector<NotificationMessage>
-  GetNotificationsNoWait(bool delete_after_get);
-
   void ReceiveObjectNotification(const ObjectID &object_id,
                                  const std::string &sender_ip,
                                  size_t object_size,
