@@ -16,6 +16,7 @@
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
+#include "util/ctpl_stl.h"
 
 using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
@@ -116,12 +117,15 @@ private:
       object_location_store_ready_; // (weight, ip) in priority queue, weight=1
                                     // means finished
   std::unordered_map<ObjectID, size_t> object_size_;
+  // thread pool for launching tasks
+  ctpl::thread_pool thread_pool_;
 };
 
 NotificationServiceImpl::NotificationServiceImpl(
     const int notification_listener_port)
     : objectstore::NotificationServer::Service(),
-      notification_listener_port_(notification_listener_port) {}
+      notification_listener_port_(notification_listener_port), thread_pool_(1) {
+}
 
 grpc::Status NotificationServiceImpl::Register(grpc::ServerContext *context,
                                                const RegisterRequest *request,
@@ -227,7 +231,9 @@ NotificationServiceImpl::WriteLocation(grpc::ServerContext *context,
   }
   object_location_store_ready_[object_id].push(
       std::make_pair(weight, sender_ip));
-  try_send_notification({object_id});
+  l.unlock();
+  thread_pool_.push(
+      [this, object_id](int id) { try_send_notification({object_id}); });
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -253,8 +259,9 @@ NotificationServiceImpl::GetLocationSync(grpc::ServerContext *context,
                            {},
                            {},
                            request->occupying()});
-  try_send_notification({object_id});
   l.unlock();
+  thread_pool_.push(
+      [this, object_id](int id) { try_send_notification({object_id}); });
   sync_mutex->lock();
   l.lock();
   DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
@@ -270,9 +277,10 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(
     grpc::ServerContext *context, const GetLocationAsyncRequest *request,
     GetLocationAsyncReply *reply) {
   TIMELINE("notification GetLocationAsync");
-  std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this,
-                *request);
-  t.detach();
+  const GetLocationAsyncRequest &request_ref = *request;
+  thread_pool_.push([this, request_ref](int id) {
+    push_async_request_into_queue(request_ref);
+  });
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -310,6 +318,7 @@ std::string NotificationServiceImpl::get_inband_data(const ObjectID &key) {
 void NotificationServiceImpl::try_send_notification(
     std::vector<ObjectID> object_ids) {
   TIMELINE("notification try_send_notification");
+  std::unique_lock<std::mutex> l(object_location_mutex_);
   std::unordered_map<std::string, GetLocationAsyncAnswerRequest> request_pool;
   for (auto &object_id : object_ids) {
     if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
@@ -361,7 +370,7 @@ void NotificationServiceImpl::try_send_notification(
 void NotificationServiceImpl::push_async_request_into_queue(
     GetLocationAsyncRequest request) {
   TIMELINE("notification push_async_request_into_queue");
-  std::lock_guard<std::mutex> guard(object_location_mutex_);
+  std::unique_lock<std::mutex> l(object_location_mutex_);
   std::string receiver_ip = request.receiver_ip();
   std::string query_id = request.query_id();
   std::vector<ObjectID> object_ids;
@@ -377,7 +386,9 @@ void NotificationServiceImpl::push_async_request_into_queue(
                              request.occupying()});
     object_ids.push_back(object_id);
   }
-  try_send_notification(object_ids);
+  l.unlock();
+  thread_pool_.push(
+      [this, object_ids](int id) { try_send_notification(object_ids); });
 }
 
 bool NotificationServiceImpl::send_notification(
