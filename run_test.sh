@@ -22,7 +22,7 @@ if [ ! -f $test_executable_abspath ]; then
     exit -2
 fi
 
-if [ "$#" -eq 3 ]; then
+if [ "$#" -eq 4 ]; then
     # get cluster info
     source $ROOT_DIR/load_cluster_env.sh
     OTHERS_IPADDR=(${OTHERS_IPADDR[@]:0:$(($world_size-1))})
