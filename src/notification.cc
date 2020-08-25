@@ -252,8 +252,7 @@ NotificationServiceImpl::GetLocationSync(grpc::ServerContext *context,
                            result_sender_ip,
                            {},
                            {},
-                           request->occupying(),
-                           {}});
+                           request->occupying()});
   try_send_notification({object_id});
   l.unlock();
   sync_mutex->lock();
@@ -375,8 +374,7 @@ void NotificationServiceImpl::push_async_request_into_queue(
                              {},
                              receiver_ip,
                              query_id,
-                             request.occupying(),
-                             {}});
+                             request.occupying()});
     object_ids.push_back(object_id);
   }
   try_send_notification(object_ids);
