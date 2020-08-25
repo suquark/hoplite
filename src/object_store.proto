@@ -122,9 +122,9 @@ message GetLocationAsyncAnswerRequest {
     bytes sender_ip = 2;
     bytes query_id = 3;
     int64 object_size = 4;
-    bytes inband_data = 5;  
+    bytes inband_data = 5;
   }
-  repeated ObjectInfo objects = 1; 
+  repeated ObjectInfo objects = 1;
 }
 
 message GetLocationAsyncAnswerReply {

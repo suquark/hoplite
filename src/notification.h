@@ -12,8 +12,9 @@ class NotificationServiceImpl;
 
 class NotificationServer {
 public:
-  NotificationServer(const std::string &my_address, const int grpc_port,
-                     const int notification_port);
+  NotificationServer(const std::string &my_address,
+                     const int notification_server_port,
+                     const int notification_listener_port);
 
   std::thread Run() {
     std::thread notification_thread(&NotificationServer::worker_loop, this);
@@ -23,8 +24,8 @@ public:
 private:
   void worker_loop();
 
-  const int grpc_port_;
-  const int notification_port_;
+  const int notification_server_port_;
+  const int notification_listener_port_;
 
   std::unique_ptr<grpc::Server> grpc_server_;
   std::shared_ptr<NotificationServiceImpl> service_;

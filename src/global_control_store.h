@@ -85,7 +85,7 @@ private:
   const std::string &notification_server_address_;
   const std::string &my_address_;
   const int notification_server_port_;
-  const int notification_listen_port_;
+  const int notification_listener_port_;
   std::shared_ptr<grpc::Channel> notification_channel_;
   std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
 

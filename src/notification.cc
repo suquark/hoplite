@@ -16,6 +16,7 @@
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
+#include "util/ctpl_stl.h"
 
 using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
@@ -39,7 +40,7 @@ using objectstore::WriteLocationRequest;
 class NotificationServiceImpl final
     : public objectstore::NotificationServer::Service {
 public:
-  NotificationServiceImpl(const int port);
+  NotificationServiceImpl(const int notification_listener_port);
 
   grpc::Status Register(grpc::ServerContext *context,
                         const RegisterRequest *request, RegisterReply *reply);
@@ -79,7 +80,8 @@ private:
   bool send_notification(const std::string &receiver_ip,
                          const GetLocationAsyncAnswerRequest &request);
 
-  void create_stub(const std::string &remote_grpc_address);
+  void
+  create_notification_listener_stub(const std::string &remote_grpc_address);
 
   // Inband data directory and its atomic lock.
   // TODO: We should implement LRU gabage collection for the inband data
@@ -91,16 +93,20 @@ private:
   std::mutex barrier_mutex_;
   int number_of_nodes_;
   std::unordered_set<std::string> participants_;
-  const int port_;
-  struct receiver_queue_element {
-    bool sync;
+  const int notification_listener_port_;
+  struct ReceiverQueueElement {
+    enum { SYNC, ASYNC } type;
+    // For synchronous recevier
     std::shared_ptr<std::mutex> sync_mutex;
     std::shared_ptr<std::string> result_sender_ip;
+    // For asynchronous receiver
     std::string receiver_ip;
     std::string query_id;
+    // For both synchronous and asynchronous receivers
+    // Whether to delete the reference to the object or not
     bool occupying;
   };
-  std::unordered_map<ObjectID, std::queue<receiver_queue_element>>
+  std::unordered_map<ObjectID, std::queue<ReceiverQueueElement>>
       pending_receiver_ips_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
   std::unordered_map<std::string,
@@ -111,10 +117,15 @@ private:
       object_location_store_ready_; // (weight, ip) in priority queue, weight=1
                                     // means finished
   std::unordered_map<ObjectID, size_t> object_size_;
+  // thread pool for launching tasks
+  ctpl::thread_pool thread_pool_;
 };
 
-NotificationServiceImpl::NotificationServiceImpl(const int port)
-    : objectstore::NotificationServer::Service(), port_(port) {}
+NotificationServiceImpl::NotificationServiceImpl(
+    const int notification_listener_port)
+    : objectstore::NotificationServer::Service(),
+      notification_listener_port_(notification_listener_port), thread_pool_(1) {
+}
 
 grpc::Status NotificationServiceImpl::Register(grpc::ServerContext *context,
                                                const RegisterRequest *request,
@@ -180,8 +191,8 @@ grpc::Status NotificationServiceImpl::Connect(grpc::ServerContext *context,
                                               ConnectReply *reply) {
   // Create reverse stub
   std::string sender_address =
-      request->sender_ip() + ":" + std::to_string(port_);
-  create_stub(sender_address);
+      request->sender_ip() + ":" + std::to_string(notification_listener_port_);
+  create_notification_listener_stub(sender_address);
   grpc::ClientContext client_context;
   ConnectListenerRequest connect_request;
   ConnectListenerReply connect_reply;
@@ -220,7 +231,9 @@ NotificationServiceImpl::WriteLocation(grpc::ServerContext *context,
   }
   object_location_store_ready_[object_id].push(
       std::make_pair(weight, sender_ip));
-  try_send_notification({object_id});
+  l.unlock();
+  thread_pool_.push(
+      [this, object_id](int id) { try_send_notification({object_id}); });
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -239,10 +252,16 @@ NotificationServiceImpl::GetLocationSync(grpc::ServerContext *context,
   sync_mutex->lock();
   std::shared_ptr<std::string> result_sender_ip =
       std::make_shared<std::string>();
-  pending_receiver_ips_[object_id].push(
-      {true, sync_mutex, result_sender_ip, "", "", request->occupying()});
-  try_send_notification({object_id});
+  pending_receiver_ips_[object_id].emplace(
+      ReceiverQueueElement{ReceiverQueueElement::SYNC,
+                           sync_mutex,
+                           result_sender_ip,
+                           {},
+                           {},
+                           request->occupying()});
   l.unlock();
+  thread_pool_.push(
+      [this, object_id](int id) { try_send_notification({object_id}); });
   sync_mutex->lock();
   l.lock();
   DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
@@ -258,9 +277,11 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(
     grpc::ServerContext *context, const GetLocationAsyncRequest *request,
     GetLocationAsyncReply *reply) {
   TIMELINE("notification GetLocationAsync");
-  std::thread t(&NotificationServiceImpl::push_async_request_into_queue, this,
-                *request);
-  t.detach();
+  thread_pool_.push(
+      [this](int id, GetLocationAsyncRequest request) {
+        push_async_request_into_queue(request);
+      },
+      std::move(*request));
   reply->set_ok(true);
   return grpc::Status::OK;
 }
@@ -298,6 +319,7 @@ std::string NotificationServiceImpl::get_inband_data(const ObjectID &key) {
 void NotificationServiceImpl::try_send_notification(
     std::vector<ObjectID> object_ids) {
   TIMELINE("notification try_send_notification");
+  std::unique_lock<std::mutex> l(object_location_mutex_);
   std::unordered_map<std::string, GetLocationAsyncAnswerRequest> request_pool;
   for (auto &object_id : object_ids) {
     if (pending_receiver_ips_.find(object_id) != pending_receiver_ips_.end() &&
@@ -309,7 +331,7 @@ void NotificationServiceImpl::try_send_notification(
              !object_location_store_ready_[object_id].empty()) {
         std::string sender_ip =
             object_location_store_ready_[object_id].top().second;
-        receiver_queue_element receiver =
+        ReceiverQueueElement receiver =
             pending_receiver_ips_[object_id].front();
         if (!has_inband_data(object_id) && receiver.occupying) {
           // In this case, the client will take the ownership
@@ -318,13 +340,15 @@ void NotificationServiceImpl::try_send_notification(
           object_location_store_ready_[object_id].pop();
         }
         pending_receiver_ips_[object_id].pop();
-        if (receiver.sync) {
+        switch (receiver.type) {
+        case ReceiverQueueElement::SYNC: {
           // Reply to synchronous get_lcoation call
           *receiver.result_sender_ip = sender_ip;
           DCHECK(!receiver.sync_mutex->try_lock())
               << "sync_mutex should be locked";
           receiver.sync_mutex->unlock();
-        } else {
+        } break;
+        case ReceiverQueueElement::ASYNC: {
           // Batching replies to asynchronous get_lcoation call
           GetLocationAsyncAnswerRequest::ObjectInfo *object =
               request_pool[receiver.receiver_ip].add_objects();
@@ -333,6 +357,7 @@ void NotificationServiceImpl::try_send_notification(
           object->set_query_id(receiver.query_id);
           object->set_object_size(object_size_[object_id]);
           object->set_inband_data(get_inband_data(object_id));
+        } break;
         }
       }
     }
@@ -346,26 +371,34 @@ void NotificationServiceImpl::try_send_notification(
 void NotificationServiceImpl::push_async_request_into_queue(
     GetLocationAsyncRequest request) {
   TIMELINE("notification push_async_request_into_queue");
-  std::lock_guard<std::mutex> guard(object_location_mutex_);
+  std::unique_lock<std::mutex> l(object_location_mutex_);
   std::string receiver_ip = request.receiver_ip();
   std::string query_id = request.query_id();
   std::vector<ObjectID> object_ids;
   // TODO: pass in repeated object ids will send twice.
   for (auto object_id_it : request.object_ids()) {
     ObjectID object_id = ObjectID::FromBinary(object_id_it);
-    pending_receiver_ips_[object_id].push(
-        {false, nullptr, nullptr, receiver_ip, query_id, request.occupying()});
+    pending_receiver_ips_[object_id].emplace(
+        ReceiverQueueElement{ReceiverQueueElement::ASYNC,
+                             {},
+                             {},
+                             receiver_ip,
+                             query_id,
+                             request.occupying()});
     object_ids.push_back(object_id);
   }
-  try_send_notification(object_ids);
+  l.unlock();
+  thread_pool_.push(
+      [this, object_ids](int id) { try_send_notification(object_ids); });
 }
 
 bool NotificationServiceImpl::send_notification(
     const std::string &receiver_ip,
     const GetLocationAsyncAnswerRequest &request) {
   TIMELINE("notification send_notification");
-  auto remote_address = receiver_ip + ":" + std::to_string(port_);
-  create_stub(remote_address);
+  auto remote_address =
+      receiver_ip + ":" + std::to_string(notification_listener_port_);
+  create_notification_listener_stub(remote_address);
   grpc::ClientContext context;
   GetLocationAsyncAnswerReply reply;
   notification_listener_stub_pool_[remote_address]->GetLocationAsyncAnswer(
@@ -373,7 +406,7 @@ bool NotificationServiceImpl::send_notification(
   return reply.ok();
 }
 
-void NotificationServiceImpl::create_stub(
+void NotificationServiceImpl::create_notification_listener_stub(
     const std::string &remote_grpc_address) {
   if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
     channel_pool_[remote_grpc_address] = grpc::CreateChannel(
@@ -388,11 +421,14 @@ void NotificationServiceImpl::create_stub(
 }
 
 NotificationServer::NotificationServer(const std::string &my_address,
-                                       const int grpc_port,
-                                       const int notification_port)
-    : grpc_port_(grpc_port), notification_port_(notification_port),
-      service_(std::make_shared<NotificationServiceImpl>(notification_port)) {
-  std::string grpc_address = my_address + ":" + std::to_string(grpc_port);
+                                       const int notification_server_port,
+                                       const int notification_listener_port)
+    : notification_server_port_(notification_server_port),
+      notification_listener_port_(notification_listener_port),
+      service_(std::make_shared<NotificationServiceImpl>(
+          notification_listener_port)) {
+  std::string grpc_address =
+      my_address + ":" + std::to_string(notification_server_port);
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&*service_);
