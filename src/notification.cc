@@ -30,10 +30,6 @@ using objectstore::GetLocationAsyncReply;
 using objectstore::GetLocationAsyncRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
-using objectstore::IsReadyReply;
-using objectstore::IsReadyRequest;
-using objectstore::RegisterReply;
-using objectstore::RegisterRequest;
 using objectstore::BarrierReply;
 using objectstore::BarrierRequest;
 using objectstore::WriteLocationReply;
@@ -46,12 +42,6 @@ public:
 
   grpc::Status Register(grpc::ServerContext *context,
                         const RegisterRequest *request, RegisterReply *reply);
-
-  grpc::Status IsReady(grpc::ServerContext *context,
-                       const IsReadyRequest *request, IsReadyReply *reply);
-
-  grpc::Status Barrier(grpc::ServerContext *context,
-                       const BarrierRequest *request, BarrierReply *reply);
 
   grpc::Status Exit(grpc::ServerContext *context, const ExitRequest *request,
                     ExitReply *reply);
@@ -96,11 +86,9 @@ private:
   std::atomic_flag directory_lock_ = ATOMIC_FLAG_INIT;
 
   std::mutex barrier_mutex_;
-  int number_of_nodes_;
-  std::unordered_set<std::string> participants_;
   std::atomic<int> barrier_arrive_counter_;
   std::atomic<int> barrier_leave_counter_;
-  int barrier_flag_;
+
   const int notification_listener_port_;
   struct ReceiverQueueElement {
     enum { SYNC, ASYNC } type;
@@ -135,42 +123,6 @@ NotificationServiceImpl::NotificationServiceImpl(
       notification_listener_port_(notification_listener_port), thread_pool_(1) {
 }
 
-grpc::Status NotificationServiceImpl::Register(grpc::ServerContext *context,
-                                               const RegisterRequest *request,
-                                               RegisterReply *reply) {
-  std::lock_guard<std::mutex> guard(barrier_mutex_);
-  number_of_nodes_ = request->num_of_nodes();
-  participants_.clear();
-  reply->set_ok(true);
-  return grpc::Status::OK;
-}
-
-grpc::Status NotificationServiceImpl::IsReady(grpc::ServerContext *context,
-                                              const IsReadyRequest *request,
-                                              IsReadyReply *reply) {
-  {
-    std::lock_guard<std::mutex> guard(barrier_mutex_);
-    participants_.insert(request->ip());
-    LOG(INFO) << "Number of participants = " << participants_.size();
-    for (auto &node : participants_) {
-      LOG(INFO) << "participants " << node;
-    }
-  }
-  while (true) {
-    {
-      std::lock_guard<std::mutex> guard(barrier_mutex_);
-      if (participants_.size() == number_of_nodes_) {
-        break;
-      }
-    }
-    usleep(1);
-  }
-
-  reply->set_ok(true);
-  LOG(ERROR) << "barrier exits";
-  return grpc::Status::OK;
-}
-
 grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
                                                const BarrierRequest *request,
                                                BarrierReply *reply) {
@@ -182,29 +134,6 @@ grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
   barrier_arrive_counter_--;
   while(barrier_arrive_counter_ > 0);
   barrier_leave_counter_--;
-  return grpc::Status::OK;
-}
-
-grpc::Status NotificationServiceImpl::Exit(grpc::ServerContext *context,
-                                           const ExitRequest *request,
-                                           ExitReply *reply) {
-  {
-    std::lock_guard<std::mutex> guard(barrier_mutex_);
-    participants_.erase(request->ip());
-    LOG(INFO) << "Participant " << request->ip() << " wants to exit! "
-              << participants_.size() << " nodes remaining!";
-  }
-
-  while (true) {
-    {
-      std::lock_guard<std::mutex> guard(barrier_mutex_);
-      if (participants_.empty()) {
-        break;
-      }
-    }
-    usleep(1);
-  }
-  LOG(INFO) << "Participant " << request->ip() << " exited!";
   return grpc::Status::OK;
 }
 

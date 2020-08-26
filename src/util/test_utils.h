@@ -16,59 +16,11 @@
 #include "logging.h"
 #include "object_store.grpc.pb.h"
 
-using objectstore::IsReadyReply;
-using objectstore::IsReadyRequest;
-using objectstore::RegisterReply;
-using objectstore::RegisterRequest;
 using objectstore::BarrierReply;
 using objectstore::BarrierRequest;
 
-void register_group(const std::string &redis_address,
-                    const int notification_port, const int num_of_nodes) {
-  TIMELINE("register_group");
-  auto remote_address = redis_address + ":" + std::to_string(notification_port);
-  auto channel =
-      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
-      objectstore::NotificationServer::NewStub(channel));
-  grpc::ClientContext context;
-  RegisterRequest request;
-  RegisterReply reply;
-  request.set_num_of_nodes(num_of_nodes);
-  auto status = stub->Register(&context, request, &reply);
-  DCHECK(status.ok()) << "Group registeration gRPC failure!";
-  DCHECK(reply.ok()) << "Group registeration failure!";
-}
-
-void is_ready(const std::string &redis_address, const int notification_port,
-              const std::string &my_address) {
-  TIMELINE("is_ready");
-  auto remote_address = redis_address + ":" + std::to_string(notification_port);
-  auto channel =
-      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
-      objectstore::NotificationServer::NewStub(channel));
-  grpc::ClientContext context;
-  IsReadyRequest request;
-  IsReadyReply reply;
-  request.set_ip(my_address);
-  auto status = stub->IsReady(&context, request, &reply);
-  DCHECK(status.ok()) << "IsReady gRPC failure!";
-  DCHECK(reply.ok()) << "Synchronization failure!";
-}
-
-void barrier(const int rank, const std::string &redis_address,
-             const int notification_port, const int num_of_nodes,
-             const std::string &my_address) {
+void barrier(const std::string &redis_address, const int notification_port, const int num_of_nodes) {
   TIMELINE("barrier");
-  if (rank == 0) {
-    register_group(redis_address, notification_port, num_of_nodes);
-  }
-  is_ready(redis_address, notification_port, my_address);
-}
-
-void barrier_new(const std::string &redis_address, const int notification_port, const int num_of_nodes) {
-  TIMELINE("barrier_new");
   auto remote_address = redis_address + ":" + std::to_string(notification_port);
   auto channel =
       grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
