@@ -277,10 +277,11 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(
     grpc::ServerContext *context, const GetLocationAsyncRequest *request,
     GetLocationAsyncReply *reply) {
   TIMELINE("notification GetLocationAsync");
-  const GetLocationAsyncRequest &request_ref = *request;
-  thread_pool_.push([this, request_ref](int id) {
-    push_async_request_into_queue(request_ref);
-  });
+  thread_pool_.push(
+      [this](int id, GetLocationAsyncRequest request) {
+        push_async_request_into_queue(request);
+      },
+      std::move(*request));
   reply->set_ok(true);
   return grpc::Status::OK;
 }
