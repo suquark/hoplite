@@ -65,6 +65,21 @@ void barrier(const int rank, const std::string &redis_address,
   is_ready(redis_address, notification_port, my_address);
 }
 
+void barrier_new(const std::string &redis_address, const int notification_port, const int num_of_nodes) {
+  TIMELINE("barrier_new");
+  auto remote_address = redis_address + ":" + std::to_string(notification_port);
+  auto channel =
+      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
+      objectstore::NotificationServer::NewStub(channel));
+  grpc::ClientContext context;
+  BarrierRequest request;
+  BarrierReply reply;
+  request.set_num_of_nodes(num_of_nodes);
+  auto status = stub->Barrier(&context, request, &reply);
+  DCHECK(status.ok()) << "Barrier gRPC failure!";
+}
+
 float get_uniform_random_float(const std::string &seed_str) {
   std::seed_seq seed(seed_str.begin(), seed_str.end());
   std::default_random_engine eng{seed};

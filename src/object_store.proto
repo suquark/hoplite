@@ -80,6 +80,13 @@ message IsReadyReply {
   bool ok = 1;
 }
 
+message BarrierRequest {
+  int32 num_of_nodes = 1;
+}
+
+message BarrierReply {
+}
+
 message WriteLocationRequest {
   bytes object_id = 1;
   bytes sender_ip = 2;
@@ -152,6 +159,7 @@ message ExitReply {
 service NotificationServer {
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc IsReady(IsReadyRequest) returns (IsReadyReply);
+  rpc Barrier(BarrierRequest) returns (BarrierReply);
   rpc Exit(ExitRequest) returns (ExitReply);
   rpc Connect(ConnectRequest) returns (ConnectReply);
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);

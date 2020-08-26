@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     std::shared_ptr<Buffer> reduction_result;
 
     put_random_buffer<float>(store, rank_object_id, object_size);
-    barrier(rank, redis_address, 7777, world_size, my_address);
+    barrier_new(rank, redis_address, 7777, world_size, my_address);
 
     auto start = std::chrono::system_clock::now();
     if (rank == 0) {

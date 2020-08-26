@@ -48,6 +48,9 @@ public:
   grpc::Status IsReady(grpc::ServerContext *context,
                        const IsReadyRequest *request, IsReadyReply *reply);
 
+  grpc::Status Barrier(grpc::ServerContext *context,
+                       const IsReadyRequest *request, IsReadyReply *reply);
+
   grpc::Status Exit(grpc::ServerContext *context, const ExitRequest *request,
                     ExitReply *reply);
 
@@ -93,6 +96,9 @@ private:
   std::mutex barrier_mutex_;
   int number_of_nodes_;
   std::unordered_set<std::string> participants_;
+  std::atomic<int> barrier_arrive_counter_;
+  std::atomic<int> barrier_leave_counter_;
+  int barrier_flag_;
   const int notification_listener_port_;
   struct ReceiverQueueElement {
     enum { SYNC, ASYNC } type;
@@ -160,6 +166,24 @@ grpc::Status NotificationServiceImpl::IsReady(grpc::ServerContext *context,
 
   reply->set_ok(true);
   LOG(ERROR) << "barrier exits";
+  return grpc::Status::OK;
+}
+
+grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
+                                               const BarrierRequest *request,
+                                               BarrierReply *reply) {
+  int n_nodes = request->num_of_nodes();
+  std::lock_guard<std::mutex> l(barrier_mutex_);
+  if (barier_leave_counter_ == n_nodes) {
+    if (barrier_arrive_counter_ == 0) {
+      barrier_flag_ = 0;
+    } else {
+      l.unlock();
+      while (barrier_leave_counter_ != p);
+      l.lock();
+      barrier_flag_ = 0;
+    }
+  }
   return grpc::Status::OK;
 }
 
