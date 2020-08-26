@@ -175,17 +175,13 @@ grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
                                                const BarrierRequest *request,
                                                BarrierReply *reply) {
   int n_nodes = request->num_of_nodes();
-  std::lock_guard<std::mutex> l(barrier_mutex_);
-  if (barier_leave_counter_ == n_nodes) {
-    if (barrier_arrive_counter_ == 0) {
-      barrier_flag_ = 0;
-    } else {
-      l.unlock();
-      while (barrier_leave_counter_ != p);
-      l.lock();
-      barrier_flag_ = 0;
-    }
-  }
+  barrier_arrive_counter_++;
+  while(barrier_arrive_counter_ < n_nodes);
+  barrier_leave_counter_++;
+  while(barrier_leave_counter_ < n_nodes);
+  barrier_arrive_counter_--;
+  while(barrier_arrive_counter_ > 0);
+  barrier_leave_counter_--;
   return grpc::Status::OK;
 }
 
