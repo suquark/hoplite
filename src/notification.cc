@@ -84,8 +84,8 @@ private:
   std::atomic_flag directory_lock_ = ATOMIC_FLAG_INIT;
 
   std::mutex barrier_mutex_;
-  std::atomic<int> barrier_arrive_counter_;
-  std::atomic<int> barrier_leave_counter_;
+  std::atomic<int> barrier_arrive_counter_ = 0;
+  std::atomic<int> barrier_leave_counter_ = 0;
 
   const int notification_listener_port_;
   struct ReceiverQueueElement {
