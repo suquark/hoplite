@@ -51,7 +51,7 @@ public:
                        const IsReadyRequest *request, IsReadyReply *reply);
 
   grpc::Status Barrier(grpc::ServerContext *context,
-                       const IsReadyRequest *request, IsReadyReply *reply);
+                       const BarrierRequest *request, BarrierReply *reply);
 
   grpc::Status Exit(grpc::ServerContext *context, const ExitRequest *request,
                     ExitReply *reply);
