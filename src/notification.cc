@@ -40,7 +40,7 @@ class NotificationServiceImpl final
 public:
   NotificationServiceImpl(const int notification_listener_port);
 
-grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
+  grpc::Status Barrier(grpc::ServerContext *context,
                                                const BarrierRequest *request,
                                                BarrierReply *reply);
 
