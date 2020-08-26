@@ -34,6 +34,8 @@ using objectstore::IsReadyReply;
 using objectstore::IsReadyRequest;
 using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
+using objectstore::BarrierReply;
+using objectstore::BarrierRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
