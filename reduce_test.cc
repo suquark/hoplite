@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   std::thread exit_thread(timed_exit, 20);
 
   for (int trial = 0; trial < n_trials; trial++) {
-    ObjectID reduction_id = object_id_from_suffix(trial * 1000000 + 99999);
+    ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
     std::vector<ObjectID> object_ids;
     float sum = 0;
     for (int i = 0; i < world_size; i++) {
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 
     put_random_buffer<float>(store, rank_object_id, object_size);
 
-    barrier(rank, redis_address, 7777);
+    barrier(redis_address, 7777, world_size);
 
     if (rank == 0) {
       auto start = std::chrono::system_clock::now();
