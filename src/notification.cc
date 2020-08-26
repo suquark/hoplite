@@ -84,8 +84,8 @@ private:
   std::atomic_flag directory_lock_ = ATOMIC_FLAG_INIT;
 
   std::mutex barrier_mutex_;
-  std::atomic<int> barrier_arrive_counter_ = 0;
-  std::atomic<int> barrier_leave_counter_ = 0;
+  std::atomic<int> barrier_arrive_counter_;
+  std::atomic<int> barrier_leave_counter_;
 
   const int notification_listener_port_;
   struct ReceiverQueueElement {
@@ -118,7 +118,7 @@ private:
 NotificationServiceImpl::NotificationServiceImpl(
     const int notification_listener_port)
     : objectstore::NotificationServer::Service(),
-      notification_listener_port_(notification_listener_port), thread_pool_(1) {
+      notification_listener_port_(notification_listener_port), thread_pool_(1), barrier_arrive_counter_(0), barrier_leave_counter_(0) {
 }
 
 grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
