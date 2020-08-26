@@ -20,6 +20,8 @@ using objectstore::IsReadyReply;
 using objectstore::IsReadyRequest;
 using objectstore::RegisterReply;
 using objectstore::RegisterRequest;
+using objectstore::BarrierReply;
+using objectstore::BarrierRequest;
 
 void register_group(const std::string &redis_address,
                     const int notification_port, const int num_of_nodes) {
