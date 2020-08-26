@@ -40,11 +40,9 @@ class NotificationServiceImpl final
 public:
   NotificationServiceImpl(const int notification_listener_port);
 
-  grpc::Status Register(grpc::ServerContext *context,
-                        const RegisterRequest *request, RegisterReply *reply);
-
-  grpc::Status Exit(grpc::ServerContext *context, const ExitRequest *request,
-                    ExitReply *reply);
+grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
+                                               const BarrierRequest *request,
+                                               BarrierReply *reply);
 
   grpc::Status Connect(grpc::ServerContext *context,
                        const ConnectRequest *request, ConnectReply *reply);
