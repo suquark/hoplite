@@ -64,20 +64,11 @@ message ObjectWriterRequest {
 
 // Notification Protocol
 
-message RegisterRequest {
+message BarrierRequest {
   int32 num_of_nodes = 1;
 }
 
-message RegisterReply {
-  bool ok = 1;
-}
-
-message IsReadyRequest {
-  bytes ip = 1;
-}
-
-message IsReadyReply {
-  bool ok = 1;
+message BarrierReply {
 }
 
 message WriteLocationRequest {
@@ -150,8 +141,7 @@ message ExitReply {
 }
 
 service NotificationServer {
-  rpc Register(RegisterRequest) returns (RegisterReply);
-  rpc IsReady(IsReadyRequest) returns (IsReadyReply);
+  rpc Barrier(BarrierRequest) returns (BarrierReply);
   rpc Exit(ExitRequest) returns (ExitReply);
   rpc Connect(ConnectRequest) returns (ConnectReply);
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
