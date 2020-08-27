@@ -5,7 +5,8 @@
 #define HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
 
 // Enable ACK for sending/receiving buffers. Usually used for debugging.
-// #define HOPLITE_ENABLE_ACK
+// FIXME(suquark): Disable ACK would cause numeric mismatch.
+#define HOPLITE_ENABLE_ACK
 
 // The constant for RPC latency (in seconds)
 #define HOPLITE_RPC_LATENCY (750 * 1e-6)
