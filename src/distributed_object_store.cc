@@ -101,30 +101,30 @@ bool DistributedObjectStore::InvokeReduceTo(
   TIMELINE("GrpcServer::InvokeReduceTo");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
-  (void)pool_.push([=](int id) {
-    grpc::ClientContext context;
-    ReduceToRequest request;
-    ReduceToReply reply;
-
-    request.set_reduction_id(reduction_id.Binary());
-    for (auto &object_id : dst_object_ids) {
-      request.add_dst_object_ids(object_id.Binary());
-    }
-    request.set_dst_address(dst_address);
-    request.set_is_endpoint(is_endpoint);
-    if (src_object_id != nullptr) {
-      request.set_src_object_id(src_object_id->Binary());
-    }
-    auto stub = get_stub(remote_grpc_address);
-    TIMELINE("GrpcServer::InvokeReduceTo[stub->ReduceTo]");
-    auto status = stub->ReduceTo(&context, request, &reply);
-    DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
-                        << remote_grpc_address
-                        << ", message: " << status.error_message()
-                        << ", details = " << status.error_code();
-
-    DCHECK(reply.ok());
-  });
+  ReduceToRequest request;
+  request.set_reduction_id(reduction_id.Binary());
+  for (auto &object_id : dst_object_ids) {
+    request.add_dst_object_ids(object_id.Binary());
+  }
+  request.set_dst_address(dst_address);
+  request.set_is_endpoint(is_endpoint);
+  if (src_object_id != nullptr) {
+    request.set_src_object_id(src_object_id->Binary());
+  }
+  (void)pool_.push(
+      [this](int id, std::string remote_grpc_address, ReduceToRequest request) {
+        grpc::ClientContext context;
+        ReduceToReply reply;
+        auto stub = get_stub(remote_grpc_address);
+        TIMELINE("GrpcServer::InvokeReduceTo[stub->ReduceTo]");
+        auto status = stub->ReduceTo(&context, request, &reply);
+        DCHECK(status.ok())
+            << "[GrpcServer] ReduceTo failed at remote address:"
+            << remote_grpc_address << ", message: " << status.error_message()
+            << ", details = " << status.error_code();
+        DCHECK(reply.ok());
+      },
+      std::move(remote_grpc_address), std::move(request));
   return true;
 }
 
@@ -134,23 +134,26 @@ bool DistributedObjectStore::InvokeRedirectReduce(
   TIMELINE("GrpcServer::InvokeRedirectReduce");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
-  (void)pool_.push([=](int id) {
-    grpc::ClientContext context;
-    RedirectReduceRequest request;
-    RedirectReduceReply reply;
-    request.set_reduction_id(reduction_id.Binary());
-    for (const auto &object_id : object_ids) {
-      request.add_object_ids(object_id.Binary());
-    }
-    auto stub = get_stub(remote_grpc_address);
-    TIMELINE("GrpcServer::InvokeRedirectReduce[stub->RedirectReduce]");
-    auto status = stub->RedirectReduce(&context, request, &reply);
-    DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
-                        << remote_grpc_address
-                        << ", message: " << status.error_message()
-                        << ", details = " << status.error_code();
-    DCHECK(reply.ok());
-  });
+  RedirectReduceRequest request;
+  request.set_reduction_id(reduction_id.Binary());
+  for (const auto &object_id : object_ids) {
+    request.add_object_ids(object_id.Binary());
+  }
+  (void)pool_.push(
+      [this](int id, std::string remote_grpc_address,
+             RedirectReduceRequest request) {
+        grpc::ClientContext context;
+        RedirectReduceReply reply;
+        auto stub = get_stub(remote_grpc_address);
+        TIMELINE("GrpcServer::InvokeRedirectReduce[stub->RedirectReduce]");
+        auto status = stub->RedirectReduce(&context, request, &reply);
+        DCHECK(status.ok())
+            << "[GrpcServer] ReduceTo failed at remote address:"
+            << remote_grpc_address << ", message: " << status.error_message()
+            << ", details = " << status.error_code();
+        DCHECK(reply.ok());
+      },
+      std::move(remote_grpc_address), std::move(request));
   return true;
 }
 
