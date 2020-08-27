@@ -20,6 +20,7 @@
 #include "object_sender.h"
 #include "object_store_state.h"
 #include "object_writer.h"
+#include "util/ctpl_stl.h"
 
 class ObjectStoreServiceImpl;
 
@@ -154,6 +155,8 @@ private:
   void create_stub(const std::string &remote_grpc_address);
   // the thread running the gRPC service
   std::thread object_control_thread_;
+  // a thread pool for submitting gRPC calls
+  ctpl::thread_pool pool_;
 
   ////////////////////////////////////////////////////////////////////////////////
   // Own data fields of the object store

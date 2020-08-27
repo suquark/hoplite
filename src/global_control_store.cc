@@ -134,7 +134,8 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       notification_listener_port_(notification_listener_port),
       notifications_pool_mutex_(std::make_shared<std::mutex>()),
       service_(std::make_shared<NotificationListenerImpl>(
-          notifications_pool_, notifications_pool_mutex_)) {
+          notifications_pool_, notifications_pool_mutex_)),
+      pool_(2) {
   TIMELINE("GlobalControlStoreClient");
   std::string grpc_address =
       my_address + ":" + std::to_string(notification_listener_port_);
@@ -172,9 +173,10 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
   TIMELINE("GlobalControlStoreClient::WriteLocation");
   LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip << ".";
-  grpc::ClientContext context;
+  // FIXME(suquark): Figure out why running `WriteLocation` in a thread pool
+  // would fail when we are running multicast repeatly with certain object sizes
+  // (65K~300K).
   WriteLocationRequest request;
-  WriteLocationReply reply;
   request.set_object_id(object_id.Binary());
   request.set_sender_ip(sender_ip);
   request.set_finished(finished);
@@ -184,10 +186,14 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
       inband_data != nullptr) {
     request.set_inband_data(inband_data, object_size);
   }
-  auto status = notification_stub_->WriteLocation(&context, request, &reply);
-  DCHECK(status.ok()) << status.error_message();
-  DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
-                     << " failed.";
+  pool_.push([this, object_id](int id, WriteLocationRequest request) {
+    grpc::ClientContext context;
+    WriteLocationReply reply;
+    auto status = notification_stub_->WriteLocation(&context, request, &reply);
+    DCHECK(status.ok()) << status.error_message();
+    DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
+                       << " failed.";
+  }, std::move(request));
 }
 
 SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
@@ -213,17 +219,20 @@ std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
     std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
     notifications_pool_[query_id] = notifications;
   }
-  grpc::ClientContext context;
   GetLocationAsyncRequest request;
-  GetLocationAsyncReply reply;
   request.set_receiver_ip(my_address_);
   request.set_query_id(query_id);
   request.set_occupying(occupying);
   for (auto object_id : object_ids) {
     request.add_object_ids(object_id.Binary());
   }
-  notification_stub_->GetLocationAsync(&context, request, &reply);
-  DCHECK(reply.ok()) << "GetLocationAsync failed.";
+
+  (void)pool_.push([this](int id, GetLocationAsyncRequest request) {
+    grpc::ClientContext context;
+    GetLocationAsyncReply reply;
+    notification_stub_->GetLocationAsync(&context, request, &reply);
+    DCHECK(reply.ok()) << "GetLocationAsync failed.";
+  }, std::move(request));
   return notifications;
 }
 
