@@ -5,7 +5,7 @@ with open("result.txt", "wb") as f:
         for world_size in (4, 8, 12, 16):
             for object_size in (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30):
                 process = Popen(["python", "dask_benchmark.py",
-                        algorithm, "-n", world_size, "-s"], stdout=PIPE)
+                        algorithm, "-n", str(world_size), "-s", str(object_size)], stdout=PIPE)
                 (output, err) = process.communicate()
                 exit_code = process.wait()
                 print(algorithm, world_size, object_size, float(output))
