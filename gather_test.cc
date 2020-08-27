@@ -60,6 +60,5 @@ int main(int argc, char **argv) {
   }
 
   barrier(redis_address, 7777, world_size);
-  store.join_tasks();
   return 0;
 }
