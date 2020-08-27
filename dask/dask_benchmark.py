@@ -90,4 +90,4 @@ def main(algorithm, world_size, object_size):
 
 
 if __name__ == "__main__":
-    pass
+    main(args.algorithm, args.world_size, args.object_size)
