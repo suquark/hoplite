@@ -6,7 +6,7 @@ tables = []
 for i in range(1, 100):
     filename = f"result-{i}.csv"
     if os.path.exists(filename):
-        tables.append(pd.read_csv(filename), header=None)
+        tables.append(pd.read_csv(filename, header=None))
     else:
         break
 
