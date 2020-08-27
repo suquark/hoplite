@@ -19,7 +19,8 @@
 using objectstore::BarrierReply;
 using objectstore::BarrierRequest;
 
-void barrier(const std::string &redis_address, const int notification_port, const int num_of_nodes) {
+void barrier(const std::string &redis_address, const int notification_port,
+             const int num_of_nodes) {
   TIMELINE("barrier");
   auto remote_address = redis_address + ":" + std::to_string(notification_port);
   auto channel =

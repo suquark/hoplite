@@ -18,6 +18,8 @@
 #include "object_store.grpc.pb.h"
 #include "util/ctpl_stl.h"
 
+using objectstore::BarrierReply;
+using objectstore::BarrierRequest;
 using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
@@ -30,8 +32,6 @@ using objectstore::GetLocationAsyncReply;
 using objectstore::GetLocationAsyncRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
-using objectstore::BarrierReply;
-using objectstore::BarrierRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -41,8 +41,7 @@ public:
   NotificationServiceImpl(const int notification_listener_port);
 
   grpc::Status Barrier(grpc::ServerContext *context,
-                                               const BarrierRequest *request,
-                                               BarrierReply *reply);
+                       const BarrierRequest *request, BarrierReply *reply);
 
   grpc::Status Connect(grpc::ServerContext *context,
                        const ConnectRequest *request, ConnectReply *reply);
@@ -118,19 +117,22 @@ private:
 NotificationServiceImpl::NotificationServiceImpl(
     const int notification_listener_port)
     : objectstore::NotificationServer::Service(),
-      notification_listener_port_(notification_listener_port), thread_pool_(1), barrier_arrive_counter_(0), barrier_leave_counter_(0) {
-}
+      notification_listener_port_(notification_listener_port), thread_pool_(1),
+      barrier_arrive_counter_(0), barrier_leave_counter_(0) {}
 
 grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
-                                               const BarrierRequest *request,
-                                               BarrierReply *reply) {
+                                              const BarrierRequest *request,
+                                              BarrierReply *reply) {
   int n_nodes = request->num_of_nodes();
   barrier_arrive_counter_++;
-  while(barrier_arrive_counter_ < n_nodes);
+  while (barrier_arrive_counter_ < n_nodes)
+    ;
   barrier_leave_counter_++;
-  while(barrier_leave_counter_ < n_nodes);
+  while (barrier_leave_counter_ < n_nodes)
+    ;
   barrier_arrive_counter_--;
-  while(barrier_arrive_counter_ > 0);
+  while (barrier_arrive_counter_ > 0)
+    ;
   barrier_leave_counter_--;
   return grpc::Status::OK;
 }
