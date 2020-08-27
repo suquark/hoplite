@@ -123,6 +123,7 @@ NotificationServiceImpl::NotificationServiceImpl(
 grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context,
                                               const BarrierRequest *request,
                                               BarrierReply *reply) {
+  TIMELINE("Barrier Loop");
   int n_nodes = request->num_of_nodes();
   barrier_arrive_counter_++;
   while (barrier_arrive_counter_ < n_nodes)

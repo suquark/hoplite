@@ -176,9 +176,7 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
   // FIXME(suquark): Figure out why running `WriteLocation` in a thread pool
   // would fail when we are running multicast repeatly with certain object sizes
   // (65K~300K).
-  grpc::ClientContext context;
   WriteLocationRequest request;
-  WriteLocationReply reply;
   request.set_object_id(object_id.Binary());
   request.set_sender_ip(sender_ip);
   request.set_finished(finished);
@@ -188,10 +186,14 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
       inband_data != nullptr) {
     request.set_inband_data(inband_data, object_size);
   }
-  auto status = notification_stub_->WriteLocation(&context, request, &reply);
-  DCHECK(status.ok()) << status.error_message();
-  DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
-                     << " failed.";
+  pool_.push([this, object_id](int id, WriteLocationRequest request) {
+    grpc::ClientContext context;
+    WriteLocationReply reply;
+    auto status = notification_stub_->WriteLocation(&context, request, &reply);
+    DCHECK(status.ok()) << status.error_message();
+    DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
+                       << " failed.";
+  }, std::move(request));
 }
 
 SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
@@ -224,6 +226,7 @@ std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
   for (auto object_id : object_ids) {
     request.add_object_ids(object_id.Binary());
   }
+
   (void)pool_.push([this](int id, GetLocationAsyncRequest request) {
     grpc::ClientContext context;
     GetLocationAsyncReply reply;
