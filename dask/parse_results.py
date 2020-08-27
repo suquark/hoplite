@@ -10,7 +10,7 @@ for i in range(1, 100):
     else:
         break
 
-df_avg = pd.concat(tables).groupby(by=[0, 1, 2]).std()
+df_avg = pd.concat(tables).groupby(by=[0, 1, 2]).mean()
 df_std = pd.concat(tables).groupby(by=[0, 1, 2]).std()
 df_final = pd.concat([df_avg, df_std], axis=1)
 df_final.to_csv("all_results.csv", header=False)
