@@ -24,7 +24,7 @@ def barrier(notification_address, notification_port, world_size):
     reply = stub.Register(request)
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed']).encode().rjust(20, b'\0'))
     object_id2 = ray.ObjectID(str(args_dict['seed'] + 1).encode().rjust(20, b'\0'))
@@ -50,7 +50,7 @@ def ray_sendrecv(args_dictt, notification_address, world_size, world_rank, objec
     ray.internal.free([object_id, object_id2])
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def ray_multicast(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed']).encode().rjust(20, b'\0'))
     if world_rank == 0:
@@ -72,7 +72,7 @@ def ray_multicast(args_dict, notification_address, world_size, world_rank, objec
     ray.internal.free([object_id])
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def ray_reduce(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     array = np.random.rand(object_size//4).astype(np.float32)
@@ -111,7 +111,7 @@ def ray_reduce(args_dict, notification_address, world_size, world_rank, object_s
         ray.internal.free([object_id])
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def ray_allreduce(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     reduce_id = ray.ObjectID(str(args_dict['seed'] + world_size).encode().rjust(20, b'\0'))
@@ -161,7 +161,7 @@ def ray_allreduce(args_dict, notification_address, world_size, world_rank, objec
         ray.internal.free([object_id])
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def ray_gather(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     array = np.random.rand(object_size//4).astype(np.float32)
@@ -197,7 +197,7 @@ def ray_gather(args_dict, notification_address, world_size, world_rank, object_s
     else:
         ray.internal.free([object_id])
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def ray_allgather(args_dict, notification_address, world_size, world_rank, object_size):
     object_id = ray.ObjectID(str(args_dict['seed'] + world_rank).encode().rjust(20, b'\0'))
     array = np.random.rand(object_size//4).astype(np.float32)
@@ -228,7 +228,7 @@ def ray_allgather(args_dict, notification_address, world_size, world_rank, objec
     print("Allgather completed, hash =", hash_sum, "duration =", duration)
     ray.internal.free(object_ids)
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def sendrecv(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = store_lib.ObjectID(b'\0' * 20)
@@ -253,7 +253,7 @@ def sendrecv(args_dict, notification_address, world_size, world_rank, object_siz
         store.put(buffer, object_id2)
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def multicast(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = store_lib.ObjectID(b'\0' * 20)
@@ -272,7 +272,7 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
         array = np.frombuffer(buffer, dtype=np.int32)
         print(array)
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def reduce(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = utils.object_id_from_int(world_rank)
@@ -296,7 +296,7 @@ def reduce(args_dict, notification_address, world_size, world_rank, object_size)
     else:
         barrier(notification_address, notification_port, world_size)
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def allreduce(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = utils.object_id_from_int(world_rank)
@@ -321,7 +321,7 @@ def allreduce(args_dict, notification_address, world_size, world_rank, object_si
     print(reduce_result)
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def gather(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = utils.object_id_from_int(world_rank)
@@ -345,7 +345,7 @@ def gather(args_dict, notification_address, world_size, world_rank, object_size)
         print("Gather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 def allgather(args_dict, notification_address, world_size, world_rank, object_size):
     store = utils.create_store_using_dict(args_dict)
     object_id = utils.object_id_from_int(world_rank)

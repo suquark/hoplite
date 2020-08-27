@@ -18,7 +18,7 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-0756ff9e23bb59c19 # hoplite-nsdi-9
+    ImageId: ami-01ce6c482f254d05d # hoplite-nsdi-10
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
@@ -27,7 +27,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-0756ff9e23bb59c19 # hoplite-nsdi-9
+    ImageId: ami-01ce6c482f254d05d # hoplite-nsdi-10
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
@@ -41,9 +41,9 @@ setup_commands:
 # Command to start ray on the head node. You don't need to change this.
 head_start_ray_commands:
     - ray stop
-    - ulimit -n 65536; ray start --head --redis-port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml
+    - "ulimit -n 65536; ray start --head --redis-port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --resources='{\"machine\": 1}'"
 
 # Command to start ray on worker nodes. You don't need to change this.
 worker_start_ray_commands:
     - ray stop
-    - ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076
+    - "ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076 --resources='{\"machine\": 1}'"
