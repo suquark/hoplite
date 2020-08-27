@@ -3,6 +3,7 @@
 
 #include "common/id.h"
 #include "object_store.grpc.pb.h"
+#include "util/ctpl_stl.h"
 #include <condition_variable>
 #include <grpcpp/channel.h>
 #include <grpcpp/server.h>
@@ -95,6 +96,7 @@ private:
 
   std::unique_ptr<grpc::Server> grpc_server_;
   std::shared_ptr<NotificationListenerImpl> service_;
+  ctpl::thread_pool pool_;
 };
 
 #endif // GLOBAL_CONTROL_STORE_H

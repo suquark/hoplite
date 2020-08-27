@@ -101,28 +101,31 @@ bool DistributedObjectStore::InvokeReduceTo(
   TIMELINE("GrpcServer::InvokeReduceTo");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  ReduceToRequest request;
-  ReduceToReply reply;
+  (void)pool_.push([=](int id) {
+    grpc::ClientContext context;
+    ReduceToRequest request;
+    ReduceToReply reply;
 
-  request.set_reduction_id(reduction_id.Binary());
-  for (auto &object_id : dst_object_ids) {
-    request.add_dst_object_ids(object_id.Binary());
-  }
-  request.set_dst_address(dst_address);
-  request.set_is_endpoint(is_endpoint);
-  if (src_object_id != nullptr) {
-    request.set_src_object_id(src_object_id->Binary());
-  }
-  auto stub = get_stub(remote_grpc_address);
-  // TODO: make sure that grpc stub is thread-safe.
-  auto status = stub->ReduceTo(&context, request, &reply);
-  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
-                      << remote_grpc_address
-                      << ", message: " << status.error_message()
-                      << ", details = " << status.error_code();
+    request.set_reduction_id(reduction_id.Binary());
+    for (auto &object_id : dst_object_ids) {
+      request.add_dst_object_ids(object_id.Binary());
+    }
+    request.set_dst_address(dst_address);
+    request.set_is_endpoint(is_endpoint);
+    if (src_object_id != nullptr) {
+      request.set_src_object_id(src_object_id->Binary());
+    }
+    auto stub = get_stub(remote_grpc_address);
+    TIMELINE("GrpcServer::InvokeReduceTo[stub->ReduceTo]");
+    auto status = stub->ReduceTo(&context, request, &reply);
+    DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
+                        << remote_grpc_address
+                        << ", message: " << status.error_message()
+                        << ", details = " << status.error_code();
 
-  return reply.ok();
+    DCHECK(reply.ok());
+  });
+  return true;
 }
 
 bool DistributedObjectStore::InvokeRedirectReduce(
@@ -131,21 +134,24 @@ bool DistributedObjectStore::InvokeRedirectReduce(
   TIMELINE("GrpcServer::InvokeRedirectReduce");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  RedirectReduceRequest request;
-  RedirectReduceReply reply;
-  request.set_reduction_id(reduction_id.Binary());
-  for (const auto &object_id : object_ids) {
-    request.add_object_ids(object_id.Binary());
-  }
-  auto stub = get_stub(remote_grpc_address);
-  // TODO: make sure that grpc stub is thread-safe.
-  auto status = stub->RedirectReduce(&context, request, &reply);
-  DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
-                      << remote_grpc_address
-                      << ", message: " << status.error_message()
-                      << ", details = " << status.error_code();
-  return reply.ok();
+  (void)pool_.push([=](int id) {
+    grpc::ClientContext context;
+    RedirectReduceRequest request;
+    RedirectReduceReply reply;
+    request.set_reduction_id(reduction_id.Binary());
+    for (const auto &object_id : object_ids) {
+      request.add_object_ids(object_id.Binary());
+    }
+    auto stub = get_stub(remote_grpc_address);
+    TIMELINE("GrpcServer::InvokeRedirectReduce[stub->RedirectReduce]");
+    auto status = stub->RedirectReduce(&context, request, &reply);
+    DCHECK(status.ok()) << "[GrpcServer] ReduceTo failed at remote address:"
+                        << remote_grpc_address
+                        << ", message: " << status.error_message()
+                        << ", details = " << status.error_code();
+    DCHECK(reply.ok());
+  });
+  return true;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -166,7 +172,8 @@ DistributedObjectStore::DistributedObjectStore(
                      object_writer_port},
       object_sender_{state_, gcs_client_, local_store_client_, my_address_},
       grpc_port_(grpc_port),
-      grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
+      grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)),
+      pool_(HOPLITE_THREADPOOL_SIZE_FOR_RPC) {
   TIMELINE("DistributedObjectStore construction function");
   // Creating the first random ObjectID will initialize the random number
   // generator, which is pretty slow. So we generate one first, and it

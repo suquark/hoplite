@@ -1,7 +1,10 @@
+#ifndef _HOPLITE_COMMON_CONFIG_H_
+#define _HOPLITE_COMMON_CONFIG_H_
+
 // Enable non-blocking for the socket that receiving objects.
 #define HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
 
-// Enable ACK for TCP connections.
+// Enable ACK for sending/receiving buffers. Usually used for debugging.
 // #define HOPLITE_ENABLE_ACK
 
 // The constant for RPC latency (in seconds)
@@ -16,4 +19,10 @@
 // Maximum inflow concurrency for a node
 #define HOPLITE_MAX_INFLOW_CONCURRENCY 2
 
+// The thread pool size for the distributed store to launch
+// RPCs like `InvokeReduceTo` and `InvokeRedirectReduce`.
+#define HOPLITE_THREADPOOL_SIZE_FOR_RPC 10
+
 // NOTE: SO_ZEROCOPY & TCP_NODELAY is not working.
+
+#endif  // _HOPLITE_COMMON_CONFIG_H_
