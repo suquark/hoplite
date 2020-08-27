@@ -1,6 +1,6 @@
 from subprocess import Popen, PIPE
 
-with open("result.txt", "wb") as f:
+with open("result.txt", "w") as f:
     for algorithm in ('multicast', 'gather', 'reduce', 'allreduce'):
         for world_size in (4, 8, 12, 16):
             for object_size in (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30):
