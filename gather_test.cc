@@ -24,8 +24,6 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
-  std::thread exit_thread(timed_exit, 20);
-
   for (int trial = 0; trial < n_trials; trial++) {
     std::vector<ObjectID> object_ids;
     float sum = 0;
@@ -61,7 +59,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  exit_thread.join();
-  store.join_tasks();
+  barrier(redis_address, 7777, world_size);
   return 0;
 }

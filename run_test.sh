@@ -37,9 +37,9 @@ if [ "$#" -eq 4 ]; then
     ln -sfn $log_dir/ $ROOT_DIR/log/latest
 
     pkill notification
-    sleep 2
+    sleep 0.5
     (./notification $MY_IPADDR 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
-    sleep 2
+    sleep 0.5
 
     # execute remote commands
     for index in ${!OTHERS_IPADDR[@]}
@@ -49,8 +49,8 @@ if [ "$#" -eq 4 ]; then
     done
     # start local process (rank=0)
     $test_executable_abspath $MY_IPADDR $MY_IPADDR $world_size 0 $object_size $n_trials 2>&1 | tee $log_dir/$MY_IPADDR.server.log
+    sleep 1
 else
-    sleep 5
     my_address=$(hostname -i)
 
     redis_address=$5
@@ -58,4 +58,5 @@ else
     log_dir=$7
     echo "$(tput setaf 2)[INFO]$(tput sgr 0) Node($my_address) redis_address: $redis_address world_size: $world_size rank: $5 object_size: $object_size"
     $test_executable_abspath $redis_address $my_address $world_size $rank $object_size $n_trials 2>&1 | tee $log_dir/$my_address.client.log
+    sleep 1
 fi

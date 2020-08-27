@@ -24,9 +24,6 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
-  // TODO: allgather could be very slow. we could even extend it longer.
-  std::thread exit_thread(timed_exit, 40);
-
   for (int trial = 0; trial < n_trials; trial++) {
     std::vector<ObjectID> object_ids;
     float sum = 0;
@@ -59,7 +56,6 @@ int main(int argc, char **argv) {
     LOG(INFO) << "CRC32 for objects is " << sum_crc;
   }
 
-  exit_thread.join();
-  store.join_tasks();
+  barrier(redis_address, 7777, world_size);
   return 0;
 }

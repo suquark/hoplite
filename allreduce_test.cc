@@ -27,8 +27,6 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
-  std::thread exit_thread(timed_exit, 30);
-
   for (int trial = 0; trial < n_trials; trial++) {
     ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
     std::vector<ObjectID> object_ids;
@@ -59,7 +57,6 @@ int main(int argc, char **argv) {
     print_reduction_result<float>(reduction_id, reduction_result, sum);
   }
 
-  exit_thread.join();
-  store.join_tasks();
+  barrier(redis_address, 7777, world_size);
   return 0;
 }
