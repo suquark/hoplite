@@ -217,19 +217,19 @@ std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
     std::lock_guard<std::mutex> guard(*notifications_pool_mutex_);
     notifications_pool_[query_id] = notifications;
   }
-  (void)pool_.push([=](int id) {
+  GetLocationAsyncRequest request;
+  request.set_receiver_ip(my_address_);
+  request.set_query_id(query_id);
+  request.set_occupying(occupying);
+  for (auto object_id : object_ids) {
+    request.add_object_ids(object_id.Binary());
+  }
+  (void)pool_.push([this](int id, GetLocationAsyncRequest request) {
     grpc::ClientContext context;
-    GetLocationAsyncRequest request;
     GetLocationAsyncReply reply;
-    request.set_receiver_ip(my_address_);
-    request.set_query_id(query_id);
-    request.set_occupying(occupying);
-    for (auto object_id : object_ids) {
-      request.add_object_ids(object_id.Binary());
-    }
     notification_stub_->GetLocationAsync(&context, request, &reply);
     DCHECK(reply.ok()) << "GetLocationAsync failed.";
-  });
+  }, std::move(request));
   return notifications;
 }
 
