@@ -25,9 +25,7 @@ int main(int argc, char **argv) {
 
   DistributedObjectStore store(redis_address, 6380, 7777, 8888,
                                "/tmp/multicast_plasma", my_address, 6666,
-                               50055);
-
-  std::thread exit_thread(timed_exit, 30);
+                               50055);å
 
   for (int trial = 0; trial < n_trials; trial++) {
     ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
@@ -59,7 +57,7 @@ int main(int argc, char **argv) {
     print_reduction_result<float>(reduction_id, reduction_result, sum);
   }
 
-  exit_thread.join();
+  barrier(redis_address, 7777, world_size);
   store.join_tasks();
   return 0;
 }
