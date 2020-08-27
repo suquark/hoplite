@@ -26,7 +26,6 @@ int main(int argc, char **argv) {
                                "/tmp/multicast_plasma", my_address, 6666,
                                50055);
 
-
   for (int trial = 0; trial < n_trials; trial++) {
     ObjectID object_id = object_id_from_integer(trial);
     std::shared_ptr<Buffer> result;

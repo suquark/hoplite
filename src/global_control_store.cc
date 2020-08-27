@@ -186,14 +186,17 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
       inband_data != nullptr) {
     request.set_inband_data(inband_data, object_size);
   }
-  pool_.push([this, object_id](int id, WriteLocationRequest request) {
-    grpc::ClientContext context;
-    WriteLocationReply reply;
-    auto status = notification_stub_->WriteLocation(&context, request, &reply);
-    DCHECK(status.ok()) << status.error_message();
-    DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
-                       << " failed.";
-  }, std::move(request));
+  pool_.push(
+      [this, object_id](int id, WriteLocationRequest request) {
+        grpc::ClientContext context;
+        WriteLocationReply reply;
+        auto status =
+            notification_stub_->WriteLocation(&context, request, &reply);
+        DCHECK(status.ok()) << status.error_message();
+        DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
+                           << " failed.";
+      },
+      std::move(request));
 }
 
 SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,
@@ -227,12 +230,14 @@ std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
     request.add_object_ids(object_id.Binary());
   }
 
-  (void)pool_.push([this](int id, GetLocationAsyncRequest request) {
-    grpc::ClientContext context;
-    GetLocationAsyncReply reply;
-    notification_stub_->GetLocationAsync(&context, request, &reply);
-    DCHECK(reply.ok()) << "GetLocationAsync failed.";
-  }, std::move(request));
+  (void)pool_.push(
+      [this](int id, GetLocationAsyncRequest request) {
+        grpc::ClientContext context;
+        GetLocationAsyncReply reply;
+        notification_stub_->GetLocationAsync(&context, request, &reply);
+        DCHECK(reply.ok()) << "GetLocationAsync failed.";
+      },
+      std::move(request));
   return notifications;
 }
 
