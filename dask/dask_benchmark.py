@@ -46,7 +46,7 @@ def reduce_object_return(obj_list, object_size):
 def main(algorithm, world_size, object_size):
     client = Client("127.0.0.1:8786")
     if algorithm == 'multicast':
-        sender = client.submit(create_object, object_size, workers=['Dask-0'])
+        sender = client.submit(create_object, 0, object_size, workers=['Dask-0'])
         receivers = []
         for i in range(1, world_size):
             receivers.append(client.submit(get_object, i, sender, workers=[f'Dask-{i}']))
