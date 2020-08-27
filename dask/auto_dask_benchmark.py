@@ -9,4 +9,4 @@ with open("result.csv", "w") as f:
                 (output, err) = process.communicate()
                 exit_code = process.wait()
                 print(algorithm, world_size, object_size, float(output))
-                f.write(f"{algorithm},{world_size},{object_size},{float(output)}")
+                f.write(f"{algorithm},{world_size},{object_size},{float(output)}\n")
