@@ -7,7 +7,7 @@ def create_object(index, object_size):
     return np.empty(object_size//4, dtype=np.float32)
 
 def get_object(obj_list, object_size):
-    a = np.empty(object_size//4, dtype=np.float32)
+    a = np.zeros(object_size//4, dtype=np.float32)
     for obj in obj_list:
         a += obj
     return True
