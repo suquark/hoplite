@@ -7,7 +7,7 @@ import numpy as np
 from dask.distributed import Client
 
 parser = argparse.ArgumentParser(description='Dask collective communication benchmark')
-parser.add_argument('algorithm', type=str, required=True,
+parser.add_argument('algorithm', type=str,
                     help="The algorithm to be tested (multicast, gather, reduce, allreduce)")
 parser.add_argument('-n', '--world_size', type=int, required=True,
                     help="Size of the collective processing group")
