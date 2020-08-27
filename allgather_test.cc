@@ -14,6 +14,7 @@ int main(int argc, char **argv) {
   int64_t world_size = std::strtoll(argv[3], NULL, 10);
   int64_t rank = std::strtoll(argv[4], NULL, 10);
   int64_t object_size = std::strtoll(argv[5], NULL, 10);
+  int64_t n_trials = std::strtoll(argv[6], NULL, 10);
 
   ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
 
