@@ -21,7 +21,7 @@ def barrier(notification_address, notification_port, world_size):
     channel = grpc.insecure_channel(notification_address + ':' + str(notification_port))
     stub = object_store_pb2_grpc.NotificationServerStub(channel)
     request = object_store_pb2.BarrierRequest(num_of_nodes=world_size)
-    reply = stub.Register(request)
+    reply = stub.Barrier(request)
 
 
 @ray.remote(resources={'machine': 1})
@@ -388,7 +388,6 @@ ray.init(address='auto')
 tasks = []
 
 time.sleep(1)
-register_group(notification_address, notification_port, args.world_size)
 
 args_dict['seed'] = np.random.randint(0, 2**30)
 
