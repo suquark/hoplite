@@ -17,6 +17,8 @@ world_size=$2
 object_size=$3
 n_trials=$4
 
+export RAY_BACKEND_LOG_LEVEL=info
+
 if [ ! -f $test_executable_abspath ]; then
     echo "$(tput setaf 1)[ERROR]$(tput sgr 0) test executable not found: $test_executable_abspath"
     exit -2

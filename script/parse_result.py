@@ -2,76 +2,99 @@ import os
 import sys
 import numpy as np
 
-def parse_multicast(folder_path):
-    last_retrieval_time = 0
-    files = os.listdir(folder_path)
-    for filename in files:
-        if 'server' in filename:
-            continue
-        try:
-            f = open(os.path.join(folder_path, filename))
-            for line in f.readlines():
-                if 'is retrieved using' in line:
-                    tmp = line.split('is retrieved using')[1]
-                    tmp = tmp.split('seconds')[0]
-                    retrieval_time = float(tmp)
-                    if retrieval_time > last_retrieval_time:
-                        last_retrieval_time = retrieval_time
+WARMUP_ROUNDS = 2
 
-            f.close()
-        except:
-            print (folder_path, filename)
-        try:
-            a = retrieval_time
-        except:
-            print (folder_path, filename)
-    return last_retrieval_time
+def parse_multicast(folder_path):
+    files = os.listdir(folder_path)
+    all_trial_times = []
+    for filename in files:
+        if 'client' in filename:
+            try:
+                f = open(os.path.join(folder_path, filename))
+                trial_times = []
+                for line in f.readlines():
+                    if 'is retrieved using' in line:
+                        tmp = line.split('is retrieved using')[1]
+                        tmp = tmp.split('seconds')[0]
+                        retrieval_time = float(tmp)
+                        trial_times.append(retrieval_time)
+                f.close()
+                all_trial_times.append(np.array(trial_times))
+            except:
+                print("Bad file", folder_path, filename)
+                return None
+    n_trials = len(all_trial_times[0])
+    if not all([len(x) == n_trials for x in all_trial_times]):
+        print("Bad folder", folder_path, filename)
+        return None
+    all_trial_times = np.array(all_trial_times)
+    all_trial_times = np.max(all_trial_times, axis=0)
+    return all_trial_times
 
 def parse_reduce(folder_path):
     files = os.listdir(folder_path)
+    all_trial_times = []
     for filename in files:
-        if 'client' in filename:
-            continue
-        try:
-            f = open(os.path.join(folder_path, filename))
-            for line in f.readlines():
-                if 'is reduced using' in line:
-                    tmp = line.split('is reduced using')[1]
-                    tmp = tmp.split()[0]
-                    reduce_time = float(tmp)
-            f.close()
-        except:
-            print (folder_path, filename)
-        try:
-            a = reduce_time
-        except:
-            print (folder_path, filename)
-            exit(-1)
-
-    return reduce_time
+        if 'server' in filename:
+            try:
+                f = open(os.path.join(folder_path, filename))
+                for line in f.readlines():
+                    if 'is reduced using' in line:
+                        tmp = line.split('is reduced using')[1]
+                        tmp = tmp.split()[0]
+                        reduce_time = float(tmp)
+                        all_trial_times.append(reduce_time)
+                f.close()
+            except:
+                print("Bad file", folder_path, filename)
+    all_trial_times = np.array(all_trial_times)
+    return all_trial_times
 
 def parse_allreduce(folder_path):
-    allreduce_time = 0
     files = os.listdir(folder_path)
+    all_trial_times = []
     for filename in files:
-        try:
-            f = open(os.path.join(folder_path, filename))
-            for line in f.readlines():
-                if 'is reduced using' in line:
-                    tmp = line.split('is reduced using')[1]
-                    tmp = tmp.split()[0]
-                    reduce_time = float(tmp)
-                    if reduce_time > allreduce_time:
-                        allreduce_time = reduce_time
-            f.close()
-        except:
-            print (folder_path, filename)
-        try:
-            a = reduce_time
-        except:
-            print (folder_path, filename)
+        if ('server' in filename) or ('client' in filename):
+            try:
+                f = open(os.path.join(folder_path, filename))
+                trial_times = []
+                for line in f.readlines():
+                    if 'is reduced using' in line:
+                        tmp = line.split('is reduced using')[1]
+                        tmp = tmp.split()[0]
+                        reduce_time = float(tmp)
+                        trial_times.append(reduce_time)
+                f.close()
+                all_trial_times.append(np.array(trial_times))
+            except:
+                print("Bad file", folder_path, filename)
 
-    return allreduce_time
+    n_trials = len(all_trial_times[0])
+    if not all([len(x) == n_trials for x in all_trial_times]):
+        print("Bad folder", folder_path, filename)
+        return None
+    all_trial_times = np.array(all_trial_times)
+    all_trial_times = np.max(all_trial_times, axis=0)
+    return all_trial_times
+
+def parse_gather(folder_path):
+    files = os.listdir(folder_path)
+    all_trial_times = []
+    for filename in files:
+        if 'server' in filename:
+            try:
+                f = open(os.path.join(folder_path, filename))
+                for line in f.readlines():
+                    if 'gathered using' in line:
+                        tmp = line.split('gathered using')[1]
+                        tmp = tmp.split()[0]
+                        gather_time = float(tmp)
+                        all_trial_times.append(gather_time)
+                f.close()
+            except:
+                print("Bad file", folder_path, filename)
+    all_trial_times = np.array(all_trial_times)
+    return all_trial_times
 
 
 def parse_file(task_name, log_dir, foldername):
@@ -79,14 +102,14 @@ def parse_file(task_name, log_dir, foldername):
 
     if task_name == 'multicast_test':
         return parse_multicast(path)
-
-    if task_name == 'reduce_test':
+    elif task_name == 'reduce_test':
         return parse_reduce(path)
-
-    if task_name == 'allreduce_test':
+    elif task_name == 'allreduce_test':
         return parse_allreduce(path)
-    print(task_name)
-    assert (False)
+    elif task_name == 'gather_test':
+        return parse_gather(path)
+    else:
+        raise ValueError('Unknown task', task_name)
 
 def main(log_dir):
     files = os.listdir(log_dir)
@@ -94,29 +117,27 @@ def main(log_dir):
     tasks = {}
 
     for filename in files:
-        splited = filename.split('-')
-        if len(splited) != 5:
-            exit(-1)
-        task_name = splited[2]
-        number_of_nodes = splited[3]
-        object_size = splited[4]
+        if filename != "latest":
+            splited = filename.split('-')
+            if len(splited) != 5:
+                exit(-1)
+            task_name = splited[2]
+            number_of_nodes = splited[3]
+            object_size = splited[4]
 
-        task = task_name + '-' + number_of_nodes + '-' + object_size
+            task = task_name + '-' + number_of_nodes + '-' + object_size
 
-        if task not in tasks:
-            tasks[task] = []
+            if task not in tasks:
+                tasks[task] = []
 
-        tasks[task].append(filename)
+            tasks[task].append(filename)
 
     results = {}
 
     for task in tasks:
-        task_results = []
+        assert len(tasks[task]) == 1
         for foldername in tasks[task]:
-            task_results.append(parse_file(task.split('-')[0], log_dir, foldername))
-        task_results = np.array(task_results)
-
-        results[task] = task_results
+            results[task] = parse_file(task.split('-')[0], log_dir, foldername)[WARMUP_ROUNDS:]
 
     task_list = []
     for task in results:
