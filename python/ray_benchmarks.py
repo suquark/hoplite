@@ -40,6 +40,13 @@ class RayBenchmarkWorker:
         during = time.time() - start
         return during
 
+    def get_objects_with_creation_time(self, object_ids):
+        start = time.time()
+        object_ids = ray.get(object_ids)
+        _ = ray.get(object_ids)
+        during = time.time() - start
+        return during
+
     @ray.method(num_return_vals=2)
     def reduce_objects(self, object_ids):
         object_ids = ray.get(object_ids)
@@ -120,6 +127,6 @@ def ray_allgather(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
     actor_pool.barrier()
-    results = [w.get_objects.remote(object_ids) for w in actor_pool.actors]
+    results = [w.get_objects_with_creation_time.remote(object_ids) for w in actor_pool.actors]
     durings = ray.get(results)
     return max(durings)
