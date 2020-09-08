@@ -30,7 +30,7 @@ class RayBenchmarkWorker:
         barrier(self.notification_address, self.notification_port, self.world_size)
 
     def put_object(self):
-        return np.random.rand(object_size//4).astype(np.float32)
+        return np.random.rand(self.object_size//4).astype(np.float32)
 
     def get_objects(self, object_ids):
         self.barrier()
