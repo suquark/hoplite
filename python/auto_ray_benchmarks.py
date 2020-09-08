@@ -37,7 +37,7 @@ if __name__ == "__main__":
     else:
         assert args.world_size is None and args.object_size is None
         with open("ray-microbenchmark.csv", "w") as f:
-            for algorithm in ('multicast', 'gather', 'reduce', 'allreduce'):
+            for algorithm in ('ray_multicast', 'ray_gather', 'ray_reduce', 'ray_allreduce'):
                 for world_size in (4, 8, 12, 16):
                     for object_size in (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30):
                         mean, std = test_with_mean_std(5, algorithm, notification_address, world_size, object_size)
