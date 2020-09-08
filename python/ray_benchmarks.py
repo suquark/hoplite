@@ -31,16 +31,18 @@ class RayBenchmarkWorker:
         barrier(self.notification_address, self.notification_port, self.world_size)
 
     def put_object(self):
-        return np.random.rand(self.object_size//4).astype(np.float32)
+        return ray.put(np.random.rand(self.object_size//4).astype(np.float32))
 
     def get_objects(self, object_ids):
+        object_ids = ray.get(object_ids)
         start = time.time()
-        ray.get(object_ids)
+        _ = ray.get(object_ids)
         during = time.time() - start
         return during
 
     @ray.method(num_return_vals=2)
     def reduce_objects(self, object_ids):
+        object_ids = ray.get(object_ids)
         start = time.time()
         reduce_result = np.zeros(self.object_size//4, dtype=np.float32)
         for object_id in object_ids:
