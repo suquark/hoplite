@@ -48,8 +48,9 @@ class RayBenchmarkWorker:
         for object_id in object_ids:
             array = ray.get(object_id)
             reduce_result += array
+        result_id = ray.put(reduce_result)
         during = time.time() - start
-        return reduce_result, during
+        return result_id, during
 
 
 class RayBenchmarkActorPool:
