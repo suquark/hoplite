@@ -30,7 +30,7 @@ if __name__ == "__main__":
     ray.init(address='auto')
     test_name = 'ray_' + args.test_name
     assert test_name in ray_benchmarks.__dict__ or args.test_name == 'auto'
-    if test_name != 'auto':
+    if args.test_name != 'auto':
         assert args.world_size is not None and args.object_size is not None
         mean, std = test_with_mean_std(5, test_name, notification_address, args.world_size, args.object_size)
         print(f"{args.test_name},{args.world_size},{args.object_size},{mean},{std}")
