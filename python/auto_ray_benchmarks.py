@@ -19,7 +19,7 @@ def test_with_mean_std(repeat_times, test_name, notification_address, world_size
     results = []
     for _ in range(repeat_times):
         test_case = ray_benchmarks.__dict__[test_name]
-        during = test_case(notification_address, args.world_size, args.object_size)
+        during = test_case(notification_address, world_size, object_size)
         results.append(during)
     return np.mean(results), np.std(results)
 
