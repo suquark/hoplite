@@ -23,17 +23,17 @@ class RayBenchmarkWorker:
         self.world_rank = world_rank
         self.object_size = object_size
 
-    def warmup(self):
-        pass
-
     def barrier(self):
+        # We sleep for a while to make sure all later
+        # function calls are already queued in the execution queue.
+        # This will make timing more precise.
+        time.sleep(1)
         barrier(self.notification_address, self.notification_port, self.world_size)
 
     def put_object(self):
         return np.random.rand(self.object_size//4).astype(np.float32)
 
     def get_objects(self, object_ids):
-        self.barrier()
         start = time.time()
         ray.get(object_ids)
         during = time.time() - start
@@ -41,7 +41,6 @@ class RayBenchmarkWorker:
 
     @ray.method(num_return_vals=2)
     def reduce_objects(self, object_ids):
-        self.barrier()
         start = time.time()
         reduce_result = np.zeros(self.object_size//4, dtype=np.float32)
         for object_id in object_ids:
@@ -57,7 +56,10 @@ class RayBenchmarkActorPool:
         for world_rank in range(world_size):
             self.actors.append(
                 RayBenchmarkWorker.remote(notification_address, world_size, world_rank, object_size))
-    
+
+    def barrier(self):
+        return [w.barrier.remote() for w in self.actors]
+
     def prepare_objects(self):
         object_ids = [w.put_object.remote() for w in self.actors]
         # wait until we put all objects
@@ -88,16 +90,14 @@ def ray_reduce(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
     reduction_id, during_id = actor_pool[0].reduce_objects.remote(object_ids)
-    results = [reduction_id]
-    for i in range(1, len(actor_pool)):
-        results.append(actor_pool[i].barrier.remote())
-    ray.wait(results, num_returns=len(results), timeout=None)
     return ray.get(during_id)
 
 
+# TODO: the timing is not precise
 def ray_allreduce(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
+    actor_pool.barrier()
     reduction_id, during_id = actor_pool[0].reduce_objects.remote(object_ids)
     results = [during_id]
     for i in range(1, len(actor_pool)):
@@ -109,17 +109,14 @@ def ray_allreduce(notification_address, world_size, object_size):
 def ray_gather(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
-    during_id = actor_pool[0].get_objects.remote(object_ids)
-    results = [during_id]
-    for i in range(1, len(actor_pool)):
-        results.append(actor_pool[i].barrier.remote())
-    ray.wait(results, num_returns=len(results), timeout=None)
-    return ray.get(during_id)
+    return ray.get(actor_pool[0].get_objects.remote(object_ids))
 
 
+# TODO: the timing is not precise
 def ray_allgather(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
+    actor_pool.barrier()
     results = [w.get_objects.remote(object_ids) for w in actor_pool.actors]
     durings = ray.get(results)
     return max(durings)
