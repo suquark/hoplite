@@ -121,5 +121,5 @@ def ray_allgather(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
     results = [w.get_objects.remote(object_ids) for w in actor_pool.actors]
-    durings = ray.get(results, num_returns=len(results), timeout=None)
+    durings = ray.get(results)
     return max(durings)
