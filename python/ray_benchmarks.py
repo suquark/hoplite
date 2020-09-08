@@ -37,15 +37,15 @@ class RayBenchmarkWorker:
         object_ids = ray.get(object_ids)
         start = time.time()
         _ = ray.get(object_ids)
-        during = time.time() - start
-        return during
+        duration = time.time() - start
+        return duration
 
     def get_objects_with_creation_time(self, object_ids):
         start = time.time()
         object_ids = ray.get(object_ids)
         _ = ray.get(object_ids)
-        during = time.time() - start
-        return during
+        duration = time.time() - start
+        return duration
 
     @ray.method(num_return_vals=2)
     def reduce_objects(self, object_ids):
@@ -55,9 +55,9 @@ class RayBenchmarkWorker:
         for object_id in object_ids:
             array = ray.get(object_id)
             reduce_result += array
-        during = time.time() - start
+        duration = time.time() - start
         result_id = ray.put(reduce_result)
-        return result_id, during
+        return result_id, duration
 
 
 class RayBenchmarkActorPool:
@@ -92,15 +92,15 @@ def ray_multicast(notification_address, world_size, object_size):
     object_id = actor_pool[0].put_object.remote()
     # wait until we have put that object
     ray.wait([object_id], num_returns=1, timeout=None)
-    durings = ray.get([w.get_objects.remote([object_id]) for w in actor_pool.actors])
-    return max(durings)
+    durations = ray.get([w.get_objects.remote([object_id]) for w in actor_pool.actors])
+    return max(durations)
 
 
 def ray_reduce(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
-    reduction_id, during_id = actor_pool[0].reduce_objects.remote(object_ids)
-    return ray.get(during_id)
+    reduction_id, duration_id = actor_pool[0].reduce_objects.remote(object_ids)
+    return ray.get(duration_id)
 
 
 # TODO: the timing is not precise
@@ -108,12 +108,12 @@ def ray_allreduce(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
     object_ids = actor_pool.prepare_objects()
     actor_pool.barrier()
-    reduction_id, during_id = actor_pool[0].reduce_objects.remote(object_ids)
-    results = [during_id]
+    reduction_id, duration_id = actor_pool[0].reduce_objects.remote(object_ids)
+    results = [duration_id]
     for i in range(1, len(actor_pool)):
         results.append(actor_pool[i].get_objects_with_creation_time.remote([reduction_id]))
-    durings = ray.get(results)
-    return max(durings)
+    durations = ray.get(results)
+    return max(durations)
 
 
 def ray_gather(notification_address, world_size, object_size):
@@ -128,5 +128,5 @@ def ray_allgather(notification_address, world_size, object_size):
     object_ids = actor_pool.prepare_objects()
     actor_pool.barrier()
     results = [w.get_objects.remote(object_ids) for w in actor_pool.actors]
-    durings = ray.get(results)
-    return max(durings)
+    durations = ray.get(results)
+    return max(durations)

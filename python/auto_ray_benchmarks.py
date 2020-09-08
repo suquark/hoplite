@@ -19,8 +19,8 @@ def test_with_mean_std(repeat_times, test_name, notification_address, world_size
     results = []
     for _ in range(repeat_times):
         test_case = ray_benchmarks.__dict__[test_name]
-        during = test_case(notification_address, world_size, object_size)
-        results.append(during)
+        duration = test_case(notification_address, world_size, object_size)
+        results.append(duration)
     return np.mean(results), np.std(results)
 
 
@@ -41,5 +41,5 @@ if __name__ == "__main__":
                 for world_size in (4, 8, 12, 16):
                     for object_size in (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30):
                         mean, std = test_with_mean_std(5, algorithm, notification_address, world_size, object_size)
-                        print(f"{algorithm},{world_size},{object_size},{mean},{std}")
+                        print(f"{algorithm}, {world_size}, {object_size}, {mean}, {std}")
                         f.write(f"{algorithm},{world_size},{object_size},{mean},{std}\n")
