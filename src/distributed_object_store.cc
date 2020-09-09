@@ -259,20 +259,22 @@ ObjectID DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer) {
 }
 
 void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
-                                    ObjectID *created_reduction_id) {
+                                    ObjectID *created_reduction_id,
+                                    ssize_t num_reduce_objects) {
   const auto reduction_id = ObjectID::FromRandom();
   *created_reduction_id = reduction_id;
-  Reduce(object_ids, reduction_id);
+  Reduce(object_ids, reduction_id, num_reduce_objects);
 }
 
 void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids,
-                                    const ObjectID &reduction_id) {
+                                    const ObjectID &reduction_id,
+                                    ssize_t num_reduce_objects) {
   // TODO: support different reduce op and types.
   TIMELINE("DistributedObjectStore Async Reduce");
   DCHECK(object_ids.size() > 0);
   // starting a thread
   std::thread reduction_thread(&DistributedObjectStore::poll_and_reduce, this,
-                               object_ids, reduction_id);
+                               object_ids, reduction_id, num_reduce_objects);
   {
     std::lock_guard<std::mutex> l(reduction_tasks_mutex_);
     DCHECK(reduction_tasks_.find(reduction_id) == reduction_tasks_.end())
@@ -354,8 +356,15 @@ bool DistributedObjectStore::check_and_store_inband_data(
 ////////////////////////////////////////////////////////////////
 
 void DistributedObjectStore::poll_and_reduce(
-    const std::vector<ObjectID> object_ids, const ObjectID reduction_id) {
+    const std::vector<ObjectID> object_ids, const ObjectID reduction_id,
+    ssize_t num_reduce_objects) {
   TIMELINE("DistributedObjectStore Reduce Thread");
+
+  // By default, reduce all the objects.
+  if (num_reduce_objects < 0) {
+    num_reduce_objects = object_ids.size();
+  }
+
   // In this method, we will do until we get the size of the first object.
   std::vector<ObjectID> notification_candidates;
   std::vector<ObjectID> local_object_ids;
@@ -373,9 +382,12 @@ void DistributedObjectStore::poll_and_reduce(
     }
   }
 
-  std::shared_ptr<ObjectNotifications> notifications =
-      gcs_client_.GetLocationAsync(notification_candidates,
-                                   reduction_id.Binary(), false);
+  ssize_t num_remote_reduce_objects =
+      std::max(num_reduce_objects - local_object_ids.size(), 0)
+
+          std::shared_ptr<ObjectNotifications>
+              notifications = gcs_client_.GetLocationAsync(
+                  notification_candidates, reduction_id.Binary(), false);
   std::vector<NotificationMessage> ready_ids;
   if (object_size < 0) {
     // we haven't got the object size yet, so we have to subscribe to the
@@ -399,29 +411,39 @@ void DistributedObjectStore::poll_and_reduce(
   // S: object size (in bytes)
   double L = HOPLITE_RPC_LATENCY;
   double B = HOPLITE_BANDWIDTH;
-  double P = notification_candidates.size();
+  double P = (double)num_remote_reduce_objects;
   double S = object_size;
   LOG(DEBUG) << "grid/pipe boundary object size = "
              << pow(sqrt(P) - 1, 2) * B * L;
+
+  std::unordered_set<ObjectID> reduced_objects;
   if (sqrt(P) - 1 > sqrt(S / (B * L)) && P > 3.5) {
     // NOTE: for P = 16 (including one local node), S < 7.67 MB
     LOG(DEBUG) << "Grid reduce algorithm is used.";
-    poll_and_reduce_grid_impl(notifications, notification_candidates,
-                              local_object_ids, object_size, buffer,
-                              reduction_id);
+    reduced_objects = poll_and_reduce_grid_impl(
+        notifications, notification_candidates, local_object_ids, object_size,
+        buffer, reduction_id, num_reduce_objects);
   } else {
     LOG(DEBUG) << "Pipe reduce algorithm is used.";
-    poll_and_reduce_pipe_impl(notifications, notification_candidates,
-                              local_object_ids, object_size, buffer,
-                              reduction_id);
+    reduced_objects = poll_and_reduce_pipe_impl(
+        notifications, notification_candidates, local_object_ids, object_size,
+        buffer, reduction_id, num_reduce_objects);
   }
+  // Write down the unreduced objects.
+  std::vector<ObjectID> unreduced_objects;
+  for (const auto &object_id : object_ids)
+    if (reduced_objects.find(object_id) == reduced_objects.end()) {
+      unreduced_objects.push_back(object_id);
+    }
+  unreduced_objects_[reduction_id] = std::move(unreduced_objects);
 }
 
-void DistributedObjectStore::poll_and_reduce_pipe_impl(
+std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
     const std::shared_ptr<ObjectNotifications> &notifications,
     const std::vector<ObjectID> &notification_candidates,
     std::vector<ObjectID> &local_object_ids, const int64_t object_size,
-    const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id) {
+    const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
+    ssize_t num_reduce_objects) {
   TIMELINE("DistributedObjectStore Reduce Thread Pipe");
 
   // states for enumerating the chain
@@ -431,9 +453,15 @@ void DistributedObjectStore::poll_and_reduce_pipe_impl(
   int node_index = 0;
   ObjectID tail_objectid;
   std::string tail_address;
+  if (local_object_ids.size() > num_reduce_objects) {
+    local_object_ids =
+        std::vector<ObjectID>(local_object_ids.begin(),
+                              local_object_ids.begin() + num_reduce_objects);
+  }
+  ssize_t num_ready_objects = local_object_ids.size();
 
   // main loop for constructing the reduction chain.
-  while (remaining_ids.size() > 0) {
+  while (num_ready_objects < num_reduce_objects) {
     std::vector<NotificationMessage> ready_ids =
         notifications->GetNotifications(true);
     // TODO: we should group ready ids by their node address.
@@ -476,6 +504,9 @@ void DistributedObjectStore::poll_and_reduce_pipe_impl(
       }
       // mark it as done
       remaining_ids.erase(ready_id);
+      if (++num_ready_objects >= num_reduce_objects) {
+        break;
+      }
     }
   }
 
