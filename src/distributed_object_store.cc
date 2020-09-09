@@ -383,11 +383,11 @@ void DistributedObjectStore::poll_and_reduce(
   }
 
   ssize_t num_remote_reduce_objects =
-      std::max(num_reduce_objects - local_object_ids.size(), 0)
+      std::max(num_reduce_objects - local_object_ids.size(), (ssize_t)0);
 
-          std::shared_ptr<ObjectNotifications>
-              notifications = gcs_client_.GetLocationAsync(
-                  notification_candidates, reduction_id.Binary(), false);
+  std::shared_ptr<ObjectNotifications> notifications =
+      gcs_client_.GetLocationAsync(notification_candidates,
+                                   reduction_id.Binary(), false);
   std::vector<NotificationMessage> ready_ids;
   if (object_size < 0) {
     // we haven't got the object size yet, so we have to subscribe to the
