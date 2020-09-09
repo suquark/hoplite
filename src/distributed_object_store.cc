@@ -64,7 +64,7 @@ public:
       ObjectID object_id = ObjectID::FromBinary(object_id_str);
       object_ids.push_back(object_id);
     }
-    store_.Reduce(object_ids, reduction_id);
+    store_.Reduce(object_ids, reduction_id, request->num_reduce_objects());
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -130,7 +130,7 @@ bool DistributedObjectStore::InvokeReduceTo(
 
 bool DistributedObjectStore::InvokeRedirectReduce(
     const std::string &remote_address, const std::vector<ObjectID> &object_ids,
-    const ObjectID &reduction_id) {
+    const ObjectID &reduction_id, ssize_t num_reduce_objects) {
   TIMELINE("GrpcServer::InvokeRedirectReduce");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
@@ -139,6 +139,7 @@ bool DistributedObjectStore::InvokeRedirectReduce(
   for (const auto &object_id : object_ids) {
     request.add_object_ids(object_id.Binary());
   }
+  request.set_num_reduce_objects(num_reduce_objects);
   (void)pool_.push(
       [this](int id, std::string remote_grpc_address,
              RedirectReduceRequest request) {
@@ -446,6 +447,8 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
     ssize_t num_reduce_objects) {
   TIMELINE("DistributedObjectStore Reduce Thread Pipe");
 
+  // stores the objects that we reduced in this round. Used as return value.
+  std::unordered_set<ObjectID> reduced_objects;
   // states for enumerating the chain
   std::unordered_set<ObjectID> remaining_ids(notification_candidates.begin(),
                                              notification_candidates.end());
@@ -498,6 +501,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
                                          address, false);
           DCHECK(reply_ok);
         }
+        reduced_objects.insert(ready_id);
         tail_objectid = ready_id;
         tail_address = address;
         node_index++;
@@ -508,6 +512,10 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
         break;
       }
     }
+  }
+
+  for (const auto &object_id : local_object_ids) {
+    reduced_objects.insert(object_id);
   }
 
   // send the reduced object back to the master node.
@@ -532,6 +540,8 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
                               my_address_, true);
     DCHECK(reply_ok);
   }
+  DCHECK(reduced_objects.size() == num_reduce_objects);
+  return reduced_objects;
 }
 
 std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
@@ -544,8 +554,16 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
   // we do not use reference for its parameters because it will be executed
   // in a thread.
 
-  int rows = round(sqrt(notification_candidates.size()));
+  if (local_object_ids.size() > num_reduce_objects) {
+    local_object_ids =
+        std::vector<ObjectID>(local_object_ids.begin(),
+                              local_object_ids.begin() + num_reduce_objects);
+  }
+  ssize_t num_ready_objects = local_object_ids.size();
+
+  int rows = round(sqrt(num_reduce_objects - num_ready_objects));
   LOG(DEBUG) << "number of rows: " << rows;
+  DCHECK(rows > 0) << "number of rows should be greater than 0";
 
   std::vector<std::pair<std::string, ObjectID>> lines;
 
@@ -554,7 +572,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
                                              notification_candidates.end());
 
   // main loop for constructing the reduction chain.
-  while (remaining_ids.size() > 0) {
+  while (num_ready_objects < num_reduce_objects) {
     std::vector<NotificationMessage> ready_ids =
         notifications->GetNotifications(true);
     // TODO: we should group ready ids by their node address.
@@ -582,7 +600,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
       }
       // mark it as done
       remaining_ids.erase(ready_id);
-      if (lines.size() >= rows) {
+      if (++num_ready_objects >= num_reduce_objects || lines.size() >= rows) {
         break;
       }
     }
@@ -592,7 +610,9 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
     }
   }
 
-  if (lines.size() < rows || remaining_ids.size() < rows) {
+  ssize_t remaining_num_objects_to_reduce =
+      num_reduce_objects - num_ready_objects;
+  if (lines.size() < rows || remaining_num_objects_to_reduce < rows) {
     // This is a quite unexpected pathway. This is caused by too many
     // objects were discovered to be local objects.
     LOG(WARNING) << "too many objects are found local for grid reduction";
@@ -608,14 +628,13 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
     for (const auto &msg : ready_messages) {
       remaining_candidates.push_back(msg.object_id);
     }
-    poll_and_reduce_pipe_impl(notifications, remaining_candidates,
-                              local_object_ids, object_size, buffer,
-                              reduction_id);
-    return;
+    return poll_and_reduce_pipe_impl(notifications, remaining_candidates,
+                                     local_object_ids, object_size, buffer,
+                                     reduction_id, num_reduce_objects);
   }
 
   std::vector<ObjectID> edge;
-  int remaining_size = remaining_ids.size();
+  ssize_t remaining_size = remaining_ids.size();
   std::vector<ObjectID> remaining_ids_list(remaining_ids.begin(),
                                            remaining_ids.end());
   int processed_count = 0;
@@ -623,20 +642,32 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
     // put the master node of each chain in the first place.
     std::vector<ObjectID> redirect_object_ids{lines[i].second};
     // distributing objects into each chain as evenly as possible
-    int share_count = (remaining_size / rows) + (i < remaining_size % rows);
+    ssize_t share_count = (remaining_size / rows) + (i < remaining_size % rows);
+    ssize_t num_reduce_objects_chain =
+        (remaining_num_objects_to_reduce / rows) +
+        (i < remaining_num_objects_to_reduce % rows);
     for (int j = 0; j < share_count; j++, processed_count++) {
       redirect_object_ids.push_back(remaining_ids_list[processed_count]);
     }
     auto line_reduction_id = ObjectID::FromRandom();
     edge.push_back(line_reduction_id);
-    InvokeRedirectReduce(lines[i].first, redirect_object_ids,
-                         line_reduction_id);
+    InvokeRedirectReduce(lines[i].first, redirect_object_ids, line_reduction_id,
+                         num_reduce_objects_chain);
   }
   ObjectID _monk_subscription_id = ObjectID::FromRandom();
   std::shared_ptr<ObjectNotifications> new_notifications =
       gcs_client_.GetLocationAsync(edge, _monk_subscription_id.Binary(), false);
+  // stores the objects that we reduced in this round. Used as return value.
+  std::unordered_set<ObjectID> reduced_objects;
+  for (const auto &object_id : local_object_ids) {
+    reduced_objects.insert(object_id);
+  }
   poll_and_reduce_pipe_impl(new_notifications, edge, local_object_ids,
-                            object_size, buffer, reduction_id);
+                            object_size, buffer, reduction_id,
+                            edge.size() + local_object_ids.size());
+  // FIXME(zhuohan): Get the actual reduced objects on remote nodes and return
+  // them back.
+  return reduced_objects;
 }
 
 void DistributedObjectStore::worker_loop() {
