@@ -534,7 +534,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
   }
 }
 
-void DistributedObjectStore::poll_and_reduce_grid_impl(
+std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
     const std::shared_ptr<ObjectNotifications> &notifications,
     const std::vector<ObjectID> &notification_candidates,
     std::vector<ObjectID> &local_object_ids, const int64_t object_size,
