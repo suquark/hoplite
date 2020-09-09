@@ -538,7 +538,8 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
     const std::shared_ptr<ObjectNotifications> &notifications,
     const std::vector<ObjectID> &notification_candidates,
     std::vector<ObjectID> &local_object_ids, const int64_t object_size,
-    const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id) {
+    const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
+    ssize_t num_reduce_objects) {
   TIMELINE("DistributedObjectStore Reduce Thread Grid");
   // we do not use reference for its parameters because it will be executed
   // in a thread.
