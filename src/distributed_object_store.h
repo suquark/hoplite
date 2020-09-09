@@ -134,7 +134,8 @@ private:
 
   bool InvokeRedirectReduce(const std::string &remote_address,
                             const std::vector<ObjectID> &object_ids,
-                            const ObjectID &reduction_id);
+                            const ObjectID &reduction_id,
+                            ssize_t num_reduce_objects);
 
   void Shutdown() {
     grpc_server_->Shutdown();
