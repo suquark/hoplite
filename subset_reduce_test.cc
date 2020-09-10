@@ -27,11 +27,9 @@ int main(int argc, char **argv) {
   for (int trial = 0; trial < n_trials; trial++) {
     ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
     std::vector<ObjectID> object_ids;
-    float sum = 0;
     for (int i = 0; i < world_size; i++) {
       auto oid = object_id_from_integer(trial * 1000000 + i);
       object_ids.push_back(oid);
-      sum += rnum;
     }
     DCHECK(object_size % sizeof(float) == 0);
 
@@ -55,9 +53,9 @@ int main(int argc, char **argv) {
       std::unordered_set<ObjectID> reduced_objects;
       reduced_objects = store_.GetReducedObjects(reduction_id);
       for (const auto& reduced_object : reduced_objects) {
-        LOG(INFO) << "Reduced object: " << reduced_object;
+        LOG(INFO) << "Reduced object: " << reduced_object.ToString();
       }
-      print_reduction_result<float>(reduction_id, reduction_result, sum);
+      print_reduction_result<float>(reduction_id, reduction_result, 0.0);
     }
   }
   barrier(redis_address, 7777, world_size);
