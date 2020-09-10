@@ -43,50 +43,78 @@ def reduce_object_return(obj_list, object_size):
     return a
 
 
+def multicast(client, world_size, object_size, epoch):
+    prefix = world_size * epoch
+    sender = client.submit(create_object, prefix, object_size, workers=['Dask-0'])
+    receivers = []
+    for i in range(1, world_size):
+        receivers.append(client.submit(get_object, prefix + i, sender, workers=[f'Dask-{i}']))
+    before = time.time()
+    for receiver in receivers:
+        receiver.result()
+    after = time.time()
+    return after - before
+
+
+def gather(client, world_size, object_size, epoch):
+    prefix = world_size * epoch
+    senders = []
+    for i in range(0, world_size):   
+        senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    receiver = client.submit(gather_object, senders, workers=['Dask-0'])
+    before = time.time()
+    receiver.result()
+    after = time.time()
+    return after - before 
+
+
+def reduce(client, world_size, object_size, epoch):
+    prefix = world_size * epoch
+    senders = []
+    for i in range(0, world_size):   
+        senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    receiver = client.submit(reduce_object, senders, object_size, workers=['Dask-0'])
+    before = time.time()
+    receiver.result()
+    after = time.time()
+    return after - before  
+
+
+def allreduce(client, world_size, object_size, epoch):
+    prefix = world_size * epoch
+    senders = []
+    for i in range(0, world_size):   
+        senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    receiver = client.submit(reduce_object_return, senders, object_size, workers=['Dask-0'])
+
+    other_receivers = []
+    for i in range(1, world_size):   
+        other_receivers.append(client.submit(get_object,  prefix + i, receiver, workers=[f'Dask-{i}']))
+
+    before = time.time()
+    for r in other_receivers:
+        r.result()
+    after = time.time()
+    return after - before
+
+
 def main(algorithm, world_size, object_size):
     client = Client("127.0.0.1:8786")
     if algorithm == 'multicast':
-        sender = client.submit(create_object, 0, object_size, workers=['Dask-0'])
-        receivers = []
-        for i in range(1, world_size):
-            receivers.append(client.submit(get_object, i, sender, workers=[f'Dask-{i}']))
-        before = time.time()
-        for receiver in receivers:
-            receiver.result()
-        after = time.time()
+        multicast(client, world_size, object_size, 0)
+        duration = multicast(client, world_size, object_size, 1)
     elif algorithm == 'gather':
-        senders = []
-        for i in range(0, world_size):   
-            senders.append(client.submit(create_object, i, object_size, workers=[f'Dask-{i}']))
-        receiver = client.submit(gather_object, senders, workers=['Dask-0'])
-        before = time.time()
-        receiver.result()
-        after = time.time()
+        gather(client, world_size, object_size, 0)
+        duration = gather(client, world_size, object_size, 1)
     elif algorithm == 'reduce':
-        senders = []
-        for i in range(0, world_size):   
-            senders.append(client.submit(create_object, i, object_size, workers=[f'Dask-{i}']))
-        receiver = client.submit(reduce_object, senders, object_size, workers=['Dask-0'])
-        before = time.time()
-        receiver.result()
-        after = time.time()
+        reduce(client, world_size, object_size, 0)
+        duration = reduce(client, world_size, object_size, 1)
     elif algorithm == 'allreduce':
-        senders = []
-        for i in range(0, world_size):   
-            senders.append(client.submit(create_object, i, object_size, workers=[f'Dask-{i}']))
-        receiver = client.submit(reduce_object_return, senders, object_size, workers=['Dask-0'])
-
-        other_receivers = []
-        for i in range(1, world_size):   
-            other_receivers.append(client.submit(get_object, i, receiver, workers=[f'Dask-{i}']))
-    
-        before = time.time()
-        for r in other_receivers:
-            r.result()
-        after = time.time()
+        allreduce(client, world_size, object_size, 0)
+        duration = allreduce(client, world_size, object_size, 1)
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
-    print(after - before)
+    print(duration)
 
 
 if __name__ == "__main__":
