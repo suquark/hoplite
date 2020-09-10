@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
       LOG(INFO) << reduction_id.ToString() << " is reduced using "
                 << duration.count();
       std::unordered_set<ObjectID> reduced_objects;
-      reduced_objects = store_.GetReducedObjects(reduction_id);
+      reduced_objects = store.GetReducedObjects(reduction_id);
       for (const auto& reduced_object : reduced_objects) {
         LOG(INFO) << "Reduced object: " << reduced_object.ToString();
       }
