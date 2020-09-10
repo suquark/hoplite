@@ -186,7 +186,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::RemoteGetReducedObjects(
   auto stub = get_stub(remote_grpc_address);
   auto status = stub->RemoteGetReducedObjects(&context, request, &reply);
   std::unordered_set<ObjectID> reduced_objects;
-  for (const auto &object_id_str : reply->object_ids()) {
+  for (const auto &object_id_str : reply.object_ids()) {
     ObjectID object_id = ObjectID::FromBinary(object_id_str);
     reduced_objects.insert(object_id);
   }
@@ -487,7 +487,7 @@ void DistributedObjectStore::poll_and_reduce(
   std::unordered_set<ObjectID> unreduced_objects;
   for (const auto &object_id : object_ids)
     if (reduced_objects.find(object_id) == reduced_objects.end()) {
-      unreduced_objects.push_back(object_id);
+      unreduced_objects.insert(object_id);
     }
   {
     std::lock_guard<std::mutex> lock(reduced_objects_mutex_);
