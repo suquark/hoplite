@@ -101,19 +101,24 @@ def allreduce(client, world_size, object_size, epoch):
 def main(algorithm, world_size, object_size):
     client = Client("127.0.0.1:8786")
     if algorithm == 'multicast':
-        multicast(client, world_size, object_size, 0)
-        duration = multicast(client, world_size, object_size, 1)
+        func = multicast
     elif algorithm == 'gather':
-        gather(client, world_size, object_size, 0)
-        duration = gather(client, world_size, object_size, 1)
+        func = gather
     elif algorithm == 'reduce':
-        reduce(client, world_size, object_size, 0)
-        duration = reduce(client, world_size, object_size, 1)
+        func = reduce
     elif algorithm == 'allreduce':
-        allreduce(client, world_size, object_size, 0)
-        duration = allreduce(client, world_size, object_size, 1)
+        func = allreduce
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
+    for i in range(10 if object_size <= 16 * 2 ** 20 else 1):
+        func(client, world_size, object_size, i)
+    if object_size > 16 * 2 ** 20:
+        duration = func(client, world_size, object_size, i + 1)
+    else:
+        duration = 0.0
+        for j in range(i + 1, i + 1 + 10):
+            duration += func(client, world_size, object_size, j)
+        duration /= 10
     print(duration)
 
 
