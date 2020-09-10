@@ -57,7 +57,7 @@ void put_fixed_buffer(DistributedObjectStore &store, const ObjectID &object_id,
                       int64_t object_size, float number) {
   DCHECK(object_size % sizeof(float) == 0);
   std::shared_ptr<Buffer> buffer =
-      get_fixed_buffer(object_size / sizeof(float), object_id.Hex(), number);
+      get_fixed_buffer(object_size / sizeof(float), number);
   store.Put(buffer, object_id);
   const float *view = (const float *)buffer->Data();
   LOG(INFO) << object_id.ToString() << " is created! "
