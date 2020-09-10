@@ -19,6 +19,8 @@ using objectstore::RedirectReduceReply;
 using objectstore::RedirectReduceRequest;
 using objectstore::ReduceToReply;
 using objectstore::ReduceToRequest;
+using objectstore::RemoteGetReducedObjectsRequest;
+using objectstore::RemoteGetReducedObjectsReply;
 
 ////////////////////////////////////////////////////////////////
 // The gRPC server side of the object store
@@ -186,7 +188,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::RemoteGetReducedObjects(
   std::unordered_set<ObjectID> reduced_objects;
   for (const auto &object_id_str : reply->object_ids()) {
     ObjectID object_id = ObjectID::FromBinary(object_id_str);
-    object_ids.insert(object_id);
+    reduced_objects.insert(object_id);
   }
   return reduced_objects;
 }
@@ -371,7 +373,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
 std::unordered_set<ObjectID>
 DistributedObjectStore::GetReducedObjects(const ObjectID &reduction_id) {
   std::unique_lock<std::mutex> l(reduced_objects_mutex_);
-  reduced_objects_mutex_.wait(l, [this, &reduction_id] {
+  reduced_objects_cv_.wait(l, [this, &reduction_id] {
     return reduced_objects_.find(reduction_id) != reduced_objects_.end();
   });
   return reduced_objects_[reduction_id];
@@ -380,7 +382,7 @@ DistributedObjectStore::GetReducedObjects(const ObjectID &reduction_id) {
 std::unordered_set<ObjectID>
 DistributedObjectStore::GetUnreducedObjects(const ObjectID &reduction_id) {
   std::unique_lock<std::mutex> l(reduced_objects_mutex_);
-  reduced_objects_mutex_.wait(l, [this, &reduction_id] {
+  reduced_objects_cv_.wait(l, [this, &reduction_id] {
     return unreduced_objects_.find(reduction_id) != unreduced_objects_.end();
   });
   return unreduced_objects_[reduction_id];
