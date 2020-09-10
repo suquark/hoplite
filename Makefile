@@ -13,11 +13,11 @@ GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 PROTO_OBJS = src/object_store.pb.o src/object_store.grpc.pb.o
 UTILS_OBJS = src/util/logging.o src/util/socket_utils.o
-COMMON_OBJS = src/common/id.o src/common/buffer.o src/common/status.o 
+COMMON_OBJS = src/common/id.o src/common/buffer.o src/common/status.o
 OBJECT_STORE_OBJS = src/local_store_client.o src/global_control_store.o src/object_store_state.o \
 	src/object_writer.o src/object_sender.o src/distributed_object_store.o
 
-all: notification multicast_test reduce_test allreduce_test gather_test allgather_test py_distributed_object_store python/object_store_pb2_grpc.py
+all: notification multicast_test reduce_test subset_reduce_test allreduce_test gather_test allgather_test py_distributed_object_store python/object_store_pb2_grpc.py
 
 python/object_store_pb2_grpc.py:
 	python -m pip install grpcio-tools
@@ -41,6 +41,9 @@ multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
+subset_reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) subset_reduce_test.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
 allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
@@ -57,6 +60,6 @@ allgather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean_bins:
-	rm -rf multicast_test reduce_test all_reduce_test python/*.cpp python/*.so *.so
+	rm -rf multicast_test reduce_test subset_reduce_test all_reduce_test python/*.cpp python/*.so *.so
 clean:
-	rm -rf notification notification_server_test multicast_test reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp python/*.so python/object_store_pb2_grpc.py python/object_store_pb2.py *.o *.so
+	rm -rf notification notification_server_test multicast_test reduce_test subset_reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp python/*.so python/object_store_pb2_grpc.py python/object_store_pb2.py *.o *.so
