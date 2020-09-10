@@ -1,8 +1,8 @@
 cluster_name: hoplite
 
-min_workers: 15
-max_workers: 15
-initial_workers: 15
+min_workers: 4
+max_workers: 4
+initial_workers: 4
 
 provider:
     type: aws

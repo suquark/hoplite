@@ -69,6 +69,20 @@ public:
     return grpc::Status::OK;
   }
 
+  grpc::Status
+  RemoteGetReducedObjects(grpc::ServerContext *context,
+                          const RemoteGetReducedObjectsRequest *request,
+                          RemoteGetReducedObjectsReply *reply) {
+    TIMELINE("ObjectStoreServiceImpl::RemoteGetReducedObjects()");
+    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
+    std::unordered_set<ObjectID> reduced_objects =
+        store_.GetReducedObjects(reduction_id);
+    for (const auto &object_id : reduced_objects) {
+      reply->add_object_ids(object_id.Binary());
+    }
+    return grpc::Status::OK;
+  }
+
 private:
   ObjectSender &object_sender_;
   DistributedObjectStore &store_;
@@ -156,6 +170,25 @@ bool DistributedObjectStore::InvokeRedirectReduce(
       },
       std::move(remote_grpc_address), std::move(request));
   return true;
+}
+
+std::unordered_set<ObjectID> DistributedObjectStore::RemoteGetReducedObjects(
+    const std::string &remote_address, const ObjectID &reduction_id) {
+  TIMELINE("GrpcServer::RemoteGetReducedObjects");
+  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
+  create_stub(remote_grpc_address);
+  grpc::ClientContext context;
+  RemoteGetReducedObjectsRequest request;
+  RemoteGetReducedObjectsReply reply;
+  request.set_reduction_id(reduction_id.Binary());
+  auto stub = get_stub(remote_grpc_address);
+  auto status = stub->RemoteGetReducedObjects(&context, request, &reply);
+  std::unordered_set<ObjectID> reduced_objects;
+  for (const auto &object_id_str : reply->object_ids()) {
+    ObjectID object_id = ObjectID::FromBinary(object_id_str);
+    object_ids.insert(object_id);
+  }
+  return reduced_objects;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -335,6 +368,24 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
   *result = object_buffer.data;
 }
 
+std::unordered_set<ObjectID>
+DistributedObjectStore::GetReducedObjects(const ObjectID &reduction_id) {
+  std::unique_lock<std::mutex> l(reduced_objects_mutex_);
+  reduced_objects_mutex_.wait(l, [this, &reduction_id] {
+    return reduced_objects_.find(reduction_id) != reduced_objects_.end();
+  });
+  return reduced_objects_[reduction_id];
+}
+
+std::unordered_set<ObjectID>
+DistributedObjectStore::GetUnreducedObjects(const ObjectID &reduction_id) {
+  std::unique_lock<std::mutex> l(reduced_objects_mutex_);
+  reduced_objects_mutex_.wait(l, [this, &reduction_id] {
+    return unreduced_objects_.find(reduction_id) != unreduced_objects_.end();
+  });
+  return unreduced_objects_[reduction_id];
+}
+
 bool DistributedObjectStore::check_and_store_inband_data(
     const ObjectID &object_id, int64_t object_size,
     const std::string &inband_data) {
@@ -431,12 +482,17 @@ void DistributedObjectStore::poll_and_reduce(
         buffer, reduction_id, num_reduce_objects);
   }
   // Write down the unreduced objects.
-  std::vector<ObjectID> unreduced_objects;
+  std::unordered_set<ObjectID> unreduced_objects;
   for (const auto &object_id : object_ids)
     if (reduced_objects.find(object_id) == reduced_objects.end()) {
       unreduced_objects.push_back(object_id);
     }
-  unreduced_objects_[reduction_id] = std::move(unreduced_objects);
+  {
+    std::lock_guard<std::mutex> lock(reduced_objects_mutex_);
+    reduced_objects_.emplace(reduction_id, std::move(reduced_objects));
+    unreduced_objects_.emplace(reduction_id, std::move(unreduced_objects));
+    reduced_objects_cv_.notify_all();
+  }
 }
 
 std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
@@ -667,6 +723,14 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
                             edge.size() + local_object_ids.size());
   // FIXME(zhuohan): Get the actual reduced objects on remote nodes and return
   // them back.
+  for (int i = 0; i < rows; i++) {
+    std::unordered_set<ObjectID> reduced_objects_row =
+        RemoteGetReducedObjects(lines[i].first, edge[i]);
+    reduced_objects.insert(reduced_objects_row.begin(),
+                           reduced_objects_row.end());
+  }
+
+  DCHECK(reduced_objects.size() == num_reduce_objects);
   return reduced_objects;
 }
 
