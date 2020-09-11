@@ -42,6 +42,29 @@ float get_uniform_random_float(const std::string &seed_str) {
   return dis(eng);
 }
 
+std::shared_ptr<Buffer> get_fixed_buffer(size_t n_elements,
+                                         float number) {
+  auto buf = std::make_shared<Buffer>(n_elements * sizeof(float));
+  float *data = (float *)buf->MutableData();
+  for (int64_t i = 0; i < n_elements; i++) {
+    data[i] = number;
+  }
+  buf->Seal();
+  return buf;
+}
+
+void put_fixed_buffer(DistributedObjectStore &store, const ObjectID &object_id,
+                      int64_t object_size, float number) {
+  DCHECK(object_size % sizeof(float) == 0);
+  std::shared_ptr<Buffer> buffer =
+      get_fixed_buffer(object_size / sizeof(float), number);
+  store.Put(buffer, object_id);
+  const float *view = (const float *)buffer->Data();
+  LOG(INFO) << object_id.ToString() << " is created! "
+            << "size = " << object_size
+            << ", fixed value: " << view[1];
+}
+
 std::shared_ptr<Buffer> get_random_float_buffer(size_t n_elements,
                                                 const std::string &seed_str) {
   auto buf = std::make_shared<Buffer>(n_elements * sizeof(float));

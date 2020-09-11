@@ -40,14 +40,19 @@ public:
   ObjectID Put(const std::shared_ptr<Buffer> &buffer);
 
   void Reduce(const std::vector<ObjectID> &object_ids,
-              ObjectID *created_reduction_id);
+              ObjectID *created_reduction_id, ssize_t num_reduce_objects = -1);
 
   void Reduce(const std::vector<ObjectID> &object_ids,
-              const ObjectID &reduction_id);
+              const ObjectID &reduction_id, ssize_t num_reduce_objects = -1);
 
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
   bool IsLocalObject(const ObjectID &object_id, int64_t *size);
+
+  std::unordered_set<ObjectID> GetReducedObjects(const ObjectID &reduction_id);
+
+  std::unordered_set<ObjectID>
+  GetUnreducedObjects(const ObjectID &reduction_id);
 
   inline void join_tasks() {
     object_sender_thread_.join();
@@ -61,19 +66,21 @@ private:
   // we do not use reference for its parameters because it will be executed
   // in a thread.
   void poll_and_reduce(const std::vector<ObjectID> object_ids,
-                       const ObjectID reduction_id);
+                       const ObjectID reduction_id, ssize_t num_reduce_objects);
 
-  void poll_and_reduce_pipe_impl(
+  std::unordered_set<ObjectID> poll_and_reduce_pipe_impl(
       const std::shared_ptr<ObjectNotifications> &notifications,
       const std::vector<ObjectID> &notification_candidates,
       std::vector<ObjectID> &local_object_ids, const int64_t object_size,
-      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id);
+      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
+      ssize_t num_reduce_objects);
 
-  void poll_and_reduce_grid_impl(
+  std::unordered_set<ObjectID> poll_and_reduce_grid_impl(
       const std::shared_ptr<ObjectNotifications> &notifications,
       const std::vector<ObjectID> &notification_candidates,
       std::vector<ObjectID> &local_object_ids, const int64_t object_size,
-      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id);
+      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
+      ssize_t num_reduce_objects);
 
   bool check_and_store_inband_data(const ObjectID &object_id,
                                    int64_t object_size,
@@ -132,7 +139,14 @@ private:
 
   bool InvokeRedirectReduce(const std::string &remote_address,
                             const std::vector<ObjectID> &object_ids,
-                            const ObjectID &reduction_id);
+                            const ObjectID &reduction_id,
+                            ssize_t num_reduce_objects);
+
+  // Helper function for getting reduced objects from a remote node. This is
+  // used by the grid implementation.
+  std::unordered_set<ObjectID>
+  RemoteGetReducedObjects(const std::string &remote_address,
+                          const ObjectID &reduction_id);
 
   void Shutdown() {
     grpc_server_->Shutdown();
@@ -165,6 +179,10 @@ private:
   // A map for currently working reduction tasks.
   std::mutex reduction_tasks_mutex_;
   std::unordered_map<ObjectID, std::thread> reduction_tasks_;
+  std::mutex reduced_objects_mutex_;
+  std::condition_variable reduced_objects_cv_;
+  std::unordered_map<ObjectID, std::unordered_set<ObjectID>> reduced_objects_;
+  std::unordered_map<ObjectID, std::unordered_set<ObjectID>> unreduced_objects_;
   std::thread object_writer_thread_;
   std::thread object_sender_thread_;
   std::thread notification_thread_;
