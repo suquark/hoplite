@@ -44,6 +44,8 @@ def reduce_object_return(obj_list, object_size):
 
 
 def multicast_small(client, world_size, object_size, epoch):
+    # Here we try to schedule more tasks and make then queuing in the worker.
+    # This would greatly reduce the task scheduling overhead.
     if object_size > 1024 * 1024:
         factor = 10
     else:
@@ -172,6 +174,7 @@ def main(algorithm, world_size, object_size):
     if object_size > 16 * 2 ** 20:
         duration = func(client, world_size, object_size, i + 1)
     else:
+        # Accumulate time for more precision.
         duration = 0.0
         for j in range(i + 1, i + 1 + 10):
             duration += func(client, world_size, object_size, j)
