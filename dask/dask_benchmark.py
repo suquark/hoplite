@@ -43,15 +43,35 @@ def reduce_object_return(obj_list, object_size):
     return a
 
 
+def multicast_small(client, world_size, object_size, epoch):
+    if object_size > 1024 * 1024:
+        factor = 10
+    else:
+        factor = 100
+    prefix = world_size * epoch
+    senders = []
+    for i in range(factor):
+        senders.append(client.submit(create_object, prefix + 10000 * i, object_size, workers=['Dask-0']))
+    time.sleep(0.1)
+    receivers = []
+    for j in range(factor):
+        for i in range(1, world_size):
+            receivers.append(client.submit(get_object, prefix + i + 10000 * j, senders[j], workers=[f'Dask-{i}']))
+    before = time.time()
+    results = client.gather(receivers)
+    after = time.time()
+    return (after - before) / factor
+
+
 def multicast(client, world_size, object_size, epoch):
     prefix = world_size * epoch
     sender = client.submit(create_object, prefix, object_size, workers=['Dask-0'])
+    time.sleep(0.1)
     receivers = []
     for i in range(1, world_size):
         receivers.append(client.submit(get_object, prefix + i, sender, workers=[f'Dask-{i}']))
     before = time.time()
-    for receiver in receivers:
-        receiver.result()
+    client.gather(receivers)
     after = time.time()
     return after - before
 
@@ -61,6 +81,7 @@ def gather(client, world_size, object_size, epoch):
     senders = []
     for i in range(0, world_size):   
         senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    time.sleep(0.1)
     receiver = client.submit(gather_object, senders, workers=['Dask-0'])
     before = time.time()
     receiver.result()
@@ -73,6 +94,7 @@ def reduce(client, world_size, object_size, epoch):
     senders = []
     for i in range(0, world_size):   
         senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    time.sleep(0.1)
     receiver = client.submit(reduce_object, senders, object_size, workers=['Dask-0'])
     before = time.time()
     receiver.result()
@@ -80,11 +102,41 @@ def reduce(client, world_size, object_size, epoch):
     return after - before  
 
 
+def reduce_object_return_indexed(_, obj_list, object_size):
+    a = np.zeros(object_size//4, dtype=np.float32)
+    for obj in obj_list:
+        a += obj
+    return a
+
+
+def allreduce_small(client, world_size, object_size, epoch):
+    factor = 4
+    prefix = world_size * epoch
+    senders = []
+    for i in range(0, world_size):
+        senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    time.sleep(0.1)
+    receivers = []
+    for i in range(factor):
+        receivers.append(client.submit(reduce_object_return_indexed, prefix + i, senders, object_size, workers=['Dask-0']))
+
+    other_receivers = []
+    for j in range(factor):
+        for i in range(1, world_size):
+            other_receivers.append(client.submit(get_object,  10000 * j + prefix + i, receivers[j], workers=[f'Dask-{i}']))
+
+    before = time.time()
+    client.gather(other_receivers)
+    after = time.time()
+    return (after - before) / factor
+
+
 def allreduce(client, world_size, object_size, epoch):
     prefix = world_size * epoch
     senders = []
     for i in range(0, world_size):   
         senders.append(client.submit(create_object, prefix + i, object_size, workers=[f'Dask-{i}']))
+    time.sleep(0.1)
     receiver = client.submit(reduce_object_return, senders, object_size, workers=['Dask-0'])
 
     other_receivers = []
@@ -92,8 +144,7 @@ def allreduce(client, world_size, object_size, epoch):
         other_receivers.append(client.submit(get_object,  prefix + i, receiver, workers=[f'Dask-{i}']))
 
     before = time.time()
-    for r in other_receivers:
-        r.result()
+    client.gather(other_receivers)
     after = time.time()
     return after - before
 
@@ -101,16 +152,22 @@ def allreduce(client, world_size, object_size, epoch):
 def main(algorithm, world_size, object_size):
     client = Client("127.0.0.1:8786")
     if algorithm == 'multicast':
-        func = multicast
+         if object_size < 64 * 1024 * 1024:
+             func = multicast_small
+         else:
+             func = multicast
     elif algorithm == 'gather':
         func = gather
     elif algorithm == 'reduce':
         func = reduce
     elif algorithm == 'allreduce':
-        func = allreduce
+        if object_size < 1024 * 1024:
+            func = allreduce_small
+        else:
+            func = allreduce
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
-    for i in range(10 if object_size <= 16 * 2 ** 20 else 1):
+    for i in range(3 if object_size <= 16 * 2 ** 20 else 1):
         func(client, world_size, object_size, i)
     if object_size > 16 * 2 ** 20:
         duration = func(client, world_size, object_size, i + 1)
