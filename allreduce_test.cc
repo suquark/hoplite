@@ -42,8 +42,9 @@ int main(int argc, char **argv) {
     ObjectID rank_object_id = object_ids[rank];
     std::shared_ptr<Buffer> reduction_result;
 
-    put_random_buffer<float>(store, rank_object_id, object_size);
     barrier(redis_address, 7777, world_size);
+    put_random_buffer<float>(store, rank_object_id, object_size);
+    std::this_thread::sleep_for(std::chrono::microseconds(0 * 100 * rank));
 
     auto start = std::chrono::system_clock::now();
     if (rank == 0) {
