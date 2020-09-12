@@ -703,7 +703,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
     ssize_t share_count = (remaining_size / rows) + (i < remaining_size % rows);
     ssize_t num_reduce_objects_chain =
         (remaining_num_objects_to_reduce / rows) +
-        (i < remaining_num_objects_to_reduce % rows);
+        (i < remaining_num_objects_to_reduce % rows) + 1;
     for (int j = 0; j < share_count; j++, processed_count++) {
       redirect_object_ids.push_back(remaining_ids_list[processed_count]);
     }
