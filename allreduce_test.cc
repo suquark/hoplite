@@ -1,14 +1,15 @@
 #include <chrono>
 #include <memory>
+#include <mpi.h>
 #include <string>
 #include <thread>
 #include <vector>
-#include <mpi.h>
 
 #include "common/buffer.h"
 #include "common/id.h"
 #include "distributed_object_store.h"
 #include "logging.h"
+#include "socket_utils.h"
 #include "test_utils.h"
 
 int main(int argc, char **argv) {

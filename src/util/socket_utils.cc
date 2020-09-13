@@ -114,7 +114,7 @@ std::string get_host_ipaddress() {
   struct hostent *host_entry = gethostbyname(hostbuffer);
   DCHECK(host_entry != NULL);
   // To convert an Internet network address into ASCII string.
-  char* ip_buf = inet_ntoa(*((struct in_addr *)host_entry->h_addr_list[0]));
+  char *ip_buf = inet_ntoa(*((struct in_addr *)host_entry->h_addr_list[0]));
   DCHECK(ip_buf != NULL);
   return std::string(ip_buf);
 }
