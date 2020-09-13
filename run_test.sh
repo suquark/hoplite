@@ -42,7 +42,10 @@ sleep 0.5
 (./notification $MY_IPADDR 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
 sleep 0.5
 
-$ROOT_DIR/mpirun_pernode.sh $test_name $MY_IPADDR $object_size $n_trials
+all_nodes=(${ALL_IPADDR[@]:0:$world_size})
+all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
+
+$ROOT_DIR/mpirun_pernode.sh $all_hosts $test_name $MY_IPADDR $object_size $n_trials
 
 # ... 2>&1 | tee $log_dir/$MY_IPADDR.server.log
 # $log_dir/$MY_IPADDR.server.log

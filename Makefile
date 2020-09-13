@@ -3,7 +3,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
 	  -lgrpc -ldl -lpthread -lz
 
 CXX = g++
-CPPFLAGS += `pkg-config --cflags protobuf grpc` -Isrc/util -Isrc
+CPPFLAGS += `pkg-config --cflags protobuf grpc mpi` -Isrc/util -Isrc
 CXXFLAGS += -std=c++11 -O2 -g -fPIC
 MPICXX?=mpicxx
 
