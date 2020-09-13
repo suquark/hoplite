@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (rank == 0) {
+    if (world_rank == 0) {
       auto start = std::chrono::system_clock::now();
       store.Reduce(object_ids, reduction_id, num_reduce_objects);
       store.Get(reduction_id, &reduction_result);
