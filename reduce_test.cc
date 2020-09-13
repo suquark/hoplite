@@ -8,13 +8,16 @@
 #include "test_utils.h"
 
 int main(int argc, char **argv) {
-  // argv: *, redis_address, my_address, #nodes, current_index, object_size
+  // argv: *, redis_address, object_size, n_trials
   std::string redis_address = std::string(argv[1]);
-  std::string my_address = std::string(argv[2]);
-  int64_t world_size = std::strtoll(argv[3], NULL, 10);
-  int64_t rank = std::strtoll(argv[4], NULL, 10);
-  int64_t object_size = std::strtoll(argv[5], NULL, 10);
-  int64_t n_trials = std::strtoll(argv[6], NULL, 10);
+  int64_t object_size = std::strtoll(argv[2], NULL, 10);
+  int64_t n_trials = std::strtoll(argv[3], NULL, 10);
+  std::string my_address = get_host_ipaddress();
+  MPI_Init(NULL, NULL);
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  int world_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
   ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
 
@@ -41,7 +44,7 @@ int main(int argc, char **argv) {
 
     put_random_buffer<float>(store, rank_object_id, object_size);
 
-    barrier(redis_address, 7777, world_size);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank == 0) {
       auto start = std::chrono::system_clock::now();
@@ -53,7 +56,9 @@ int main(int argc, char **argv) {
                 << duration.count();
       print_reduction_result<float>(reduction_id, reduction_result, sum);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
-  barrier(redis_address, 7777, world_size);
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
   return 0;
 }
