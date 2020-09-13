@@ -17,8 +17,6 @@ world_size=$2
 object_size=$3
 n_trials=$4
 
-export RAY_BACKEND_LOG_LEVEL=info
-
 if [ ! -f $test_executable_abspath ]; then
     echo "$(tput setaf 1)[ERROR]$(tput sgr 0) test executable not found: $test_executable_abspath"
     exit -2
@@ -45,9 +43,9 @@ sleep 0.5
 all_nodes=(${ALL_IPADDR[@]:0:$world_size})
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
-$ROOT_DIR/mpirun_pernode.sh $all_hosts $test_name $MY_IPADDR $object_size $n_trials
-
-# ... 2>&1 | tee $log_dir/$MY_IPADDR.server.log
-# $log_dir/$MY_IPADDR.server.log
+$ROOT_DIR/mpirun_pernode.sh $all_hosts \
+    -x HOPLITE_LOGGING_DIR=$log_dir \
+    -x RAY_BACKEND_LOG_LEVEL=info \
+    test_wrapper.sh $test_name $MY_IPADDR $object_size $n_trials
 
 sleep 1
