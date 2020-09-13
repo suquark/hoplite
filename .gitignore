@@ -53,3 +53,6 @@ gloo_log/
 
 python/*.cpp
 .DS_Store
+
+*.csv
+*.json

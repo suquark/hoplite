@@ -3,6 +3,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <mpi.h>
 
 #include "common/buffer.h"
 #include "common/id.h"
@@ -49,7 +50,7 @@ int main(int argc, char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     auto start = std::chrono::system_clock::now();
-    if (rank == 0) {
+    if (world_rank == 0) {
       store.Reduce(object_ids, reduction_id);
     }
     store.Get(reduction_id, &reduction_result);

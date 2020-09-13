@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mpi.h>
 
 #include "distributed_object_store.h"
 #include "logging.h"
@@ -39,14 +40,14 @@ int main(int argc, char **argv) {
     }
     DCHECK(object_size % sizeof(float) == 0);
 
-    ObjectID rank_object_id = object_ids[rank];
+    ObjectID rank_object_id = object_ids[world_rank];
     std::shared_ptr<Buffer> reduction_result;
 
     put_random_buffer<float>(store, rank_object_id, object_size);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (rank == 0) {
+    if (world_rank == 0) {
       auto start = std::chrono::system_clock::now();
       store.Reduce(object_ids, reduction_id);
       store.Get(reduction_id, &reduction_result);

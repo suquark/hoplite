@@ -1,6 +1,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <mpi.h>
 
 #include "common/buffer.h"
 #include "common/id.h"
@@ -32,7 +33,7 @@ int main(int argc, char **argv) {
     ObjectID object_id = object_id_from_integer(trial);
     std::shared_ptr<Buffer> result;
 
-    if (rank == 0) {
+    if (world_rank == 0) {
       result = std::make_shared<Buffer>(object_size);
       uint8_t *buf = result->MutableData();
       for (int64_t i = 0; i < object_size; i++) {
