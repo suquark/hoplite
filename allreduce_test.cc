@@ -43,8 +43,10 @@ int main(int argc, char **argv) {
     std::shared_ptr<Buffer> reduction_result;
 
     barrier(redis_address, 7777, world_size);
+    int sleep_time_ms = 1 * 100 * rank;
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+    LOG(INFO) << "rank " << rank << " after sleep"; 
     put_random_buffer<float>(store, rank_object_id, object_size);
-    std::this_thread::sleep_for(std::chrono::microseconds(0 * 100 * rank));
 
     auto start = std::chrono::system_clock::now();
     if (rank == 0) {
@@ -54,7 +56,7 @@ int main(int argc, char **argv) {
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> duration = end - start;
     LOG(INFO) << reduction_id.ToString() << " is reduced using "
-              << duration.count();
+              << duration.count() + (double)sleep_time_ms / 1000.0;
     print_reduction_result<float>(reduction_id, reduction_result, sum);
   }
 
