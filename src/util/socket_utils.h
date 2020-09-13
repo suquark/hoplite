@@ -15,4 +15,6 @@ void recv_ack(int fd);
 
 void send_ack(int fd);
 
+std::string get_host_ipaddress();
+
 #endif // SOCKET_UTILS_H

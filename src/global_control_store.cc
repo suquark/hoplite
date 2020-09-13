@@ -169,7 +169,8 @@ void GlobalControlStoreClient::ConnectNotificationServer() {
 void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                                              const std::string &sender_ip,
                                              bool finished, size_t object_size,
-                                             const uint8_t *inband_data) {
+                                             const uint8_t *inband_data,
+                                             bool blocking) {
   TIMELINE("GlobalControlStoreClient::WriteLocation");
   LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
             << " to notification server with address = " << sender_ip << ".";
@@ -186,17 +187,26 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
       inband_data != nullptr) {
     request.set_inband_data(inband_data, object_size);
   }
-  pool_.push(
-      [this, object_id](int id, WriteLocationRequest request) {
-        grpc::ClientContext context;
-        WriteLocationReply reply;
-        auto status =
-            notification_stub_->WriteLocation(&context, request, &reply);
-        DCHECK(status.ok()) << status.error_message();
-        DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
-                           << " failed.";
-      },
-      std::move(request));
+  if (blocking) {
+    grpc::ClientContext context;
+    WriteLocationReply reply;
+    auto status = notification_stub_->WriteLocation(&context, request, &reply);
+    DCHECK(status.ok()) << status.error_message();
+    DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString()
+                       << " failed.";
+  } else {
+    pool_.push(
+        [this, object_id](int id, WriteLocationRequest request) {
+          grpc::ClientContext context;
+          WriteLocationReply reply;
+          auto status =
+              notification_stub_->WriteLocation(&context, request, &reply);
+          DCHECK(status.ok()) << status.error_message();
+          DCHECK(reply.ok())
+              << "WriteLocation for " << object_id.ToString() << " failed.";
+        },
+        std::move(request));
+  }
 }
 
 SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id,

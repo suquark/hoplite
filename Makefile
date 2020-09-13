@@ -5,6 +5,7 @@ LDFLAGS = -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc` -Isrc/util -Isrc
 CXXFLAGS += -std=c++11 -O2 -g -fPIC
+MPICXX?=mpicxx
 
 PROTOC = protoc
 PROTOS_PATH = src/
@@ -36,22 +37,22 @@ libdistributed_object_store.so: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJ
 	$(CXX) $^ $(LDFLAGS) -shared -o $@
 
 multicast_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) multicast_test.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(MPICXX) $^ $(LDFLAGS) -o $@
 
 reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) reduce_test.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(MPICXX) $^ $(LDFLAGS) -o $@
 
 subset_reduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) subset_reduce_test.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(MPICXX) $^ $(LDFLAGS) -o $@
 
 allreduce_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) allreduce_test.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(MPICXX) $^ $(LDFLAGS) -o $@
 
 gather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) gather_test.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(MPICXX) $^ $(LDFLAGS) -o $@
 
 allgather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) allgather_test.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(MPICXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=src/ --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $<

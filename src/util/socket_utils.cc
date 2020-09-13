@@ -7,11 +7,13 @@
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <thread>
 #include <unistd.h>
 #include <zlib.h>
@@ -102,4 +104,17 @@ void recv_ack(int fd) {
 void send_ack(int fd) {
   auto status = send_all(fd, "OK", 3);
   DCHECK(!status) << "socket send error: object ack";
+}
+
+std::string get_host_ipaddress() {
+  char hostbuffer[256];
+  // To retrieve hostname
+  DCHECK(gethostname(hostbuffer, sizeof(hostbuffer)) != -1);
+  // To retrieve host information
+  struct hostent *host_entry = gethostbyname(hostbuffer);
+  DCHECK(host_entry != NULL);
+  // To convert an Internet network address into ASCII string.
+  char* ip_buf = inet_ntoa(*((struct in_addr *)host_entry->h_addr_list[0]));
+  DCHECK(ip_buf != NULL);
+  return std::string(ip_buf);
 }
