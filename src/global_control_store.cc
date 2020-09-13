@@ -75,6 +75,7 @@ private:
 
 std::vector<NotificationMessage>
 ObjectNotifications::GetNotifications(bool delete_after_get, bool no_wait) {
+  TIMELINE("GetNotifications");
   std::unique_lock<std::mutex> l(notification_mutex_);
   if (!no_wait) {
     notification_cv_.wait(l, [this]() { return ready_.size() > cursor_; });
