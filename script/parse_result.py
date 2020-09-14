@@ -8,7 +8,7 @@ def parse_multicast(folder_path):
     files = os.listdir(folder_path)
     all_trial_times = []
     for filename in files:
-        if 'client' in filename:
+        if 'rank' in filename and 'rank_0' not in filename:
             try:
                 f = open(os.path.join(folder_path, filename))
                 trial_times = []
@@ -35,7 +35,7 @@ def parse_reduce(folder_path):
     files = os.listdir(folder_path)
     all_trial_times = []
     for filename in files:
-        if 'server' in filename:
+        if 'rank_0' in filename:
             try:
                 f = open(os.path.join(folder_path, filename))
                 for line in f.readlines():
@@ -54,7 +54,7 @@ def parse_allreduce(folder_path):
     files = os.listdir(folder_path)
     all_trial_times = []
     for filename in files:
-        if ('server' in filename) or ('client' in filename):
+        if 'rank' in filename:
             try:
                 f = open(os.path.join(folder_path, filename))
                 trial_times = []
@@ -81,7 +81,7 @@ def parse_gather(folder_path):
     files = os.listdir(folder_path)
     all_trial_times = []
     for filename in files:
-        if 'server' in filename:
+        if 'rank_0' in filename:
             try:
                 f = open(os.path.join(folder_path, filename))
                 for line in f.readlines():
