@@ -35,6 +35,8 @@ log_dir=$ROOT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_si
 mkdir -p $log_dir
 ln -sfn $log_dir/ $ROOT_DIR/log/latest
 
+export RAY_BACKEND_LOG_LEVEL=info
+
 pkill notification
 sleep 0.5
 (./notification $MY_IPADDR 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
@@ -45,7 +47,7 @@ all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 
 $ROOT_DIR/mpirun_pernode.sh $all_hosts \
     -x HOPLITE_LOGGING_DIR=$log_dir \
-    -x RAY_BACKEND_LOG_LEVEL=info \
+    -x RAY_BACKEND_LOG_LEVEL=$RAY_BACKEND_LOG_LEVEL \
     test_wrapper.sh $test_executable_abspath $MY_IPADDR $object_size $n_trials
 
 sleep 1
