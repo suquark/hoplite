@@ -173,8 +173,8 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id,
                                              const uint8_t *inband_data,
                                              bool blocking) {
   TIMELINE("GlobalControlStoreClient::WriteLocation");
-  LOG(INFO) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
-            << " to notification server with address = " << sender_ip << ".";
+  LOG(DEBUG) << "[GlobalControlStoreClient] Adding object " << object_id.Hex()
+             << " to notification server with address = " << sender_ip << ".";
   // FIXME(suquark): Figure out why running `WriteLocation` in a thread pool
   // would fail when we are running multicast repeatly with certain object sizes
   // (65K~300K).
