@@ -63,7 +63,8 @@ public:
   // Write object location to the notification server.
   void WriteLocation(const ObjectID &object_id, const std::string &my_address,
                      bool finished, size_t object_size,
-                     const uint8_t *inband_data = nullptr);
+                     const uint8_t *inband_data = nullptr,
+                     bool blocking = false);
 
   // Get object location from the notification server.
   SyncReply GetLocationSync(const ObjectID &object_id, bool occupying);
