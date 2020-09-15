@@ -37,9 +37,9 @@ from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
 @ray.remote(resources={'machine': 1})
 class ParameterServer(object):
-    def __init__(self, args_dict, lr):
+    def __init__(self, args_dict, lr, model_type="custom"):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
-        self.model = ConvNet()
+        self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
@@ -78,24 +78,20 @@ class ParameterServer(object):
 
 @ray.remote(resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, args_dict):
+    def __init__(self, args_dict, model_type="custom", device="cpu"):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
-        self.model = ConvNet()
-        self.data_iterator = iter(get_data_loader()[0])
+        self.device = device
+        self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self, parameter_id, gradient_id=None):
+    def compute_gradients(self, parameter_id, gradient_id=None, batch_size=1):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
         self.model.set_parameters(parameters)
 
-        try:
-            data, target = next(self.data_iterator)
-        except StopIteration:  # When the epoch ends, start a new epoch.
-            self.data_iterator = iter(get_data_loader()[0])
-            data, target = next(self.data_iterator)
+        data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
-        loss = criterion(output, target)
+        loss = torch.mean(output)
         loss.backward()
         gradients = self.model.get_gradients()
         cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
@@ -109,8 +105,8 @@ parser.add_argument('-a', '--num-async', type=int, default=None,
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
-parser.add_argument('--no-test', action='store_true',
-                    help='skip all tests except the last one')
+parser.add_argument('-m', '--model', type=int, default="custom",
+                    help='neural network model type')
 hoplite.utils.add_arguments(parser)
 
 hoplite.utils.start_location_server()
@@ -123,9 +119,6 @@ num_workers = args.num_workers
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(args_dict, 1e-2)
 workers = [DataWorker.remote(args_dict) for i in range(num_workers)]
-
-model = ConvNet()
-test_loader = get_data_loader()[1]
 
 # get initial weights
 current_weights = ps.get_parameter_id.remote()
@@ -147,11 +140,7 @@ if args.num_async is None:
         now = time.time()
         print("step time:", now - step_start, flush=True)
         step_start = now
-        if i % 10 == 0 and not args.no_test:
-            # Evaluate the current model.
-            model.set_weights(ray.get(current_weights))
-            accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
+
 else:
     print("Running Asynchronous Parameter Server Training.")
     step_start = time.time()
@@ -169,16 +158,5 @@ else:
         print("step time:", now - step_start, flush=True)
         step_start = now
 
-        if i % 10 == 0 and not args.no_test:
-            # Evaluate the current model after every 10 updates.
-            model.set_weights(ray.get(current_weights))
-            accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
-
-ps.set_parameters.remote(current_weights)
-model.set_weights(ray.get(ps.get_weights.remote()))
-during = time.time() - start
-accuracy = evaluate(model, test_loader)
-print("Final accuracy is {:.1f}.".format(accuracy), f"during = {during}s")
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
