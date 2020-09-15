@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
   rand_nums = create_rand_nums(num_elements_per_proc);
   float *global_nums = (float *)malloc(sizeof(float) * num_elements_per_proc);
 
+  MPI_Barrier(MPI_COMM_WORLD);
   // Reduce all of the local sums into the global sum
   time -= MPI_Wtime();
   MPI_Reduce(rand_nums, global_nums, num_elements_per_proc, MPI_FLOAT, MPI_SUM,
