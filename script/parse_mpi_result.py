@@ -70,6 +70,8 @@ def main(log_dir):
     tasks = {}
 
     for filename in files:
+        if filename == "latest":
+            continue
         splited = filename.split('-');
         if len(splited) != 4:
             exit(-1)

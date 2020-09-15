@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 // Creates an array of random numbers. Each number has a value from 0 - 1
 float *create_rand_nums(int num_elements) {
@@ -49,6 +50,7 @@ int main(int argc, char **argv) {
 
   // Reduce all of the local sums into the global sum
   time -= MPI_Wtime();
+  sleep(0.1 * world_rank * 3);
   MPI_Allreduce(rand_nums, global_nums, num_elements_per_proc, MPI_FLOAT,
                 MPI_SUM, MPI_COMM_WORLD);
   time += MPI_Wtime();
