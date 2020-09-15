@@ -150,7 +150,7 @@ GlobalControlStoreClient::GlobalControlStoreClient(
       notification_server_address_ + ":" +
       std::to_string(notification_server_port_);
   LOG(DEBUG) << "remote_notification_server_address "
-            << remote_notification_server_address;
+             << remote_notification_server_address;
   notification_channel_ = grpc::CreateChannel(
       remote_notification_server_address, grpc::InsecureChannelCredentials());
   notification_stub_ =

@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 
+// Make the Put() call blocking for more precise timing.
+#define HOPLITE_PUT_BLOCKING true
+
 #include "distributed_object_store.h"
 #include "logging.h"
 #include "socket_utils.h"

@@ -5,6 +5,9 @@
 #include <thread>
 #include <vector>
 
+// Make the Put() call blocking for more precise timing.
+#define HOPLITE_PUT_BLOCKING true
+
 #include "common/buffer.h"
 #include "common/id.h"
 #include "distributed_object_store.h"

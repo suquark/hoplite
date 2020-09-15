@@ -276,11 +276,13 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer,
     ptr->CopyFrom(*buffer);
     local_store_client_.Seal(object_id);
     gcs_client_.WriteLocation(object_id, my_address_, true, buffer->Size(),
-                              buffer->Data(), /*blocking=*/true);
+                              buffer->Data(),
+                              /*blocking=*/HOPLITE_PUT_BLOCKING);
   } else {
     LOG(DEBUG) << "Put with streaming";
     gcs_client_.WriteLocation(object_id, my_address_, false, buffer->Size(),
-                              buffer->Data(), /*blocking=*/true);
+                              buffer->Data(),
+                              /*blocking=*/HOPLITE_PUT_BLOCKING);
     ptr->StreamCopy(*buffer);
     local_store_client_.Seal(object_id);
   }
