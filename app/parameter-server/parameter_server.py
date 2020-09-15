@@ -35,7 +35,7 @@ from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 # remote actor.
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 class ParameterServer(object):
     def __init__(self, args_dict, lr):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
@@ -76,7 +76,7 @@ class ParameterServer(object):
 # Parameter Server model weights.
 
 
-@ray.remote(resources={'node': 1})
+@ray.remote(resources={'machine': 1})
 class DataWorker(object):
     def __init__(self, args_dict):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
@@ -140,7 +140,7 @@ if args.num_async is None:
         for worker in workers:
             gradient_id = hoplite.utils.random_object_id()
             gradients.append(gradient_id)
-            worker.compute_gradients.remote(current_weights, gradient_id) 
+            worker.compute_gradients.remote(current_weights, gradient_id)
         # Calculate update after all gradients are available.
         current_weights = ps.apply_gradients.remote(*gradients)
         ray.wait([current_weights])
