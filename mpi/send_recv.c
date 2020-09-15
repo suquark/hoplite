@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
   int num_elements = atoi(argv[1]);
   double time = 0;
   float *numbers = create_rand_nums(num_elements);
+  MPI_Barrier(MPI_COMM_WORLD);
   if (world_rank == 0) {
     time -= MPI_Wtime();
     MPI_Send(

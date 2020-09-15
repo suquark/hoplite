@@ -34,6 +34,22 @@ def parse_reduce(folder_path):
         print (folder_path)
     return retrieval_time
 
+def parse_gather(folder_path):
+    try:
+        f = open(folder_path)
+        for line in f.readlines():
+            if 'MPI_Gather time =' in line:
+                tmp = line.split('time = ')[1]
+                retrieval_time = float(tmp)
+        f.close()
+    except:
+        print (folder_path)
+    try:
+        a = retrieval_time
+    except:
+        print (folder_path)
+    return retrieval_time
+
 def parse_allreduce(folder_path):
     try:
         f = open(folder_path)
@@ -61,6 +77,9 @@ def parse_file(task_name, log_dir, foldername):
 
     if task_name == 'allreduce':
         return parse_allreduce(path)
+
+    if task_name == 'gather':
+        return parse_gather(path)
 
     assert (False)
 
