@@ -3,7 +3,7 @@ import torch
 import torchvision
 from torch import nn
 from torch.nn import functional as F
-from torchvision import datasets, transforms,
+from torchvision import datasets, transforms
 from filelock import FileLock
 import numpy as np
 
@@ -75,12 +75,13 @@ class ConvNet(nn.Module):
 
     def __init__(self, model_type="custom"):
         super(ConvNet, self).__init__()
+        self.model_type = model_type
         if model_type == "custom":
             self.conv1 = nn.Conv2d(1, 3 * 64, kernel_size=3)
             self.fc1 = nn.Linear(192 * 64, 2048)
             self.fc2 = nn.Linear(2048, 10)
         else:
-            self.model = MODEL_DICT[model_type]
+            self.model = MODEL_DICT[model_type]()
 
         self.weights_info = []
         for p in self.parameters():
@@ -106,7 +107,7 @@ class ConvNet(nn.Module):
         return tensors
 
     def forward(self, x):
-        if model_type == "custom":
+        if self.model_type == "custom":
             x = F.relu(F.max_pool2d(self.conv1(x), 3))
             x = x.view(-1, 192 * 64)
             x = F.relu(self.fc1(x))
@@ -120,7 +121,7 @@ class ConvNet(nn.Module):
 
     def set_parameters(self, parameters):
         for w, p in zip(self.parameters(), parameters):
-            w.data = torch.from_numpy(p)
+            w.data = torch.from_numpy(p).to(w.data.device)
 
     def set_weights(self, weights):
         self.load_state_dict(weights)

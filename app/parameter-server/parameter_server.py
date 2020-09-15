@@ -35,11 +35,12 @@ from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 # remote actor.
 
 
-@ray.remote(resources={'machine': 1})
+@ray.remote(num_gpus=1, resources={'machine': 1})
 class ParameterServer(object):
     def __init__(self, args_dict, lr, model_type="custom"):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
         self.model = ConvNet(model_type)
+        print(self.model.parameters())
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
@@ -76,14 +77,14 @@ class ParameterServer(object):
 # Parameter Server model weights.
 
 
-@ray.remote(resources={'machine': 1})
+@ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
     def __init__(self, args_dict, model_type="custom", device="cpu"):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self, parameter_id, gradient_id=None, batch_size=1):
+    def compute_gradients(self, parameter_id, gradient_id=None, batch_size=8):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
         self.model.set_parameters(parameters)
@@ -105,7 +106,7 @@ parser.add_argument('-a', '--num-async', type=int, default=None,
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
-parser.add_argument('-m', '--model', type=int, default="custom",
+parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
 hoplite.utils.add_arguments(parser)
 
@@ -117,8 +118,8 @@ iterations = 50
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(args_dict, 1e-2)
-workers = [DataWorker.remote(args_dict) for i in range(num_workers)]
+ps = ParameterServer.remote(args_dict, 1e-2, model_type=args.model)
+workers = [DataWorker.remote(args_dict, model_type=args.model, device='cuda') for i in range(num_workers)]
 
 # get initial weights
 current_weights = ps.get_parameter_id.remote()
