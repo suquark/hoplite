@@ -61,7 +61,6 @@ import ray
 class ParameterServer(object):
     def __init__(self, lr, model_type="custom"):
         self.model = ConvNet(model_type)
-        print(self.model.parameters())
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):

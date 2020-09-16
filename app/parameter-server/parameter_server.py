@@ -40,7 +40,6 @@ class ParameterServer(object):
     def __init__(self, args_dict, lr, model_type="custom"):
         self.store = hoplite.utils.create_store_using_dict(args_dict)
         self.model = ConvNet(model_type)
-        print(self.model.parameters())
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):

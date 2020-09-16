@@ -16,8 +16,8 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 class ParameterServer(object):
-    def __init__(self, lr):
-        self.model = ConvNet()
+    def __init__(self, lr, model_type="custom"):
+        self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self):
@@ -34,35 +34,37 @@ class ParameterServer(object):
 
 
 class DataWorker(object):
-    def __init__(self):
-        self.model = ConvNet()
-        self.data_iterator = iter(get_data_loader()[0])
+    def __init__(self, model_type="custom", device="cpu"):
+        self.device = device
+        self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self):
+    def compute_gradients(self, batch_size=8):
         parameter_buffer = np.empty(self.model.n_param, dtype=np.float32)
         comm.Bcast(parameter_buffer, root=0)
         parameters = self.model.buffer_to_tensors(parameter_buffer.view(np.uint8))
         self.model.set_parameters(parameters)
-        try:
-            data, target = next(self.data_iterator)
-        except StopIteration:  # When the epoch ends, start a new epoch.
-            self.data_iterator = iter(get_data_loader()[0])
-            data, target = next(self.data_iterator)
+        data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
-        loss = criterion(output, target)
+        loss = torch.mean(output)
         loss.backward()
         gradients = self.model.get_gradients()
         cont_grad = np.concatenate([p.ravel() for p in gradients])
         grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
         comm.Reduce(cont_grad, grad_buffer, op=MPI.SUM, root=0)
 
+parser = argparse.ArgumentParser(description='parameter server')
+parser.add_argument('-m', '--model', type=str, default="custom",
+                    help='neural network model type')
+args = parser.parse_args()
+
+
 iterations = 50
 
 
 if rank == 0:
     print("rank == 0")
-    ps = ParameterServer(1e-2)
+    ps = ParameterServer(1e-2, model_type=args.model)
     step_start = time.time()
     for i in range(iterations):
         ps.apply_gradients()
@@ -72,6 +74,6 @@ if rank == 0:
 
 else:
     print("rank > 0")
-    worker = DataWorker()
+    worker = DataWorker(model_type=args.model, device='cuda')
     for i in range(iterations):
         worker.compute_gradients()
