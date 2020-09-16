@@ -83,7 +83,7 @@ class DataWorker(object):
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self, parameter_id, gradient_id=None, batch_size=8):
+    def compute_gradients(self, parameter_id, gradient_id=None, batch_size=128):
         parameter_buffer = self.store.get(parameter_id)
         parameters = self.model.buffer_to_tensors(parameter_buffer)
         self.model.set_parameters(parameters)

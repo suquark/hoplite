@@ -92,7 +92,7 @@ class DataWorker(object):
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self, weights, batch_size=8):
+    def compute_gradients(self, weights, batch_size=128):
         self.model.set_weights(weights)
 
         data = torch.randn(batch_size, 3, 224, 224, device=self.device)
