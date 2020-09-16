@@ -27,8 +27,9 @@ class DataWorker(object):
         self.model = ConvNet(model_type).to(device)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.02)
         self.rank = rank
+        self.is_master = hoplite.utils.get_my_address().encode() == args_dict['redis_address']
 
-    def compute_gradients(self, gradient_id, gradients, reduction_id, batch_size=128):
+    def compute_gradients(self, gradient_id, gradient_ids, reduction_id, batch_size=128):
         data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
@@ -38,8 +39,9 @@ class DataWorker(object):
         cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
         buffer = hoplite.store_lib.Buffer.from_buffer(cont_g)
         gradient_id = self.store.put(buffer, gradient_id)
-        if rank == 0:
-            reduced_gradient_id = self.store.reduce_async(gradients, hoplite.store_lib.ReduceOp.SUM, reduction_id)
+        if self.is_master:
+            # print("i'm master and i start reduce")
+            reduced_gradient_id = self.store.reduce_async(gradient_ids, hoplite.store_lib.ReduceOp.SUM, reduction_id)
         grad_buffer = self.store.get(reduction_id)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()
