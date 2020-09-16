@@ -117,7 +117,7 @@ iterations = 50
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(1e-2)
+ps = ParameterServer.remote(1e-2, model_type=args.model)
 workers = [DataWorker.remote(model_type=args.model, device='cuda') for i in range(num_workers)]
 
 # get initial weights
