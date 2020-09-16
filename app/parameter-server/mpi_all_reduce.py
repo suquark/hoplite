@@ -21,7 +21,7 @@ class DataWorker(object):
         self.model = ConvNet(model_type).to(device)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.02)
 
-    def compute_gradients(self, batch_size=8):
+    def compute_gradients(self, batch_size=128):
         data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
@@ -30,7 +30,7 @@ class DataWorker(object):
         gradients = self.model.get_gradients()
         cont_grad = np.concatenate([p.ravel() for p in gradients])
         grad_buffer = np.empty(self.model.n_param, dtype=np.float32)
-        comm.Alleduce(cont_grad, grad_buffer, op=MPI.SUM, root=0)
+        comm.Allreduce(cont_grad, grad_buffer, op=MPI.SUM)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer.view(np.uint8))
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
