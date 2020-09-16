@@ -57,10 +57,11 @@ import ray
 # remote actor.
 
 
-@ray.remote(resources={'machine': 1})
+@ray.remote(num_gpus=1, resources={'machine': 1})
 class ParameterServer(object):
-    def __init__(self, lr):
-        self.model = ConvNet()
+    def __init__(self, lr, model_type="custom"):
+        self.model = ConvNet(model_type)
+        print(self.model.parameters())
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
@@ -86,22 +87,19 @@ class ParameterServer(object):
 # Parameter Server model weights.
 
 
-@ray.remote(resources={'machine': 1})
+@ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self):
-        self.model = ConvNet()
-        self.data_iterator = iter(get_data_loader()[0])
+    def __init__(self, model_type="custom", device="cpu"):
+        self.device = device
+        self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self, weights):
+    def compute_gradients(self, weights, batch_size=8):
         self.model.set_weights(weights)
-        try:
-            data, target = next(self.data_iterator)
-        except StopIteration:  # When the epoch ends, start a new epoch.
-            self.data_iterator = iter(get_data_loader()[0])
-            data, target = next(self.data_iterator)
+
+        data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
-        loss = criterion(output, target)
+        loss = torch.mean(output)
         loss.backward()
         return self.model.get_gradients()
 
@@ -111,8 +109,8 @@ parser.add_argument('-a', '--num-async', type=int, default=None,
                     help='enable asynchronous training')
 parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
-parser.add_argument('--no-test', action='store_true',
-                    help='skip all tests except the last one')
+parser.add_argument('-m', '--model', type=str, default="custom",
+                    help='neural network model type')
 
 args = parser.parse_args()
 iterations = 50
@@ -120,10 +118,7 @@ num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2)
-workers = [DataWorker.remote() for i in range(num_workers)]
-
-model = ConvNet()
-test_loader = get_data_loader()[1]
+workers = [DataWorker.remote(model_type=args.model, device='cuda') for i in range(num_workers)]
 
 # get initial weights
 current_weights = ps.get_weights.remote()
@@ -161,11 +156,6 @@ if args.num_async is None:
         print("step time:", now - step_start, flush=True)
         step_start = now
 
-        if i % 10 == 0 and not args.no_test:
-            # Evaluate the current model.
-            model.set_weights(ray.get(current_weights))
-            accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
 else:
     ###########################################################################
     # Asynchronous Parameter Server Training
@@ -197,16 +187,6 @@ else:
         print("step time:", now - step_start, flush=True)
         step_start = now
 
-        if i % 10 == 0 and not args.no_test:
-            # Evaluate the current model after every 10 updates.
-            model.set_weights(ray.get(current_weights))
-            accuracy = evaluate(model, test_loader)
-            print("Iter {}: \taccuracy is {:.1f}".format(i, accuracy))
-
-model.set_weights(ray.get(current_weights))
-during = time.time() - start
-accuracy = evaluate(model, test_loader)
-print("Final accuracy is {:.1f}.".format(accuracy), f"during = {during}s")
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
 

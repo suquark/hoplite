@@ -1,4 +1,4 @@
-cluster_name: hoplite
+cluster_name: hoplite-gpu
 
 min_workers: 7
 max_workers: 7
