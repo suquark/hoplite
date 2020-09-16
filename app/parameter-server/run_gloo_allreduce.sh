@@ -10,10 +10,12 @@ for n_nodes in 8; do
     for node in ${ALL_IPADDR[@]:0:$n_nodes}; do
         echo "=> $node"
         ssh -o StrictHostKeyChecking=no $node PATH=$PATH:/home/ubuntu/anaconda3/bin:/home/ubuntu/anaconda3/condabin, \
-            python $ROOT_DIR/app/parameter_server/gloo_all_reduce.py \
+            python $ROOT_DIR/app/parameter-server/gloo_all_reduce.py \
                 --master_ip $MY_IPADDR \
-                --rank i \
+                --rank $i \
                 --size $n_nodes \
                 -m $MODEL &
         i=$((i+1))
+    done
+    wait
 done

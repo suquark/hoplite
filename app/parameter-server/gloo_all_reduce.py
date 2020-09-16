@@ -27,7 +27,7 @@ class DataWorker(object):
         cont_grad = np.concatenate([p.ravel() for p in gradients])
         t = torch.from_numpy(cont_grad)
         torch.distributed.all_reduce(t)
-        summed_gradients = self.model.buffer_to_tensors(t.numpy())
+        summed_gradients = self.model.buffer_to_tensors(t.numpy().view(np.uint8))
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
@@ -36,7 +36,7 @@ parser = argparse.ArgumentParser(description='parameter server')
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
 parser.add_argument('--rank', type=int)
-parser.add_argument('--size', type=size)
+parser.add_argument('--size', type=int)
 parser.add_argument('--master_ip', type=str)
 args = parser.parse_args()
 
