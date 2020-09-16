@@ -1,3 +1,4 @@
+export RAY_BACKEND_LOG_LEVEL=info
 mkdir -p ps-log/
 
 ROOT_DIR=$(dirname $(realpath -s $0))/../../
@@ -12,7 +13,7 @@ for n_nodes in 8; do
 
     pkill notification
     # $ROOT_DIR/restart_all_workers.sh
-    $ROOT_DIR/mpirun_pernode.sh $all_hosts python $(realpath -s mpi_all_reduce.py) -m $MODEL \
+    $ROOT_DIR/mpirun_pernode.sh $all_hosts python $(realpath -s mpi_all_reduce.py) -m $model \
       | tee ps-log/allreduce-$n_nodes-$model-mpi.log
     sleep 0.5
 
@@ -25,7 +26,7 @@ for n_nodes in 8; do
           --master_ip $MY_IPADDR \
           --rank $i \
           --size $n_nodes \
-          -m $MODEL \
+          -m $model \
           | tee ps-log/allreduce-$n_nodes-$model-gloo.$i.log &
       i=$((i+1))
     done
@@ -39,4 +40,5 @@ for n_nodes in 8; do
     echo "==========" allreduce-$n_nodes-$model-ray "=========="
     python ray_parameter_server_baseline.py -n $(($n_nodes - 1)) -m $model | tee ps-log/allreduce-$n_nodes-$model-ray.log
     sleep 0.5
+  done
 done
