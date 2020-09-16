@@ -30,6 +30,7 @@ class DataWorker(object):
         self.is_master = hoplite.utils.get_my_address().encode() == args_dict['redis_address']
 
     def compute_gradients(self, gradient_id, gradient_ids, reduction_id, batch_size=128):
+        start_time = time.time()
         data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
@@ -47,6 +48,7 @@ class DataWorker(object):
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
+        print(self.rank, "in actor time", time.time() - start_time)
         return None
 
 
