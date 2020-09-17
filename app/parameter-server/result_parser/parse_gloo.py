@@ -20,4 +20,6 @@ all_step_time = np.array(all_step_time)
 all_step_time = all_step_time[:, 5:]
 all_step_time = np.amax(all_step_time, axis=0)
 
-print(np.mean(all_step_time), np.std(all_step_time))
+all_step_throughput = 1.0 / all_step_time
+
+print(np.mean(all_step_throughput), np.std(all_step_throughput))
