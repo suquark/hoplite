@@ -13,5 +13,5 @@ with open(filename, 'r') as f:
             all_step_time.append(float(line.split(f"step time:")[1]))
 
 all_step_time = all_step_time[3:]
-
-print(np.mean(all_step_time), np.std(all_step_time))
+all_step_throughput = 1.0 / all_step_time
+print(np.mean(all_step_throughput), np.std(all_step_throughput))
