@@ -3,7 +3,7 @@ import sys
 import numpy as np
 
 filename = sys.argv[1]
-n_nodes = int(sys.argv[3])
+n_nodes = int(sys.argv[2])
 
 all_step_time = []
 
