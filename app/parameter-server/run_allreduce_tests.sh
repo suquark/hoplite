@@ -4,8 +4,8 @@ mkdir -p ps-log/
 ROOT_DIR=$(dirname $(realpath -s $0))/../../
 source $ROOT_DIR/load_cluster_env.sh
 
-for n_nodes in 8; do
-  for model in alexnet; do
+for n_nodes in 16; do
+  for model in alexnet vgg16 resnet50; do
     echo "==========" allreduce-$n_nodes-$model-mpi "=========="
     all_nodes=(${ALL_IPADDR[@]:0:$n_nodes})
     all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')

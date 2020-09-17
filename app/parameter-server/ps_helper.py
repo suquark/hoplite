@@ -136,7 +136,7 @@ class ConvNet(nn.Module):
     def set_gradients(self, gradients):
         for g, p in zip(gradients, self.parameters()):
             if g is not None:
-                if p.grad.device is not None:
+                if p.grad is not None:
                     p.grad = torch.from_numpy(g).to(p.grad.device)
                 else:
                     p.grad = torch.from_numpy(g)

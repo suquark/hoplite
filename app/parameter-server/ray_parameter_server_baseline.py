@@ -112,7 +112,7 @@ parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
 
 args = parser.parse_args()
-iterations = 50
+iterations = 20
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
