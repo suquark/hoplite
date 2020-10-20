@@ -1,8 +1,8 @@
-cluster_name: hoplite
+cluster_name: hoplite-gpu
 
-min_workers: 15
-max_workers: 15
-initial_workers: 15
+min_workers: 7
+max_workers: 7
+initial_workers: 7
 
 provider:
     type: aws
@@ -17,7 +17,7 @@ auth:
     ssh_private_key: /Users/zhuohan123/.ssh/shared_key.pem
 
 head_node:
-    InstanceType: m5.4xlarge
+    InstanceType: p3.2xlarge
     ImageId: ami-01859c084acd14dc9 # hoplite-nsdi-11
     KeyName: shared_key
     SecurityGroupIds:
@@ -26,7 +26,7 @@ head_node:
         GroupName: hoplite-group
 
 worker_nodes:
-    InstanceType: m5.4xlarge
+    InstanceType: p3.2xlarge
     ImageId: ami-01859c084acd14dc9 # hoplite-nsdi-11
     KeyName: shared_key
     SecurityGroupIds:
