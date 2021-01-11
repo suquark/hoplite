@@ -39,7 +39,7 @@ class InferenceHost:
 
         # torchvision has an issue of too much loading time of 'inception_v3'
         # VGG16 is super slow compared to other models.
-        for model_name in ('resnet18', 'resnet34'):
+        for model_name in served_models:
             # TODO: distribute workers to different nodes.
             self.models.append(ModelWorker.remote(model_name))
 
