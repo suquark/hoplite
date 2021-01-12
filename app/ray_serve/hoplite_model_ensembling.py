@@ -1,4 +1,5 @@
 import argparse
+import sys
 import time
 
 import ray
@@ -10,6 +11,7 @@ import requests
 import torch
 import torchvision.models as models
 
+sys.path.insert(0, "../../python")
 import py_distributed_object_store as store_lib
 import utils
 
