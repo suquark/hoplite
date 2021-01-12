@@ -64,7 +64,7 @@ if __name__ == "__main__":
         client.delete_backend(backend)
 
     # Form a backend from our class and connect it to an endpoint.
-    client.create_backend("ray_backend", InferenceHost)
+    client.create_backend("ray_backend", InferenceHost, ray_actor_options={"num_gpus":1})
     client.create_endpoint("ray_endpoint", backend="ray_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
