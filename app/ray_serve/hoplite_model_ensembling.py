@@ -13,6 +13,13 @@ import torchvision.models as models
 import py_distributed_object_store as store_lib
 import utils
 
+input_shape = (128, 3, 256, 256)
+served_models = (
+    'resnet18', 'resnet34',
+    'mobilenet_v2', 'alexnet',
+    'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0',
+    'squeezenet1_0', 'squeezenet1_1')
+
 
 @ray.remote(num_gpus=1)
 class ModelWorker:
@@ -22,19 +29,12 @@ class ModelWorker:
 
     def inference(self, x_id):
         buffer = self.store.get(x_id)
-        x = np.frombuffer(buffer, dtype=np.int32)
+        x = np.frombuffer(buffer, dtype=np.float32).reshape(input_shape)
 
         x = torch.from_numpy(x).cuda()
         with torch.no_grad():
             # with torch.cuda.amp.autocast():
             return self.model(x).cpu().numpy()
-
-
-served_models = (
-    'resnet18', 'resnet34',
-    'mobilenet_v2', 'alexnet',
-    'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0',
-    'squeezenet1_0', 'squeezenet1_1')
 
 
 class InferenceHost:
@@ -45,7 +45,7 @@ class InferenceHost:
         # cached in memory. Because it is interactive,
         # 1) The user can choose any set of images.
         # 2) The user can choose any set of models for ensembling.
-        self.images = torch.rand(128, 3, 256, 256)
+        self.images = torch.rand(input_shape)
 
         self.models = []
         # models.quantization
@@ -65,6 +65,7 @@ class InferenceHost:
         object_id = utils.object_id_from_int(self.request_id)
         buffer = store_lib.Buffer.from_buffer(x)
         self.store.put(buffer, object_id)
+        self.request_id += 1
 
         results = ray.get([m.inference.remote(object_id) for m in self.models])
         cls = np.argmax(sum(results), 1)
@@ -87,7 +88,7 @@ if __name__ == "__main__":
         client.delete_backend(backend)
 
     # Form a backend from our class and connect it to an endpoint.
-    client.create_backend("ray_backend", InferenceHost)
+    client.create_backend("ray_backend", InferenceHost, args_dict)
     client.create_endpoint("ray_endpoint", backend="ray_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
