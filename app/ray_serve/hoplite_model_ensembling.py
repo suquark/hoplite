@@ -105,4 +105,4 @@ if __name__ == "__main__":
         durations.append(1/(time.time() - start))
 
     print(f"{np.mean(durations):.6f} ± {np.std(durations):.6f} requests/s")
-    print(ray.get(client.get_handle("ray_endpoint").remote()))
+    print(ray.get(client.get_handle("h_endpoint").remote()))
