@@ -20,6 +20,7 @@
 #include "object_sender.h"
 #include "object_store_state.h"
 #include "object_writer.h"
+#include "receiver.h"
 #include "util/ctpl_stl.h"
 
 class ObjectStoreServiceImpl;
@@ -82,10 +83,6 @@ private:
       const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
       ssize_t num_reduce_objects);
 
-  bool check_and_store_inband_data(const ObjectID &object_id,
-                                   int64_t object_size,
-                                   const std::string &inband_data);
-
   template <typename T>
   void reduce_local_objects(const std::vector<ObjectID> &object_ids,
                             Buffer *output) {
@@ -124,6 +121,7 @@ private:
   LocalStoreClient local_store_client_;
   TCPServer object_writer_;
   ObjectSender object_sender_;
+  Receiver receiver_;
 
   ////////////////////////////////////////////////////////////////////////////////
   // Object Control

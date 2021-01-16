@@ -31,4 +31,8 @@
 
 // NOTE: SO_ZEROCOPY & TCP_NODELAY is not working.
 
+// Default ports
+#define SENDER_PORT 20210
+#define RECEIVER_PORT 20211
+
 #endif  // _HOPLITE_COMMON_CONFIG_H_
