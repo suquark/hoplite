@@ -65,7 +65,7 @@ template <typename T> int stream_write(int conn_fd, T *stream) {
   int64_t receive_progress = 0;
   while (receive_progress < stream->Size()) {
     int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
-    if (!status) {
+    if (status) {
       // return the error
       return status;
     }
@@ -89,7 +89,7 @@ int stream_reduce_add(int conn_fd, T *stream,
   const int64_t object_size = stream->Size();
   while (receive_progress < object_size) {
     int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
-    if (!status) {
+    if (status) {
       // return the error
       return status;
     }
@@ -172,7 +172,7 @@ void TCPServer::worker_loop() {
       int64_t object_size = request.object_size();
       (void)pool_.push([=](int fd) {
         int status = receive_object(conn_fd, object_id, object_size);
-        if (!status) {
+        if (status) {
           LOG(FATAL) << "[receive_object] receive object failed. " << strerror(errno)
               << ", code=" << errno << ")";
         }
@@ -193,7 +193,7 @@ void TCPServer::worker_loop() {
       (void)pool_.push([=](int fd) {
         int status = receive_and_reduce_object(conn_fd, reduction_id, object_ids,
                                                is_endpoint);
-        if (!status) {
+        if (status) {
           LOG(FATAL) << "[receive_and_reduce_object] receive object failed. " << strerror(errno)
               << ", code=" << errno << ")";
         }
@@ -243,7 +243,7 @@ int TCPServer::receive_and_reduce_object(
     gcs_client_.WriteLocation(reduction_id, server_ipaddr_, false, object_size);
     auto stream = local_store_client_.GetBufferNoExcept(reduction_id);
     int status = stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
-    if (!status) {
+    if (status) {
       return status;
     }
     // notify other threads that we have finished
@@ -252,7 +252,7 @@ int TCPServer::receive_and_reduce_object(
     std::shared_ptr<Buffer> stream =
         state_.create_reduction_stream(reduction_id, object_size);
     int status = stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
-    if (!status) {
+    if (status) {
       return status;
     }
   }
@@ -281,7 +281,7 @@ int TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   // notify other nodes that our stream is on progress
   gcs_client_.WriteLocation(object_id, server_ipaddr_, false, object_size);
   int status = stream_write<Buffer>(conn_fd, stream.get());
-  if (status) {
+  if (!status) {
     local_store_client_.Seal(object_id);
 #ifdef HOPLITE_ENABLE_ACK
     // TODO: handle error here.

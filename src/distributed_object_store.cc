@@ -42,7 +42,7 @@ public:
                << " for object " << object_id.ToString() << " offset=" request->offset();
 
     int status = object_sender_.send_object(request);
-    if (status) {
+    if (!status) {
       LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
                 << " for object " << object_id.ToString();
     } else {

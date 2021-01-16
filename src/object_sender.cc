@@ -35,7 +35,7 @@ template <typename T> int stream_send(int conn_fd, T *stream) {
 
   if (stream->IsFinished()) {
     int status = send_all(conn_fd, data_ptr, object_size);
-    if (!status) {
+    if (status) {
       LOG(ERROR) << "Failed to send object.";
       return status;
     }
@@ -134,7 +134,7 @@ int ObjectSender::send_object(const PullRequest *request) {
 
   int status = stream_send<Buffer>(conn_fd, stream.get());
   LOG(DEBUG) << "send " << object_id.ToString() << " done, status=" << status;
-  if (status) {
+  if (!status) {
 #ifdef HOPLITE_ENABLE_ACK
     recv_ack(conn_fd);
 #else
