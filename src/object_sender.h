@@ -24,7 +24,7 @@ public:
     return sender_thread;
   }
 
-  void send_object(const objectstore::PullRequest *request);
+  int send_object(const objectstore::PullRequest *request);
 
   inline void Shutdown() { exit_ = true; }
 

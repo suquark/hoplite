@@ -281,17 +281,14 @@ int TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
   // notify other nodes that our stream is on progress
   gcs_client_.WriteLocation(object_id, server_ipaddr_, false, object_size);
   int status = stream_write<Buffer>(conn_fd, stream.get());
-  if (!status) {
-    // cleanup and return error
-    close(conn_fd);
-    return status;
-  }
-  local_store_client_.Seal(object_id);
+  if (status) {
+    local_store_client_.Seal(object_id);
 #ifdef HOPLITE_ENABLE_ACK
-  // TODO: handle error here.
-  send_ack(conn_fd);
+    // TODO: handle error here.
+    send_ack(conn_fd);
 #endif
-  LOG(DEBUG) << object_id.ToString() << " received";
+    LOG(DEBUG) << object_id.ToString() << " received";
+  }
   close(conn_fd);
-  return 0;
+  return status;
 }

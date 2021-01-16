@@ -34,16 +34,20 @@ public:
 
   grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
                     PullReply *reply) {
+    // TODO(siyuan): This function may need some refactoring.
     TIMELINE("ObjectStoreServiceImpl::Pull()");
     ObjectID object_id = ObjectID::FromBinary(request->object_id());
 
     LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
-               << " for object " << object_id.ToString();
+               << " for object " << object_id.ToString() << " offset=" request->offset();
 
-    object_sender_.send_object(request);
-    LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
-               << " for object " << object_id.ToString();
-
+    int status = object_sender_.send_object(request);
+    if (status) {
+      LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
+                << " for object " << object_id.ToString();
+    } else {
+      LOG(ERROR) << "Failed to send object " << object_id.ToString() << " to " << request->puller_ip();
+    }
     reply->set_ok(true);
     return grpc::Status::OK;
   }
@@ -95,7 +99,8 @@ private:
 ////////////////////////////////////////////////////////////////
 
 bool DistributedObjectStore::PullObject(const std::string &remote_address,
-                                        const ObjectID &object_id) {
+                                        const ObjectID &object_id,
+                                        int64_t offset) {
   TIMELINE("DistributedObjectStore::PullObject");
   auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
   create_stub(remote_grpc_address);
@@ -104,10 +109,10 @@ bool DistributedObjectStore::PullObject(const std::string &remote_address,
   PullReply reply;
   request.set_object_id(object_id.Binary());
   request.set_puller_ip(my_address_);
+  request.set_offset(offset);
   auto stub = get_stub(remote_grpc_address);
-  // TODO: make sure that grpc stub is thread-safe.
   auto status = stub->Pull(&context, request, &reply);
-  return reply.ok();
+  return status.ok() && reply.ok();
 }
 
 bool DistributedObjectStore::InvokeReduceTo(
@@ -360,8 +365,9 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
       if (!check_and_store_inband_data(object_id, reply.object_size,
                                        reply.inband_data)) {
         // send pull request to one of the location
-        DCHECK(PullObject(reply.sender_ip, object_id))
-            << "Failed to pull object";
+        // TODO(siyuan): implement fault-tolerant multicast.
+        bool status = PullObject(reply.sender_ip, object_id, 0);
+        DCHECK(status) << "Failed to pull object";
       }
     }
   }

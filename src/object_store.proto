@@ -7,6 +7,7 @@ package objectstore;
 message PullRequest {
   bytes object_id = 1;
   bytes puller_ip = 2;
+  int64 offset = 3;
 }
 
 message PullReply {

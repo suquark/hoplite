@@ -28,15 +28,17 @@ void SendMessage(int conn_fd, const ObjectWriterRequest &message) {
   DCHECK(!status) << "socket send error: message";
 }
 
-template <typename T> void stream_send(int conn_fd, T *stream) {
+template <typename T> int stream_send(int conn_fd, T *stream) {
   TIMELINE("ObjectSender::stream_send()");
   const uint8_t *data_ptr = stream->Data();
   const int64_t object_size = stream->Size();
 
   if (stream->IsFinished()) {
     int status = send_all(conn_fd, data_ptr, object_size);
-    DCHECK(!status) << "Failed to send object";
-    return;
+    if (!status) {
+      LOG(ERROR) << "Failed to send object.";
+      return status;
+    }
   }
   int64_t cursor = 0;
   while (cursor < object_size) {
@@ -50,12 +52,14 @@ template <typename T> void stream_send(int conn_fd, T *stream) {
         if (errno == EAGAIN) {
           continue;
         }
-        LOG(FATAL) << "[stream_send] socket send error (" << strerror(errno)
+        LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno)
                    << ", code=" << errno << ")";
+        return errno;
       }
       cursor += bytes_sent;
     }
   }
+  return 0;
 }
 
 ObjectSender::ObjectSender(ObjectStoreState &state,
@@ -101,7 +105,7 @@ void ObjectSender::AppendTask(const ReduceToRequest *request) {
   queue_cv_.notify_one();
 }
 
-void ObjectSender::send_object(const PullRequest *request) {
+int ObjectSender::send_object(const PullRequest *request) {
   TIMELINE("ObjectSender::send_object(), puller_ip = " + request->puller_ip());
   // create a TCP connection, send the object through the TCP connection
   int conn_fd;
@@ -128,14 +132,16 @@ void ObjectSender::send_object(const PullRequest *request) {
   ow_request.set_allocated_receive_object(ro_request);
   SendMessage(conn_fd, ow_request);
 
-  stream_send<Buffer>(conn_fd, stream.get());
-  LOG(DEBUG) << "send " << object_id.ToString() << " done";
-
+  int status = stream_send<Buffer>(conn_fd, stream.get());
+  LOG(DEBUG) << "send " << object_id.ToString() << " done, status=" << status;
+  if (status) {
 #ifdef HOPLITE_ENABLE_ACK
-  recv_ack(conn_fd);
-#endif
+    recv_ack(conn_fd);
+#else
+    // TODO: consider <sys/socket.h> shutdown(sock, SHUT_WR)
+#endif    
+  }
   close(conn_fd);
-
   // TODO: this is for reference counting in the notification service.
   // When we get an object's location from the server for broadcast, we
   // reduce the reference count. This line is used to increase the ref count
@@ -143,6 +149,7 @@ void ObjectSender::send_object(const PullRequest *request) {
   // receiver side since the decrease is done by the receiver.
   gcs_client_.WriteLocation(object_id, my_address_, true, stream->Size(),
                             stream->Data());
+  return status;
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
