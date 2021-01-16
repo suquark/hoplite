@@ -32,8 +32,8 @@ void ReceiveMessage(int conn_fd, ObjectWriterRequest *request) {
 }
 
 template <typename T>
-inline void stream_write_next(int conn_fd, T *stream,
-                              int64_t *receive_progress) {
+inline int stream_write_next(int conn_fd, T *stream,
+                             int64_t *receive_progress) {
   int remaining_size = stream->Size() - *receive_progress;
   // here we receive no more than STREAM_MAX_BLOCK_SIZE for streaming
   int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE
@@ -50,19 +50,25 @@ inline void stream_write_next(int conn_fd, T *stream,
 #endif
         continue;
       }
-      LOG(FATAL) << "[stream_write_next] socket recv error (" << strerror(errno)
+      LOG(ERROR) << "[stream_write_next] socket recv error (" << strerror(errno)
                  << ", code=" << errno << ")";
+      return -1;
     }
     *receive_progress += bytes_recv;
-    return;
+    return 0;
   }
 }
 
-template <typename T> void stream_write(int conn_fd, T *stream) {
+/// Receive the next segment and append it into the stream.
+template <typename T> int stream_write(int conn_fd, T *stream) {
   TIMELINE("stream_write");
   int64_t receive_progress = 0;
   while (receive_progress < stream->Size()) {
-    stream_write_next<T>(conn_fd, stream, &receive_progress);
+    int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
+    if (!status) {
+      // return the error
+      return status;
+    }
     // update the progress
 #ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     stream->progress.store(receive_progress);
@@ -70,18 +76,23 @@ template <typename T> void stream_write(int conn_fd, T *stream) {
     stream->progress = receive_progress;
 #endif
   }
+  return 0;
 }
 
 template <typename T, typename DT>
-void stream_reduce_add(int conn_fd, T *stream,
-                       std::vector<uint8_t *> reduce_buffers) {
+int stream_reduce_add(int conn_fd, T *stream,
+                      std::vector<uint8_t *> reduce_buffers) {
   TIMELINE("stream_reduce_add");
   int64_t receive_progress = 0;
   const size_t element_size = sizeof(DT);
   uint8_t *data_ptr = stream->MutableData();
   const int64_t object_size = stream->Size();
   while (receive_progress < object_size) {
-    stream_write_next<T>(conn_fd, stream, &receive_progress);
+    int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
+    if (!status) {
+      // return the error
+      return status;
+    }
     // reduce related objects
 #ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     auto progress = stream->progress.load();
@@ -98,6 +109,7 @@ void stream_reduce_add(int conn_fd, T *stream,
     }
     stream->progress += n_reduce_elements * element_size;
   }
+  return 0;
 }
 
 TCPServer::TCPServer(ObjectStoreState &state,
@@ -158,8 +170,13 @@ void TCPServer::worker_loop() {
       auto request = message.receive_object();
       ObjectID object_id = ObjectID::FromBinary(request.object_id());
       int64_t object_size = request.object_size();
-      (void)pool_.push(
-          [=](int fd) { receive_object(conn_fd, object_id, object_size); });
+      (void)pool_.push([=](int fd) {
+        int status = receive_object(conn_fd, object_id, object_size);
+        if (!status) {
+          LOG(FATAL) << "[receive_object] receive object failed. " << strerror(errno)
+              << ", code=" << errno << ")";
+        }
+      });
     } break;
     case ObjectWriterRequest::kReceiveAndReduceObject: {
       auto request = message.receive_and_reduce_object();
@@ -174,8 +191,12 @@ void TCPServer::worker_loop() {
       }
       bool is_endpoint = request.is_endpoint();
       (void)pool_.push([=](int fd) {
-        receive_and_reduce_object(conn_fd, reduction_id, object_ids,
-                                  is_endpoint);
+        int status = receive_and_reduce_object(conn_fd, reduction_id, object_ids,
+                                               is_endpoint);
+        if (!status) {
+          LOG(FATAL) << "[receive_and_reduce_object] receive object failed. " << strerror(errno)
+              << ", code=" << errno << ")";
+        }
       });
     } break;
     default:
@@ -185,7 +206,7 @@ void TCPServer::worker_loop() {
 }
 
 // TODO: implement support for general element types.
-void TCPServer::receive_and_reduce_object(
+int TCPServer::receive_and_reduce_object(
     int conn_fd, const ObjectID &reduction_id,
     const std::vector<ObjectID> &object_ids, bool is_endpoint) {
   TIMELINE(std::string("TCPServer::receive_and_reduce_object() ") +
@@ -221,22 +242,30 @@ void TCPServer::receive_and_reduce_object(
     // notify other nodes that our stream is on progress
     gcs_client_.WriteLocation(reduction_id, server_ipaddr_, false, object_size);
     auto stream = local_store_client_.GetBufferNoExcept(reduction_id);
-    stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
+    int status = stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
+    if (!status) {
+      return status;
+    }
     // notify other threads that we have finished
     stream->NotifyFinished();
   } else {
     std::shared_ptr<Buffer> stream =
         state_.create_reduction_stream(reduction_id, object_size);
-    stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
+    int status = stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
+    if (!status) {
+      return status;
+    }
   }
 #ifdef HOPLITE_ENABLE_ACK
+  // TODO: handle errors here.
   send_ack(conn_fd);
 #endif
   close(conn_fd);
+  return 0;
 }
 
-void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
-                               int64_t object_size) {
+int TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
+                              int64_t object_size) {
   TIMELINE(std::string("TCPServer::receive_object() ") + object_id.ToString() +
            " " + std::to_string(object_size));
   LOG(DEBUG) << "start receiving object " << object_id.ToString()
@@ -251,11 +280,18 @@ void TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
 
   // notify other nodes that our stream is on progress
   gcs_client_.WriteLocation(object_id, server_ipaddr_, false, object_size);
-  stream_write<Buffer>(conn_fd, stream.get());
+  int status = stream_write<Buffer>(conn_fd, stream.get());
+  if (!status) {
+    // cleanup and return error
+    close(conn_fd);
+    return status;
+  }
   local_store_client_.Seal(object_id);
 #ifdef HOPLITE_ENABLE_ACK
+  // TODO: handle error here.
   send_ack(conn_fd);
 #endif
   LOG(DEBUG) << object_id.ToString() << " received";
   close(conn_fd);
+  return 0;
 }
