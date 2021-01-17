@@ -48,10 +48,12 @@ inline int stream_receive(int conn_fd, T *stream, int64_t offset=0) {
   TIMELINE("stream_receive");
   int64_t receive_progress = offset;
   while (receive_progress < stream->Size()) {
-    int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
-    if (status) {
+    int ec = stream_write_next<T>(conn_fd, stream, &receive_progress);
+    if (ec) {
       // return the error
-      return status;
+      LOG(ERROR) << "[stream_receive] socket receive error (" << strerror(errno)
+                 << ", code=" << errno << ", receive_progress=" << receive_progress << ")";
+      return ec;
     }
     // update the progress
 #ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
@@ -66,6 +68,7 @@ inline int stream_receive(int conn_fd, T *stream, int64_t offset=0) {
 template <typename T>
 inline int stream_send(int conn_fd, T *stream, int64_t offset=0) {
   TIMELINE("ObjectSender::stream_send()");
+  LOG(DEBUG) << "ObjectSender::stream_send(), offset=" << offset;
   const uint8_t *data_ptr = stream->Data();
   const int64_t object_size = stream->Size();
 
@@ -75,6 +78,7 @@ inline int stream_send(int conn_fd, T *stream, int64_t offset=0) {
       LOG(ERROR) << "Failed to send object.";
       return status;
     }
+    return 0;
   }
   int64_t cursor = offset;
   while (cursor < object_size) {
@@ -84,12 +88,10 @@ inline int stream_send(int conn_fd, T *stream, int64_t offset=0) {
           send(conn_fd, data_ptr + cursor, current_progress - cursor, 0);
       if (bytes_sent < 0) {
         LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno)
-                   << ", code=" << errno << ")";
+                   << ", code=" << errno << ", cursor=" << cursor << ", stream_progress=" << current_progress << ")";
         if (errno == EAGAIN) {
           continue;
         }
-        LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno)
-                   << ", code=" << errno << ")";
         return errno;
       }
       cursor += bytes_sent;
