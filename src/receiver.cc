@@ -14,7 +14,7 @@ Receiver::Receiver(ObjectStoreState &state,
                    const std::string &server_ipaddr, int port)
     : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr),
       local_store_client_(local_store_client),
-      pool_(HOPLITE_MAX_INFLOW_CONCURRENCY) {
+      pool_(HOPLITE_MAX_INFLOW_CONCURRENCY) {}
 
 bool Receiver::check_and_store_inband_data(
     const ObjectID &object_id, int64_t object_size,
