@@ -65,10 +65,6 @@ void ObjectSender::listener_loop() {
       return;
     }
     DCHECK(conn_fd >= 0) << "socket accept error";
-#ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
-    DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
-        << "Cannot enable non-blocking for the socket (errno = " << errno << ").";
-#endif
     char *incoming_ip = inet_ntoa(address_.sin_addr);
     LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
     TIMELINE(std::string("Sender::worker_loop(), requester_ip = ") + incoming_ip);
@@ -102,13 +98,6 @@ int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t of
   }
   int ec = stream_send<Buffer>(conn_fd, stream.get(), offset);
   LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
-  if (!ec) {
-#ifdef HOPLITE_ENABLE_ACK
-    recv_ack(conn_fd);
-#else
-    // TODO: consider <sys/socket.h> shutdown(sock, SHUT_WR)
-#endif
-  }
   close(conn_fd);
   // TODO: this is for reference counting in the notification service.
   // When we get an object's location from the server for broadcast, we

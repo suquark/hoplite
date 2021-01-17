@@ -53,14 +53,12 @@ int Receiver::receive_object(
   SendProtobufMessage(conn_fd, req);
 
   // start receiving object
-  ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
-  if (!ec) {
-#ifdef HOPLITE_ENABLE_ACK
-    // TODO: handle error here.
-    send_ack(conn_fd);
+#ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
+  DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
+      << "Cannot enable non-blocking for the socket (errno = " << errno << ").";
 #endif
-    LOG(DEBUG) << object_id.ToString() << " received";
-  }
+  ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
+  LOG(DEBUG) << "receive " << object_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
   return ec;
 }
