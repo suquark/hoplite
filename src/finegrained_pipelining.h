@@ -43,11 +43,10 @@ inline int stream_write_next(int conn_fd, T *stream,
   }
 }
 
-/// Receive the next segment and append it into the stream.
 template <typename T>
-inline int stream_write(int conn_fd, T *stream) {
-  TIMELINE("stream_write");
-  int64_t receive_progress = 0;
+inline int stream_receive(int conn_fd, T *stream, int64_t offset=0) {
+  TIMELINE("stream_receive");
+  int64_t receive_progress = offset;
   while (receive_progress < stream->Size()) {
     int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
     if (status) {

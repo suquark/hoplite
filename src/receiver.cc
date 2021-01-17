@@ -53,7 +53,7 @@ int Receiver::receive_object(
   SendProtobufMessage(conn_fd, req);
 
   // start receiving object
-  int ec = stream_write<Buffer>(conn_fd, stream);
+  int ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
   if (!ec) {
 #ifdef HOPLITE_ENABLE_ACK
     // TODO: handle error here.

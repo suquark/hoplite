@@ -127,13 +127,6 @@ private:
   // Object Control
   ////////////////////////////////////////////////////////////////////////////////
 
-  /// Pull an object from a remote object store.
-  /// \param remote_grpc_address The gRPC address of the remote object store.
-  /// \param object_id The object to pull.
-  /// \param offset The starting offset of the object to pull.
-  bool PullObject(const std::string &remote_grpc_address,
-                  const ObjectID &object_id, int64_t offset);
-
   bool InvokeReduceTo(const std::string &remote_address,
                       const ObjectID &reduction_id,
                       const std::vector<ObjectID> &dst_object_ids,

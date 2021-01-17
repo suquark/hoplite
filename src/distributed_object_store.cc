@@ -32,26 +32,6 @@ public:
                          DistributedObjectStore &store)
       : ObjectStore::Service(), object_sender_(object_sender), store_(store) {}
 
-  grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
-                    PullReply *reply) {
-    // TODO(siyuan): This function may need some refactoring.
-    TIMELINE("ObjectStoreServiceImpl::Pull()");
-    ObjectID object_id = ObjectID::FromBinary(request->object_id());
-
-    LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
-               << " for object " << object_id.ToString() << " offset=" request->offset();
-
-    int status = object_sender_.send_object(request);
-    if (!status) {
-      LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
-                << " for object " << object_id.ToString();
-    } else {
-      LOG(ERROR) << "Failed to send object " << object_id.ToString() << " to " << request->puller_ip();
-    }
-    reply->set_ok(true);
-    return grpc::Status::OK;
-  }
-
   grpc::Status ReduceTo(grpc::ServerContext *context,
                         const ReduceToRequest *request, ReduceToReply *reply) {
     TIMELINE("ObjectStoreServiceImpl::ReduceTo()");
@@ -97,23 +77,6 @@ private:
 ////////////////////////////////////////////////////////////////
 // The gRPC client side of the object store
 ////////////////////////////////////////////////////////////////
-
-bool DistributedObjectStore::PullObject(const std::string &remote_address,
-                                        const ObjectID &object_id,
-                                        int64_t offset) {
-  TIMELINE("DistributedObjectStore::PullObject");
-  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  PullRequest request;
-  PullReply reply;
-  request.set_object_id(object_id.Binary());
-  request.set_puller_ip(my_address_);
-  request.set_offset(offset);
-  auto stub = get_stub(remote_grpc_address);
-  auto status = stub->Pull(&context, request, &reply);
-  return status.ok() && reply.ok();
-}
 
 bool DistributedObjectStore::InvokeReduceTo(
     const std::string &remote_address, const ObjectID &reduction_id,

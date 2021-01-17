@@ -4,16 +4,6 @@ package objectstore;
 
 // Object Control Protocol
 
-message PullRequest {
-  bytes object_id = 1;
-  bytes puller_ip = 2;
-  int64 offset = 3;
-}
-
-message PullReply {
-  bool ok = 1;
-}
-
 message ReduceToRequest {
   bytes reduction_id = 1;
   oneof reduction_source {
@@ -47,7 +37,6 @@ message RemoteGetReducedObjectsReply {
 }
 
 service ObjectStore {
-  rpc Pull(PullRequest) returns (PullReply);
   rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
   rpc RedirectReduce(RedirectReduceRequest) returns (RedirectReduceReply);
   rpc RemoteGetReducedObjects(RemoteGetReducedObjectsRequest)
