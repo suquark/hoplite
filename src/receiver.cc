@@ -35,7 +35,7 @@ bool Receiver::check_and_store_inband_data(
 
 int Receiver::receive_object(
     const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream) {
-  TIMELINE(std::string("Receiver::receive_object() ") + object_id.ToString() + " " + std::to_string(object_size));    
+  TIMELINE(std::string("Receiver::receive_object() ") + object_id.ToString();    
   LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << object_size;
   int conn_fd;
   int ec = tcp_connect(sender_ip, sender_port, &conn_fd);
@@ -47,13 +47,13 @@ int Receiver::receive_object(
   // send request
   ObjectWriterRequest req;
   auto ro_request = new ReceiveObjectRequest();
-  ro_request->set_object_id(object_id->Binary());
+  ro_request->set_object_id(object_id.Binary());
   ro_request->set_offset(stream->progress);
   req.set_allocated_receive_object(ro_request);
   SendProtobufMessage(conn_fd, req);
 
   // start receiving object
-  int ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
+  ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
   if (!ec) {
 #ifdef HOPLITE_ENABLE_ACK
     // TODO: handle error here.
@@ -88,7 +88,7 @@ void Receiver::pull_object(const ObjectID &object_id) {
     while (!stream->IsFinished()) {
       int status = receive_object(reply.sender_ip, HOPLITE_SENDER_PORT, object_id, stream.get());
       if (status) {
-        LOG(ERROR) << "Failed to receive object " << object_id << " from sender " << reply.sender_ip; 
+        LOG(ERROR) << "Failed to receive object " << object_id.Hex() << " from sender " << reply.sender_ip; 
       }
       // TODO(siyuan): Change the sender.
     }
