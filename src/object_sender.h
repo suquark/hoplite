@@ -6,6 +6,8 @@
 #include <queue>
 #include <thread>
 
+#include <netinet/in.h> // struct sockaddr_in
+
 #include "global_control_store.h"
 #include "local_store_client.h"
 #include "object_store.pb.h"
@@ -28,7 +30,7 @@ private:
 
   void listener_loop();
 
-  int send_object(int conn_fd, const ObjectID &object_id);
+  int send_object(int conn_fd, const ObjectID &object_id, int64_t offset);
 
   void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
@@ -45,7 +47,6 @@ private:
   // for the TCP listener
   int server_fd_;
   std::thread server_thread_;
-  const std::string &server_ipaddr_;
   struct sockaddr_in address_;
   // thread pool for launching tasks
   ctpl::thread_pool pool_;

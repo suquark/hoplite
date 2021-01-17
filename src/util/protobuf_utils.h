@@ -22,9 +22,9 @@ inline void ReceiveProtobufMessage(int conn_fd, T *message) {
   int status = recv_all(conn_fd, &message_len, sizeof(message_len));
   DCHECK(!status) << "receive message_len failed";
 
-  std::vector<uint8_t> message(message_len);
-  status = recv_all(conn_fd, message.data(), message_len);
+  std::vector<uint8_t> message_buf(message_len);
+  status = recv_all(conn_fd, message_buf.data(), message_len);
   DCHECK(!status) << "receive message failed";
 
-  message->ParseFromArray(message.data(), message.size());
+  message->ParseFromArray(message_buf.data(), message_buf.size());
 }

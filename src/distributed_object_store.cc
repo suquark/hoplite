@@ -13,8 +13,6 @@
 #include "logging.h"
 
 using objectstore::ObjectStore;
-using objectstore::PullReply;
-using objectstore::PullRequest;
 using objectstore::RedirectReduceReply;
 using objectstore::RedirectReduceRequest;
 using objectstore::ReduceToReply;

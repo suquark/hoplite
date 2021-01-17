@@ -13,7 +13,6 @@
 #include "util/protobuf_utils.h"
 
 using objectstore::ObjectWriterRequest;
-using objectstore::PullRequest;
 using objectstore::ReceiveAndReduceObjectRequest;
 using objectstore::ReceiveObjectRequest;
 using objectstore::ReduceToRequest;
@@ -27,7 +26,7 @@ ObjectSender::ObjectSender(ObjectStoreState &state,
       exit_(false), pool_(1) {
   TIMELINE("ObjectSender construction function");
   LOG(DEBUG) << "[ObjectSender] object sender is ready.";
-  TIMELINE(std::string("ObjectSender construction function ") + server_ipaddr +
+  TIMELINE(std::string("ObjectSender construction function ") + my_address +
            ":" + std::to_string(HOPLITE_SENDER_PORT));
   tcp_bind_and_listen(HOPLITE_SENDER_PORT, &address_, &server_fd_);
 }
