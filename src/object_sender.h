@@ -15,8 +15,7 @@
 
 class ObjectSender {
 public:
-  ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
-               LocalStoreClient &local_store_client,
+  ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
                const std::string &my_address);
 
   void AppendTask(const objectstore::ReduceToRequest *request);

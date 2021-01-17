@@ -12,8 +12,7 @@ class NotificationServiceImpl;
 
 class NotificationServer {
 public:
-  NotificationServer(const std::string &my_address,
-                     const int notification_server_port,
+  NotificationServer(const std::string &my_address, const int notification_server_port,
                      const int notification_listener_port);
 
   std::thread Run() {

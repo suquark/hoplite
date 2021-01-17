@@ -16,14 +16,11 @@
 
 class Receiver {
 public:
-  Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
-            LocalStoreClient &local_store_client,
-            const std::string &server_ipaddr, int port);
+  Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
+           const std::string &server_ipaddr, int port);
 
   /// If the inband data exists, store the object with the inband data.
-  bool check_and_store_inband_data(
-      const ObjectID &object_id, int64_t object_size,
-      const std::string &inband_data);
+  bool check_and_store_inband_data(const ObjectID &object_id, int64_t object_size, const std::string &inband_data);
 
   /// Receive object from the sender. This is a low-level function. The object receiving
   /// starts from the initial progress of the stream.
@@ -36,7 +33,7 @@ public:
 
   /// Pull object from remote object store. This function also provides fault tolerance.
   /// \param object_id The object to pull.
-  void pull_object(const ObjectID &object_id); 
+  void pull_object(const ObjectID &object_id);
 
 private:
   GlobalControlStoreClient &gcs_client_;

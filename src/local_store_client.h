@@ -12,8 +12,7 @@ class LocalStoreClient {
 public:
   LocalStoreClient(const bool use_plasma, const std::string &plasma_socket);
 
-  Status Create(const ObjectID &object_id, int64_t data_size,
-                std::shared_ptr<Buffer> *data);
+  Status Create(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data);
 
   Status Seal(const ObjectID &object_id);
 
@@ -21,8 +20,7 @@ public:
   // We assume this function will never fail.
   bool ObjectExists(const ObjectID &object_id, bool require_finished = true);
 
-  Status Get(const std::vector<ObjectID> &object_ids,
-             std::vector<ObjectBuffer> *object_buffers);
+  Status Get(const std::vector<ObjectID> &object_ids, std::vector<ObjectBuffer> *object_buffers);
 
   // Get single object from the store.
   Status Get(const ObjectID &object_id, ObjectBuffer *object_buffer);

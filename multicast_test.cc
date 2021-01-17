@@ -29,9 +29,7 @@ int main(int argc, char **argv) {
 
   TIMELINE("main");
 
-  DistributedObjectStore store(redis_address, 6380, 7777, 8888,
-                               "/tmp/multicast_plasma", my_address, 6666,
-                               50055);
+  DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
     ObjectID object_id = object_id_from_integer(trial);
@@ -60,8 +58,8 @@ int main(int argc, char **argv) {
       auto end = std::chrono::system_clock::now();
       std::chrono::duration<double> duration = end - start;
 
-      LOG(INFO) << object_id.ToString() << " is retrieved using "
-                << duration.count() << " seconds. CRC32 = " << result->CRC32();
+      LOG(INFO) << object_id.ToString() << " is retrieved using " << duration.count()
+                << " seconds. CRC32 = " << result->CRC32();
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }

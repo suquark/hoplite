@@ -27,12 +27,9 @@ class ObjectStoreServiceImpl;
 
 class DistributedObjectStore {
 public:
-  DistributedObjectStore(const std::string &notification_server_address,
-                         int redis_port, int notification_server_port,
-                         int notification_listen_port,
-                         const std::string &plasma_socket,
-                         const std::string &my_address, int object_writer_port,
-                         int grpc_port);
+  DistributedObjectStore(const std::string &notification_server_address, int redis_port, int notification_server_port,
+                         int notification_listen_port, const std::string &plasma_socket, const std::string &my_address,
+                         int object_writer_port, int grpc_port);
 
   ~DistributedObjectStore();
 
@@ -40,11 +37,9 @@ public:
 
   ObjectID Put(const std::shared_ptr<Buffer> &buffer);
 
-  void Reduce(const std::vector<ObjectID> &object_ids,
-              ObjectID *created_reduction_id, ssize_t num_reduce_objects = -1);
+  void Reduce(const std::vector<ObjectID> &object_ids, ObjectID *created_reduction_id, ssize_t num_reduce_objects = -1);
 
-  void Reduce(const std::vector<ObjectID> &object_ids,
-              const ObjectID &reduction_id, ssize_t num_reduce_objects = -1);
+  void Reduce(const std::vector<ObjectID> &object_ids, const ObjectID &reduction_id, ssize_t num_reduce_objects = -1);
 
   void Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result);
 
@@ -52,8 +47,7 @@ public:
 
   std::unordered_set<ObjectID> GetReducedObjects(const ObjectID &reduction_id);
 
-  std::unordered_set<ObjectID>
-  GetUnreducedObjects(const ObjectID &reduction_id);
+  std::unordered_set<ObjectID> GetUnreducedObjects(const ObjectID &reduction_id);
 
   inline void join_tasks() {
     object_sender_thread_.join();
@@ -66,28 +60,24 @@ private:
 
   // we do not use reference for its parameters because it will be executed
   // in a thread.
-  void poll_and_reduce(const std::vector<ObjectID> object_ids,
-                       const ObjectID reduction_id, ssize_t num_reduce_objects);
+  void poll_and_reduce(const std::vector<ObjectID> object_ids, const ObjectID reduction_id, ssize_t num_reduce_objects);
 
-  std::unordered_set<ObjectID> poll_and_reduce_pipe_impl(
-      const std::shared_ptr<ObjectNotifications> &notifications,
-      const std::vector<ObjectID> &notification_candidates,
-      std::vector<ObjectID> &local_object_ids, const int64_t object_size,
-      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
-      ssize_t num_reduce_objects);
+  std::unordered_set<ObjectID> poll_and_reduce_pipe_impl(const std::shared_ptr<ObjectNotifications> &notifications,
+                                                         const std::vector<ObjectID> &notification_candidates,
+                                                         std::vector<ObjectID> &local_object_ids,
+                                                         const int64_t object_size,
+                                                         const std::shared_ptr<Buffer> &buffer,
+                                                         const ObjectID &reduction_id, ssize_t num_reduce_objects);
 
-  std::unordered_set<ObjectID> poll_and_reduce_grid_impl(
-      const std::shared_ptr<ObjectNotifications> &notifications,
-      const std::vector<ObjectID> &notification_candidates,
-      std::vector<ObjectID> &local_object_ids, const int64_t object_size,
-      const std::shared_ptr<Buffer> &buffer, const ObjectID &reduction_id,
-      ssize_t num_reduce_objects);
+  std::unordered_set<ObjectID> poll_and_reduce_grid_impl(const std::shared_ptr<ObjectNotifications> &notifications,
+                                                         const std::vector<ObjectID> &notification_candidates,
+                                                         std::vector<ObjectID> &local_object_ids,
+                                                         const int64_t object_size,
+                                                         const std::shared_ptr<Buffer> &buffer,
+                                                         const ObjectID &reduction_id, ssize_t num_reduce_objects);
 
-  template <typename T>
-  void reduce_local_objects(const std::vector<ObjectID> &object_ids,
-                            Buffer *output) {
-    DCHECK(output->Size() % sizeof(T) == 0)
-        << "Buffer size cannot be divide whole by the element size";
+  template <typename T> void reduce_local_objects(const std::vector<ObjectID> &object_ids, Buffer *output) {
+    DCHECK(output->Size() % sizeof(T) == 0) << "Buffer size cannot be divide whole by the element size";
     auto num_elements = output->Size() / sizeof(T);
     T *target = (T *)output->MutableData();
     bool first = true;
@@ -95,8 +85,7 @@ private:
     for (const auto &object_id : object_ids) {
       // TODO: those object_ids could also be local streams.
       ObjectBuffer object_buffer;
-      DCHECK(local_store_client_.ObjectExists(object_id))
-          << "ObjectID not in local store";
+      DCHECK(local_store_client_.ObjectExists(object_id)) << "ObjectID not in local store";
       local_store_client_.Get(object_id, &object_buffer);
       std::shared_ptr<Buffer> buf = object_buffer.data;
       const T *data_ptr = (const T *)buf->Data();
@@ -127,22 +116,16 @@ private:
   // Object Control
   ////////////////////////////////////////////////////////////////////////////////
 
-  bool InvokeReduceTo(const std::string &remote_address,
-                      const ObjectID &reduction_id,
-                      const std::vector<ObjectID> &dst_object_ids,
-                      const std::string &dst_address, bool is_endpoint,
+  bool InvokeReduceTo(const std::string &remote_address, const ObjectID &reduction_id,
+                      const std::vector<ObjectID> &dst_object_ids, const std::string &dst_address, bool is_endpoint,
                       const ObjectID *src_object_id = nullptr);
 
-  bool InvokeRedirectReduce(const std::string &remote_address,
-                            const std::vector<ObjectID> &object_ids,
-                            const ObjectID &reduction_id,
-                            ssize_t num_reduce_objects);
+  bool InvokeRedirectReduce(const std::string &remote_address, const std::vector<ObjectID> &object_ids,
+                            const ObjectID &reduction_id, ssize_t num_reduce_objects);
 
   // Helper function for getting reduced objects from a remote node. This is
   // used by the grid implementation.
-  std::unordered_set<ObjectID>
-  RemoteGetReducedObjects(const std::string &remote_address,
-                          const ObjectID &reduction_id);
+  std::unordered_set<ObjectID> RemoteGetReducedObjects(const std::string &remote_address, const ObjectID &reduction_id);
 
   void Shutdown() {
     grpc_server_->Shutdown();
@@ -156,12 +139,9 @@ private:
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<ObjectStoreServiceImpl> service_;
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
-  std::unordered_map<std::string,
-                     std::unique_ptr<objectstore::ObjectStore::Stub>>
-      object_store_stub_pool_;
+  std::unordered_map<std::string, std::unique_ptr<objectstore::ObjectStore::Stub>> object_store_stub_pool_;
   std::mutex grpc_stub_map_mutex_;
-  objectstore::ObjectStore::Stub *
-  get_stub(const std::string &remote_grpc_address);
+  objectstore::ObjectStore::Stub *get_stub(const std::string &remote_grpc_address);
   void create_stub(const std::string &remote_grpc_address);
   // the thread running the gRPC service
   std::thread object_control_thread_;

@@ -17,21 +17,17 @@
 
 class TCPServer {
 public:
-  TCPServer(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
-            LocalStoreClient &local_store_client,
+  TCPServer(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
             const std::string &server_ipaddr, int port);
 
-  inline void Run() {
-    server_thread_ = std::thread(&TCPServer::worker_loop, this);
-  }
+  inline void Run() { server_thread_ = std::thread(&TCPServer::worker_loop, this); }
 
   void Shutdown();
 
 private:
   void worker_loop();
 
-  int receive_and_reduce_object(int conn_fd, const ObjectID &reduction_id,
-                                const std::vector<ObjectID> &object_ids,
+  int receive_and_reduce_object(int conn_fd, const ObjectID &reduction_id, const std::vector<ObjectID> &object_ids,
                                 bool is_endpoint);
 
   GlobalControlStoreClient &gcs_client_;

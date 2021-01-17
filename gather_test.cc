@@ -28,9 +28,7 @@ int main(int argc, char **argv) {
 
   TIMELINE("main");
 
-  DistributedObjectStore store(redis_address, 6380, 7777, 8888,
-                               "/tmp/multicast_plasma", my_address, 6666,
-                               50055);
+  DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
     std::vector<ObjectID> object_ids;

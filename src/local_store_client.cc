@@ -1,8 +1,7 @@
 #include "local_store_client.h"
 #include "logging.h"
 
-LocalStoreClient::LocalStoreClient(const bool use_plasma,
-                                   const std::string &plasma_socket)
+LocalStoreClient::LocalStoreClient(const bool use_plasma, const std::string &plasma_socket)
     : use_plasma_(use_plasma), total_store_size_(0) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma) {
@@ -10,8 +9,7 @@ LocalStoreClient::LocalStoreClient(const bool use_plasma,
   // }
 }
 
-Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size,
-                                std::shared_ptr<Buffer> *data) {
+Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma_) {
   //   return plasma_client_.Create(object_id, data_size, NULL, 0, data);
@@ -47,14 +45,12 @@ Status LocalStoreClient::Seal(const ObjectID &object_id) {
   return Status::OK();
 }
 
-bool LocalStoreClient::ObjectExists(const ObjectID &object_id,
-                                    bool require_finished) {
+bool LocalStoreClient::ObjectExists(const ObjectID &object_id, bool require_finished) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   return object_exists_unsafe(object_id, require_finished);
 }
 
-Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
-                             std::vector<ObjectBuffer> *object_buffers) {
+Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids, std::vector<ObjectBuffer> *object_buffers) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma_) {
   //   return plasma_client_.Get(object_ids, -1, object_buffers);
@@ -70,8 +66,7 @@ Status LocalStoreClient::Get(const std::vector<ObjectID> &object_ids,
   return Status::OK();
 }
 
-Status LocalStoreClient::Get(const ObjectID &object_id,
-                             ObjectBuffer *object_buffer) {
+Status LocalStoreClient::Get(const ObjectID &object_id, ObjectBuffer *object_buffer) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   object_buffer->data = buffers_[object_id];
   object_buffer->metadata = nullptr;
@@ -79,8 +74,7 @@ Status LocalStoreClient::Get(const ObjectID &object_id,
   return Status::OK();
 }
 
-std::shared_ptr<Buffer>
-LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) {
+std::shared_ptr<Buffer> LocalStoreClient::GetBufferNoExcept(const ObjectID &object_id) {
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   DCHECK(object_exists_unsafe(object_id, false));
   return buffers_[object_id];
@@ -101,9 +95,7 @@ Status LocalStoreClient::Wait(const ObjectID &object_id) {
   return Status::OK();
 }
 
-bool LocalStoreClient::object_exists_unsafe(const ObjectID &object_id,
-                                            bool require_finished) {
+bool LocalStoreClient::object_exists_unsafe(const ObjectID &object_id, bool require_finished) {
   auto search = buffers_.find(object_id);
-  return search != buffers_.end() &&
-         (!require_finished || search->second->IsFinished());
+  return search != buffers_.end() && (!require_finished || search->second->IsFinished());
 }

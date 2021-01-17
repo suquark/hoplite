@@ -7,40 +7,29 @@
 
 namespace ray {
 
-enum class RayLogLevel {
-  DEBUG = -1,
-  INFO = 0,
-  WARNING = 1,
-  ERROR = 2,
-  FATAL = 3
-};
+enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3 };
 
-#define RAY_LOG_INTERNAL(level)                                                \
-  ::ray::RayLog(__FILE__, __LINE__, __func__, level)
+#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, __func__, level)
 
-#define RAY_LOG_ENABLED(level)                                                 \
-  ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
+#define RAY_LOG_ENABLED(level) ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
 
-#define RAY_LOG(level)                                                         \
-  if (RAY_LOG_ENABLED(level))                                                  \
+#define RAY_LOG(level)                                                                                                 \
+  if (RAY_LOG_ENABLED(level))                                                                                          \
   RAY_LOG_INTERNAL(ray::RayLogLevel::level)
 
 #define RAY_IGNORE_EXPR(expr) ((void)(expr))
 
-#define RAY_CHECK(condition)                                                   \
-  (condition) ? RAY_IGNORE_EXPR(0)                                             \
-              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, \
-                                                 ray::RayLogLevel::FATAL)      \
+#define RAY_CHECK(condition)                                                                                           \
+  (condition) ? RAY_IGNORE_EXPR(0)                                                                                     \
+              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::FATAL)                \
                                        << " Check failed: " #condition " "
 
 #ifdef NDEBUG
 
-#define RAY_DCHECK(condition)                                                  \
-  (condition) ? RAY_IGNORE_EXPR(0)                                             \
-              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, \
-                                                 ray::RayLogLevel::ERROR)      \
-                                       << " Debug check failed: " #condition   \
-                                          " "
+#define RAY_DCHECK(condition)                                                                                          \
+  (condition) ? RAY_IGNORE_EXPR(0)                                                                                     \
+              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::ERROR)                \
+                                       << " Debug check failed: " #condition " "
 #else
 
 #define RAY_DCHECK(condition) RAY_CHECK(condition)
@@ -50,8 +39,7 @@ enum class RayLogLevel {
 // Alias
 #define LOG RAY_LOG
 #define DCHECK RAY_DCHECK
-#define TIMELINE(message)                                                      \
-  ::ray::LogFunc _logme(__FILE__, __LINE__, __func__, message)
+#define TIMELINE(message) ::ray::LogFunc _logme(__FILE__, __LINE__, __func__, message)
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration
 // which hide the implementation into logging.cc file.
@@ -61,8 +49,7 @@ enum class RayLogLevel {
 
 class RayLog {
 public:
-  RayLog(const char *file_name, int line_number, const char *function_name,
-         RayLogLevel severity);
+  RayLog(const char *file_name, int line_number, const char *function_name, RayLogLevel severity);
 
   ~RayLog();
 
@@ -73,8 +60,7 @@ public:
   /// \param severity_threshold Logging threshold for the program.
   /// \param logDir Logging output file name. If empty, the log won't output to
   /// file.
-  static void StartRayLog(const std::string &appName,
-                          RayLogLevel severity_threshold = RayLogLevel::INFO);
+  static void StartRayLog(const std::string &appName, RayLogLevel severity_threshold = RayLogLevel::INFO);
 
   /// Return whether or not the log level is enabled in current setting.
   ///
@@ -118,8 +104,7 @@ public:
 
 class LogFunc {
 public:
-  LogFunc(const std::string &file_name, int line_number,
-          const std::string &function_name, const std::string &message);
+  LogFunc(const std::string &file_name, int line_number, const std::string &function_name, const std::string &message);
   ~LogFunc();
 
 private:

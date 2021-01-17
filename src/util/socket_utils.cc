@@ -25,11 +25,9 @@ constexpr int BACKLOG = 10;
 int send_all(int conn_fd, const void *buf, const size_t size) {
   size_t cursor = 0;
   while (cursor < size) {
-    int bytes_sent =
-        send(conn_fd, (const uint8_t *)buf + cursor, size - cursor, 0);
+    int bytes_sent = send(conn_fd, (const uint8_t *)buf + cursor, size - cursor, 0);
     if (bytes_sent < 0) {
-      LOG(ERROR) << "Socket send error (" << strerror(errno)
-                 << ", code=" << errno << ")";
+      LOG(ERROR) << "Socket send error (" << strerror(errno) << ", code=" << errno << ")";
       if (errno == EAGAIN) {
         continue;
       }
@@ -64,29 +62,24 @@ int tcp_connect(const std::string &ip_address, int port, int *conn_fd) {
   push_addr.sin_port = htons(port);
   LOG(DEBUG) << "create a connection to " << ip_address;
 
-  int status =
-      connect(*conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
+  int status = connect(*conn_fd, (struct sockaddr *)&push_addr, sizeof(push_addr));
   return status;
 }
 
-void tcp_bind_and_listen(int port, struct sockaddr_in *address,
-                         int *server_fd) {
+void tcp_bind_and_listen(int port, struct sockaddr_in *address, int *server_fd) {
   *server_fd = socket(AF_INET, SOCK_STREAM, 0);
   DCHECK(*server_fd >= 0) << "socket creation error";
 
   int enable = 1;
-  auto status =
-      setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-  DCHECK(!status) << "Cannot set server_fd to reuse port (errno = " << errno
-                  << ").";
+  auto status = setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+  DCHECK(!status) << "Cannot set server_fd to reuse port (errno = " << errno << ").";
 
   address->sin_family = AF_INET;
   address->sin_addr.s_addr = INADDR_ANY;
   address->sin_port = htons(port);
 
   status = bind(*server_fd, (struct sockaddr *)address, sizeof(*address));
-  DCHECK(!status) << "Cannot bind to port " << port << " (errno = " << errno
-                  << ").";
+  DCHECK(!status) << "Cannot bind to port " << port << " (errno = " << errno << ").";
 
   status = listen(*server_fd, BACKLOG);
   DCHECK(!status) << "Socket listen error.";

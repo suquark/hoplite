@@ -107,11 +107,9 @@ public:
           std::unique_lock<std::mutex> lock(this->mutex);
           this->cv.notify_all();
         }
-        this->threads.resize(
-            nThreads); // safe to delete because the threads are detached
-        this->flags.resize(
-            nThreads); // safe to delete because the threads have copies of
-                       // shared_ptr of the flags, not originals
+        this->threads.resize(nThreads); // safe to delete because the threads are detached
+        this->flags.resize(nThreads);   // safe to delete because the threads have copies of
+                                        // shared_ptr of the flags, not originals
       }
     }
   }
@@ -157,8 +155,7 @@ public:
       std::unique_lock<std::mutex> lock(this->mutex);
       this->cv.notify_all(); // stop all waiting threads
     }
-    for (int i = 0; i < static_cast<int>(this->threads.size());
-         ++i) { // wait for the computing threads to finish
+    for (int i = 0; i < static_cast<int>(this->threads.size()); ++i) { // wait for the computing threads to finish
       if (this->threads[i]->joinable())
         this->threads[i]->join();
     }
@@ -169,12 +166,9 @@ public:
     this->flags.clear();
   }
 
-  template <typename F, typename... Rest>
-  auto push(F &&f, Rest &&... rest) -> std::future<decltype(f(0, rest...))> {
-    auto pck =
-        std::make_shared<std::packaged_task<decltype(f(0, rest...))(int)>>(
-            std::bind(std::forward<F>(f), std::placeholders::_1,
-                      std::forward<Rest>(rest)...));
+  template <typename F, typename... Rest> auto push(F &&f, Rest &&... rest) -> std::future<decltype(f(0, rest...))> {
+    auto pck = std::make_shared<std::packaged_task<decltype(f(0, rest...))(int)>>(
+        std::bind(std::forward<F>(f), std::placeholders::_1, std::forward<Rest>(rest)...));
     auto _f = new std::function<void(int id)>([pck](int id) { (*pck)(id); });
     this->q.push(_f);
     std::unique_lock<std::mutex> lock(this->mutex);
@@ -186,8 +180,7 @@ public:
   // thread. returned value is templatized operator returns std::future, where
   // the user can get the result and rethrow the catched exceptins
   template <typename F> auto push(F &&f) -> std::future<decltype(f(0))> {
-    auto pck = std::make_shared<std::packaged_task<decltype(f(0))(int)>>(
-        std::forward<F>(f));
+    auto pck = std::make_shared<std::packaged_task<decltype(f(0))(int)>>(std::forward<F>(f));
     auto _f = new std::function<void(int id)>([pck](int id) { (*pck)(id); });
     this->q.push(_f);
     std::unique_lock<std::mutex> lock(this->mutex);
@@ -203,17 +196,15 @@ private:
   thread_pool &operator=(thread_pool &&);      // = delete;
 
   void set_thread(int i) {
-    std::shared_ptr<std::atomic<bool>> flag(
-        this->flags[i]); // a copy of the shared ptr to the flag
+    std::shared_ptr<std::atomic<bool>> flag(this->flags[i]); // a copy of the shared ptr to the flag
     auto f = [this, i, flag /* a copy of the shared ptr to the flag */]() {
       std::atomic<bool> &_flag = *flag;
       std::function<void(int id)> *_f;
       bool isPop = this->q.pop(_f);
       while (true) {
-        while (isPop) { // if there is anything in the queue
-          std::unique_ptr<std::function<void(int id)>> func(
-              _f); // at return, delete the function even if an exception
-                   // occurred
+        while (isPop) {                                          // if there is anything in the queue
+          std::unique_ptr<std::function<void(int id)>> func(_f); // at return, delete the function even if an exception
+                                                                 // occurred
           (*_f)(i);
           if (_flag)
             return; // the thread is wanted to stop, return even if the queue is
@@ -234,8 +225,7 @@ private:
                   // then return
       }
     };
-    this->threads[i].reset(
-        new std::thread(f)); // compiler may not support std::make_unique()
+    this->threads[i].reset(new std::thread(f)); // compiler may not support std::make_unique()
   }
 
   void init() {
