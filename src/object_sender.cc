@@ -60,7 +60,6 @@ void ObjectSender::listener_loop() {
                  << "Shutting down the object sender ...";
       return;
     }
-    DCHECK(conn_fd >= 0) << "socket accept error";
     char *incoming_ip = inet_ntoa(address_.sin_addr);
     LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
     TIMELINE(std::string("Sender::worker_loop(), requester_ip = ") + incoming_ip);
