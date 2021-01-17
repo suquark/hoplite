@@ -36,7 +36,7 @@ bool Receiver::check_and_store_inband_data(
 int Receiver::receive_object(
     const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream) {
   TIMELINE(std::string("Receiver::receive_object() ") + object_id.ToString());    
-  LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << object_size;
+  LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << stream->Size();
   int conn_fd;
   int ec = tcp_connect(sender_ip, sender_port, &conn_fd);
   if (ec) {
