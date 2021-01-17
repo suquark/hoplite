@@ -10,18 +10,17 @@
 #include <unistd.h>
 
 #include "common/config.h"
+#include "finegrained_pipelining.h"
 #include "global_control_store.h"
 #include "logging.h"
 #include "object_writer.h"
 #include "socket_utils.h"
-#include "finegrained_pipelining.h"
 #include "util/protobuf_utils.h"
 
 using objectstore::ObjectWriterRequest;
 
 template <typename T, typename DT>
-int stream_reduce_add(int conn_fd, T *stream,
-                      std::vector<uint8_t *> reduce_buffers) {
+int stream_reduce_add(int conn_fd, T *stream, std::vector<uint8_t *> reduce_buffers) {
   TIMELINE("stream_reduce_add");
   int64_t receive_progress = 0;
   const size_t element_size = sizeof(DT);
@@ -52,18 +51,13 @@ int stream_reduce_add(int conn_fd, T *stream,
   return 0;
 }
 
-TCPServer::TCPServer(ObjectStoreState &state,
-                     GlobalControlStoreClient &gcs_client,
-                     LocalStoreClient &local_store_client,
-                     const std::string &server_ipaddr, int port)
-    : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr),
-      local_store_client_(local_store_client),
+TCPServer::TCPServer(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
+                     LocalStoreClient &local_store_client, const std::string &server_ipaddr, int port)
+    : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr), local_store_client_(local_store_client),
       pool_(HOPLITE_MAX_INFLOW_CONCURRENCY) {
-  TIMELINE(std::string("TCPServer construction function ") + server_ipaddr +
-           ":" + std::to_string(port));
+  TIMELINE(std::string("TCPServer construction function ") + server_ipaddr + ":" + std::to_string(port));
   tcp_bind_and_listen(port, &address_, &server_fd_);
-  LOG(DEBUG) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":"
-             << port;
+  LOG(DEBUG) << "[TCPServer] tcp server is ready at " << server_ipaddr << ":" << port;
 }
 
 void TCPServer::Shutdown() {
@@ -87,9 +81,8 @@ void TCPServer::worker_loop() {
     socklen_t addrlen = sizeof(address_);
     int conn_fd = accept(server_fd_, (struct sockaddr *)&address_, &addrlen);
     if (conn_fd < 0) {
-      LOG(ERROR)
-          << "Socket accept error, maybe it has been closed by the user. "
-          << "Shutting down the object writer ...";
+      LOG(ERROR) << "Socket accept error, maybe it has been closed by the user. "
+                 << "Shutting down the object writer ...";
       return;
     }
     DCHECK(conn_fd >= 0) << "socket accept error";
@@ -99,8 +92,7 @@ void TCPServer::worker_loop() {
 #endif
     char *incoming_ip = inet_ntoa(address_.sin_addr);
     LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
-    TIMELINE(std::string("TCPServer::worker_loop(), requester_ip = ") +
-             incoming_ip);
+    TIMELINE(std::string("TCPServer::worker_loop(), requester_ip = ") + incoming_ip);
 
     ObjectWriterRequest message;
     ReceiveProtobufMessage(conn_fd, &message);
@@ -118,11 +110,10 @@ void TCPServer::worker_loop() {
       }
       bool is_endpoint = request.is_endpoint();
       (void)pool_.push([=](int fd) {
-        int status = receive_and_reduce_object(conn_fd, reduction_id, object_ids,
-                                               is_endpoint);
+        int status = receive_and_reduce_object(conn_fd, reduction_id, object_ids, is_endpoint);
         if (status) {
-          LOG(FATAL) << "[receive_and_reduce_object] receive object failed. " << strerror(errno)
-              << ", code=" << errno << ")";
+          LOG(FATAL) << "[receive_and_reduce_object] receive object failed. " << strerror(errno) << ", code=" << errno
+                     << ")";
         }
       });
     } break;
@@ -133,15 +124,13 @@ void TCPServer::worker_loop() {
 }
 
 // TODO: implement support for general element types.
-int TCPServer::receive_and_reduce_object(
-    int conn_fd, const ObjectID &reduction_id,
-    const std::vector<ObjectID> &object_ids, bool is_endpoint) {
-  TIMELINE(std::string("TCPServer::receive_and_reduce_object() ") +
-           reduction_id.ToString() + " " + std::to_string(is_endpoint));
+int TCPServer::receive_and_reduce_object(int conn_fd, const ObjectID &reduction_id,
+                                         const std::vector<ObjectID> &object_ids, bool is_endpoint) {
+  TIMELINE(std::string("TCPServer::receive_and_reduce_object() ") + reduction_id.ToString() + " " +
+           std::to_string(is_endpoint));
 
   // The endpoint can have no objects to reduce.
-  DCHECK(object_ids.size() > 0 || is_endpoint)
-      << "At least one object should be reduced.";
+  DCHECK(object_ids.size() > 0 || is_endpoint) << "At least one object should be reduced.";
 
   // Get object buffers from Plasma Store
   std::vector<ObjectBuffer> object_buffers;
@@ -161,8 +150,7 @@ int TCPServer::receive_and_reduce_object(
     uint8_t *buf_ptr = buf_info.data->MutableData();
     DCHECK(buf_ptr) << "object buffer is nullptr";
     buffers.push_back(buf_ptr);
-    DCHECK(buf_info.data->Size() == object_size)
-        << "reduction object size mismatch";
+    DCHECK(buf_info.data->Size() == object_size) << "reduction object size mismatch";
   }
 
   if (is_endpoint) {
@@ -176,8 +164,7 @@ int TCPServer::receive_and_reduce_object(
     // notify other threads that we have finished
     stream->NotifyFinished();
   } else {
-    std::shared_ptr<Buffer> stream =
-        state_.create_reduction_stream(reduction_id, object_size);
+    std::shared_ptr<Buffer> stream = state_.create_reduction_stream(reduction_id, object_size);
     int status = stream_reduce_add<Buffer, float>(conn_fd, stream.get(), buffers);
     if (status) {
       return status;

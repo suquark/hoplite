@@ -32,12 +32,9 @@ struct SyncReply {
 
 class ObjectNotifications {
 public:
-  std::vector<NotificationMessage> GetNotifications(bool delete_after_get,
-                                                    bool no_wait = false);
+  std::vector<NotificationMessage> GetNotifications(bool delete_after_get, bool no_wait = false);
 
-  void ReceiveObjectNotification(const ObjectID &object_id,
-                                 const std::string &sender_ip,
-                                 size_t object_size,
+  void ReceiveObjectNotification(const ObjectID &object_id, const std::string &sender_ip, size_t object_size,
                                  const std::string &inband_data);
 
   void Rewind();
@@ -53,29 +50,23 @@ private:
 
 class GlobalControlStoreClient {
 public:
-  GlobalControlStoreClient(const std::string &notification_server_address,
-                           const std::string &my_address,
-                           int notification_server_port,
-                           int notification_listen_port);
+  GlobalControlStoreClient(const std::string &notification_server_address, const std::string &my_address,
+                           int notification_server_port, int notification_listen_port);
 
   void ConnectNotificationServer();
 
   // Write object location to the notification server.
-  void WriteLocation(const ObjectID &object_id, const std::string &my_address,
-                     bool finished, size_t object_size,
-                     const uint8_t *inband_data = nullptr,
-                     bool blocking = false);
+  void WriteLocation(const ObjectID &object_id, const std::string &my_address, bool finished, size_t object_size,
+                     const uint8_t *inband_data = nullptr, bool blocking = false);
 
   // Get object location from the notification server.
   SyncReply GetLocationSync(const ObjectID &object_id, bool occupying);
 
-  std::shared_ptr<ObjectNotifications>
-  GetLocationAsync(const std::vector<ObjectID> &object_ids,
-                   const std::string &query_id, bool occupying);
+  std::shared_ptr<ObjectNotifications> GetLocationAsync(const std::vector<ObjectID> &object_ids,
+                                                        const std::string &query_id, bool occupying);
 
   inline std::thread Run() {
-    std::thread notification_thread(&GlobalControlStoreClient::worker_loop,
-                                    this);
+    std::thread notification_thread(&GlobalControlStoreClient::worker_loop, this);
     return notification_thread;
   }
 
@@ -92,8 +83,7 @@ private:
   std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
 
   std::shared_ptr<std::mutex> notifications_pool_mutex_;
-  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>>
-      notifications_pool_;
+  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> notifications_pool_;
 
   std::unique_ptr<grpc::Server> grpc_server_;
   std::shared_ptr<NotificationListenerImpl> service_;

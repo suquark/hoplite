@@ -28,22 +28,18 @@ using objectstore::GetLocationSyncRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
-class NotificationListenerImpl final
-    : public objectstore::NotificationListener::Service {
+class NotificationListenerImpl final : public objectstore::NotificationListener::Service {
 public:
   NotificationListenerImpl() : objectstore::NotificationListener::Service() {}
 
-  grpc::Status
-  GetLocationAsyncAnswer(grpc::ServerContext *context,
-                         const GetLocationAsyncAnswerRequest *request,
-                         GetLocationAsyncAnswerReply *reply) {
+  grpc::Status GetLocationAsyncAnswer(grpc::ServerContext *context, const GetLocationAsyncAnswerRequest *request,
+                                      GetLocationAsyncAnswerReply *reply) {
     for (auto &object : request->objects()) {
       ObjectID object_id = ObjectID::FromBinary(object.object_id());
       std::string sender_ip = object.sender_ip();
       std::string query_id = object.query_id();
       size_t object_size = object.object_size();
-      LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID: "
-                << object_id.Hex() << " IP: " << sender_ip
+      LOG(INFO) << "[NotificationListener] [GetLocationAsyncAnswer] ID: " << object_id.Hex() << " IP: " << sender_ip
                 << " Query: " << query_id << " Size: " << object_size;
       reply->set_ok(true);
     }
@@ -53,12 +49,9 @@ public:
 
 class NotificationListener {
 public:
-  NotificationListener(const std::string &my_address,
-                       const int notification_port)
-      : notification_port_(notification_port),
-        service_(std::make_shared<NotificationListenerImpl>()) {
-    std::string grpc_address =
-        my_address + ":" + std::to_string(notification_port);
+  NotificationListener(const std::string &my_address, const int notification_port)
+      : notification_port_(notification_port), service_(std::make_shared<NotificationListenerImpl>()) {
+    std::string grpc_address = my_address + ":" + std::to_string(notification_port);
     grpc::ServerBuilder builder;
     builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&*service_);
@@ -84,11 +77,9 @@ private:
 std::shared_ptr<grpc::Channel> channel;
 std::unique_ptr<objectstore::NotificationServer::Stub> stub;
 
-void write_location(const ObjectID &object_id, const std::string &sender_ip,
-                    size_t object_size) {
+void write_location(const ObjectID &object_id, const std::string &sender_ip, size_t object_size) {
   TIMELINE("write_location");
-  LOG(INFO) << "Adding object " << object_id.Hex()
-            << " to notification server with address = " << sender_ip;
+  LOG(INFO) << "Adding object " << object_id.Hex() << " to notification server with address = " << sender_ip;
   grpc::ClientContext context;
   WriteLocationRequest request;
   WriteLocationReply reply;
@@ -97,12 +88,11 @@ void write_location(const ObjectID &object_id, const std::string &sender_ip,
   request.set_finished(true);
   request.set_object_size(object_size);
   stub->WriteLocation(&context, request, &reply);
-  DCHECK(reply.ok()) << "WriteObjectLocation for " << object_id.ToString()
-                     << " failed.";
+  DCHECK(reply.ok()) << "WriteObjectLocation for " << object_id.ToString() << " failed.";
 }
 
-void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip,
-                      const std::string &query_id, bool occupying) {
+void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip, const std::string &query_id,
+                      bool occupying) {
   TIMELINE("getlocationasync");
   LOG(INFO) << "Async get location of " << object_id.Hex();
   grpc::ClientContext context;
@@ -113,8 +103,7 @@ void getlocationasync(const ObjectID &object_id, const std::string &receiver_ip,
   request.set_query_id(query_id);
   request.set_occupying(occupying);
   stub->GetLocationAsync(&context, request, &reply);
-  DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString()
-                     << " failed.";
+  DCHECK(reply.ok()) << "getlocationasync for " << object_id.ToString() << " failed.";
 }
 
 void getlocationsync(const ObjectID &object_id, bool occupying) {
@@ -126,8 +115,7 @@ void getlocationsync(const ObjectID &object_id, bool occupying) {
   request.set_object_id(object_id.Binary());
   request.set_occupying(occupying);
   stub->GetLocationSync(&context, request, &reply);
-  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip()
-            << " Size: " << reply.object_size();
+  LOG(INFO) << "getlocationsync reply: " << reply.sender_ip() << " Size: " << reply.object_size();
 }
 
 void TEST1() {
@@ -156,9 +144,7 @@ void TEST3(const std::string &my_address) {
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
   size_t object_size = 300;
-  LOG(INFO) << "object_id: " << object_id.Hex()
-            << " sender_ip_1: " << sender_ip_1
-            << " sender_ip_2: " << sender_ip_2;
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
   write_location(object_id, sender_ip_1, object_size);
   write_location(object_id, sender_ip_2, object_size);
   getlocationasync(object_id, my_address, "TEST3_query_id", true);
@@ -171,9 +157,7 @@ void TEST4(const std::string &my_address) {
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
   size_t object_size = 400;
-  LOG(INFO) << "object_id: " << object_id.Hex()
-            << " sender_ip_1: " << sender_ip_1
-            << " sender_ip_2: " << sender_ip_2;
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
   getlocationasync(object_id, my_address, "TEST4_query_id", true);
   write_location(object_id, sender_ip_1, object_size);
   write_location(object_id, sender_ip_2, object_size);
@@ -186,9 +170,7 @@ void TEST5(const std::string &my_address) {
   std::string sender_ip_1 = "1.2.3.4";
   std::string sender_ip_2 = "2.3.4.5";
   size_t object_size = 300;
-  LOG(INFO) << "object_id: " << object_id.Hex()
-            << " sender_ip_1: " << sender_ip_1
-            << " sender_ip_2: " << sender_ip_2;
+  LOG(INFO) << "object_id: " << object_id.Hex() << " sender_ip_1: " << sender_ip_1 << " sender_ip_2: " << sender_ip_2;
   write_location(object_id, sender_ip_1, object_size);
   write_location(object_id, sender_ip_2, object_size);
   getlocationasync(object_id, my_address, "TEST3_query_id1", false);
@@ -227,23 +209,17 @@ void SPEED_TEST(size_t object_size) {
     auto after_writelocation = std::chrono::system_clock::now();
     getlocationsync(object_id, true);
     auto after_getlocation = std::chrono::system_clock::now();
-    std::chrono::duration<double> diff_writelocation =
-        after_writelocation - start;
-    std::chrono::duration<double> diff_getlocation =
-        after_getlocation - after_writelocation;
+    std::chrono::duration<double> diff_writelocation = after_writelocation - start;
+    std::chrono::duration<double> diff_getlocation = after_getlocation - after_writelocation;
     write_location_latencies.push_back(diff_writelocation.count());
     get_location_latencies.push_back(diff_getlocation.count());
   }
 
-  LOG(INFO) << "write location latency = " << average(write_location_latencies)
-            << ","
-            << " standard deviation = "
-            << standard_deviation(write_location_latencies);
+  LOG(INFO) << "write location latency = " << average(write_location_latencies) << ","
+            << " standard deviation = " << standard_deviation(write_location_latencies);
 
-  LOG(INFO) << "get location latency = " << average(get_location_latencies)
-            << ","
-            << " standard deviation = "
-            << standard_deviation(get_location_latencies);
+  LOG(INFO) << "get location latency = " << average(get_location_latencies) << ","
+            << " standard deviation = " << standard_deviation(get_location_latencies);
 }
 
 int main(int argc, char **argv) {
@@ -254,8 +230,7 @@ int main(int argc, char **argv) {
   std::thread notification_listener_thread;
   notification_listener.reset(new NotificationListener(my_address, 8888));
   notification_listener_thread = notification_listener->Run();
-  channel = grpc::CreateChannel(notification_address + ":7777",
-                                grpc::InsecureChannelCredentials());
+  channel = grpc::CreateChannel(notification_address + ":7777", grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);
   TEST1();
   TEST2(my_address);

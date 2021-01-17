@@ -14,8 +14,7 @@
 class ObjectStoreState {
 
 public:
-  std::shared_ptr<Buffer> create_reduction_stream(const ObjectID &reduction_id,
-                                                  size_t size);
+  std::shared_ptr<Buffer> create_reduction_stream(const ObjectID &reduction_id, size_t size);
 
   std::shared_ptr<Buffer> get_reduction_stream(const ObjectID &reduction_id);
 

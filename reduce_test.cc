@@ -28,9 +28,7 @@ int main(int argc, char **argv) {
 
   TIMELINE("main");
 
-  DistributedObjectStore store(redis_address, 6380, 7777, 8888,
-                               "/tmp/multicast_plasma", my_address, 6666,
-                               50055);
+  DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
     ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
@@ -57,8 +55,7 @@ int main(int argc, char **argv) {
       store.Get(reduction_id, &reduction_result);
       auto end = std::chrono::system_clock::now();
       std::chrono::duration<double> duration = end - start;
-      LOG(INFO) << reduction_id.ToString() << " is reduced using "
-                << duration.count();
+      LOG(INFO) << reduction_id.ToString() << " is reduced using " << duration.count();
       print_reduction_result<float>(reduction_id, reduction_result, sum);
     }
     MPI_Barrier(MPI_COMM_WORLD);

@@ -8,8 +8,8 @@
 #include <unistd.h>
 
 #include "common/config.h"
-#include "object_sender.h"
 #include "finegrained_pipelining.h"
+#include "object_sender.h"
 #include "util/protobuf_utils.h"
 
 using objectstore::ObjectWriterRequest;
@@ -17,15 +17,11 @@ using objectstore::ReceiveAndReduceObjectRequest;
 using objectstore::ReceiveObjectRequest;
 using objectstore::ReduceToRequest;
 
-ObjectSender::ObjectSender(ObjectStoreState &state,
-                           GlobalControlStoreClient &gcs_client,
-                           LocalStoreClient &local_store_client,
-                           const std::string &my_address)
-    : state_(state), gcs_client_(gcs_client),
-      local_store_client_(local_store_client), my_address_(my_address),
+ObjectSender::ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
+                           LocalStoreClient &local_store_client, const std::string &my_address)
+    : state_(state), gcs_client_(gcs_client), local_store_client_(local_store_client), my_address_(my_address),
       exit_(false), pool_(1) {
-  TIMELINE(std::string("ObjectSender construction function ") + my_address +
-           ":" + std::to_string(HOPLITE_SENDER_PORT));
+  TIMELINE(std::string("ObjectSender construction function ") + my_address + ":" + std::to_string(HOPLITE_SENDER_PORT));
   tcp_bind_and_listen(HOPLITE_SENDER_PORT, &address_, &server_fd_);
   LOG(DEBUG) << "[ObjectSender] object sender is ready.";
 }
@@ -77,8 +73,7 @@ void ObjectSender::listener_loop() {
       ObjectID object_id = ObjectID::FromBinary(request.object_id());
       int ec = send_object(conn_fd, object_id, request.offset());
       if (ec) {
-        LOG(ERROR) << "[Sender] Failed to send object. " << strerror(errno)
-                   << ", error_code=" << errno << ")";
+        LOG(ERROR) << "[Sender] Failed to send object. " << strerror(errno) << ", error_code=" << errno << ")";
       }
     } break;
     default:
@@ -113,8 +108,7 @@ void ObjectSender::worker_loop() {
     objectstore::ReduceToRequest *request;
     {
       std::unique_lock<std::mutex> l(queue_mutex_);
-      queue_cv_.wait_for(l, std::chrono::seconds(1),
-                         [this]() { return !pending_tasks_.empty(); });
+      queue_cv_.wait_for(l, std::chrono::seconds(1), [this]() { return !pending_tasks_.empty(); });
       {
         if (exit_) {
           return;
@@ -141,8 +135,7 @@ void ObjectSender::AppendTask(const ReduceToRequest *request) {
 }
 
 void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
-  TIMELINE("ObjectSender::send_object_for_reduce(), dst_address = " +
-           request->dst_address());
+  TIMELINE("ObjectSender::send_object_for_reduce(), dst_address = " + request->dst_address());
   int conn_fd;
   auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
   DCHECK(!status) << "socket connect error";
@@ -166,8 +159,7 @@ void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
     auto &stream = object_buffers[0].data;
     stream_send<Buffer>(conn_fd, stream.get());
   } else {
-    LOG(DEBUG)
-        << "[GrpcServer] fetching an incomplete object from reduction stream";
+    LOG(DEBUG) << "[GrpcServer] fetching an incomplete object from reduction stream";
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     auto stream = state_.get_reduction_stream(reduction_id);
     DCHECK(stream != nullptr) << "Stream should not be nullptr";

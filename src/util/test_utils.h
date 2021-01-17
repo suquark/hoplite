@@ -19,14 +19,11 @@
 using objectstore::BarrierReply;
 using objectstore::BarrierRequest;
 
-void barrier(const std::string &redis_address, const int notification_port,
-             const int num_of_nodes) {
+void barrier(const std::string &redis_address, const int notification_port, const int num_of_nodes) {
   TIMELINE("barrier");
   auto remote_address = redis_address + ":" + std::to_string(notification_port);
-  auto channel =
-      grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
-  std::unique_ptr<objectstore::NotificationServer::Stub> stub(
-      objectstore::NotificationServer::NewStub(channel));
+  auto channel = grpc::CreateChannel(remote_address, grpc::InsecureChannelCredentials());
+  std::unique_ptr<objectstore::NotificationServer::Stub> stub(objectstore::NotificationServer::NewStub(channel));
   grpc::ClientContext context;
   BarrierRequest request;
   BarrierReply reply;
@@ -52,19 +49,16 @@ std::shared_ptr<Buffer> get_fixed_buffer(size_t n_elements, float number) {
   return buf;
 }
 
-void put_fixed_buffer(DistributedObjectStore &store, const ObjectID &object_id,
-                      int64_t object_size, float number) {
+void put_fixed_buffer(DistributedObjectStore &store, const ObjectID &object_id, int64_t object_size, float number) {
   DCHECK(object_size % sizeof(float) == 0);
-  std::shared_ptr<Buffer> buffer =
-      get_fixed_buffer(object_size / sizeof(float), number);
+  std::shared_ptr<Buffer> buffer = get_fixed_buffer(object_size / sizeof(float), number);
   store.Put(buffer, object_id);
   const float *view = (const float *)buffer->Data();
   LOG(INFO) << object_id.ToString() << " is created! "
             << "size = " << object_size << ", fixed value: " << view[1];
 }
 
-std::shared_ptr<Buffer> get_random_float_buffer(size_t n_elements,
-                                                const std::string &seed_str) {
+std::shared_ptr<Buffer> get_random_float_buffer(size_t n_elements, const std::string &seed_str) {
   auto buf = std::make_shared<Buffer>(n_elements * sizeof(float));
   float *data = (float *)buf->MutableData();
   float random_number = get_uniform_random_float(seed_str);
@@ -76,32 +70,25 @@ std::shared_ptr<Buffer> get_random_float_buffer(size_t n_elements,
 }
 
 template <typename T>
-void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id,
-                       int64_t object_size) {
+void put_random_buffer(DistributedObjectStore &store, const ObjectID &object_id, int64_t object_size) {
   DCHECK(object_size % sizeof(T) == 0);
-  std::shared_ptr<Buffer> buffer =
-      get_random_float_buffer(object_size / sizeof(T), object_id.Hex());
+  std::shared_ptr<Buffer> buffer = get_random_float_buffer(object_size / sizeof(T), object_id.Hex());
   store.Put(buffer, object_id);
   const T *view = (const T *)buffer->Data();
   LOG(INFO) << object_id.ToString() << " is created! "
-            << "size = " << object_size
-            << ", the chosen random value: " << view[1];
+            << "size = " << object_size << ", the chosen random value: " << view[1];
 }
 
 template <typename T>
-void print_reduction_result(const ObjectID &object_id,
-                            const std::shared_ptr<Buffer> &result,
-                            T expected_sum) {
+void print_reduction_result(const ObjectID &object_id, const std::shared_ptr<Buffer> &result, T expected_sum) {
   const T *view = (const T *)result->Data();
   int64_t num_elements = result->Size() / sizeof(T);
 
   LOG(INFO) << object_id.ToString() << " CRC32 = " << result->CRC32() << "\n"
-            << "Results: [" << view[0] << ", " << view[1] << ", " << view[2]
-            << ", " << view[3] << ", " << view[4] << ", ... , "
-            << view[num_elements - 1] << "] \n"
+            << "Results: [" << view[0] << ", " << view[1] << ", " << view[2] << ", " << view[3] << ", " << view[4]
+            << ", ... , " << view[num_elements - 1] << "] \n"
             << "Result errors: first item = " << view[1] - expected_sum
-            << ", last item = "
-            << view[num_elements - 1] / (num_elements - 1) - expected_sum;
+            << ", last item = " << view[num_elements - 1] / (num_elements - 1) - expected_sum;
 }
 
 ObjectID object_id_from_suffix(std::string s) {

@@ -50,8 +50,7 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   // Reduce all of the local sums into the global sum
   time -= MPI_Wtime();
-  MPI_Allreduce(rand_nums, global_nums, num_elements_per_proc, MPI_FLOAT,
-                MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(rand_nums, global_nums, num_elements_per_proc, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
   time += MPI_Wtime();
 
   // Print the result

@@ -20,8 +20,7 @@ namespace ray {
 RayLogLevel RayLog::severity_threshold_ = RayLogLevel::INFO;
 std::string RayLog::app_name_ = "";
 
-void RayLog::StartRayLog(const std::string &app_name,
-                         RayLogLevel severity_threshold) {
+void RayLog::StartRayLog(const std::string &app_name, RayLogLevel severity_threshold) {
   const char *var_value = getenv("RAY_BACKEND_LOG_LEVEL");
   if (var_value != nullptr) {
     std::string data = var_value;
@@ -37,29 +36,22 @@ void RayLog::StartRayLog(const std::string &app_name,
     } else if (data == "fatal") {
       severity_threshold = RayLogLevel::FATAL;
     } else {
-      RAY_LOG(WARNING) << "Unrecognized setting of RAY_BACKEND_LOG_LEVEL="
-                       << var_value;
+      RAY_LOG(WARNING) << "Unrecognized setting of RAY_BACKEND_LOG_LEVEL=" << var_value;
     }
-    RAY_LOG(INFO)
-        << "Set ray log level from environment variable RAY_BACKEND_LOG_LEVEL"
-        << " to " << static_cast<int>(severity_threshold);
+    RAY_LOG(INFO) << "Set ray log level from environment variable RAY_BACKEND_LOG_LEVEL"
+                  << " to " << static_cast<int>(severity_threshold);
   }
   severity_threshold_ = severity_threshold;
   app_name_ = app_name;
 }
 
-bool RayLog::IsLevelEnabled(RayLogLevel log_level) {
-  return log_level >= severity_threshold_;
-}
+bool RayLog::IsLevelEnabled(RayLogLevel log_level) { return log_level >= severity_threshold_; }
 
-RayLog::RayLog(const char *file_name, int line_number,
-               const char *function_name, RayLogLevel severity)
+RayLog::RayLog(const char *file_name, int line_number, const char *function_name, RayLogLevel severity)
     : stream_(), severity_(severity) {
-  auto timestamp =
-      std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  stream_ << timestamp << " " << get_app_name() << ":" << getpid() << ":"
-          << std::this_thread::get_id() << " " << file_name << ":"
-          << line_number << " " << function_name << " ]: ";
+  auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  stream_ << timestamp << " " << get_app_name() << ":" << getpid() << ":" << std::this_thread::get_id() << " "
+          << file_name << ":" << line_number << " " << function_name << " ]: ";
 }
 
 RayLog::~RayLog() {
@@ -79,24 +71,20 @@ void RayLog::PrintBackTrace() {
 #endif
 }
 
-LogFunc::LogFunc(const std::string &file_name, int line_number,
-                 const std::string &function_name, const std::string &message)
-    : file_name_(file_name), line_number_(line_number),
-      function_name_(function_name), message_(message) {
+LogFunc::LogFunc(const std::string &file_name, int line_number, const std::string &function_name,
+                 const std::string &message)
+    : file_name_(file_name), line_number_(line_number), function_name_(function_name), message_(message) {
   std::stringstream hashstampstream;
-  hashstampstream
-      << std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  hashstampstream << std::chrono::high_resolution_clock::now().time_since_epoch().count();
   hashstampstream >> hashstamp_;
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::DEBUG))
-    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(),
-                  ray::RayLogLevel::DEBUG)
+    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(), ray::RayLogLevel::DEBUG)
         << "[TIMELINE] [" << hashstamp_ << "] [BEGIN] " << message_;
 }
 
 LogFunc::~LogFunc() {
   if (ray::RayLog::IsLevelEnabled(ray::RayLogLevel::DEBUG))
-    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(),
-                  ray::RayLogLevel::DEBUG)
+    ::ray::RayLog(file_name_.c_str(), line_number_, function_name_.c_str(), ray::RayLogLevel::DEBUG)
         << "[TIMELINE] [" << hashstamp_ << "] [END] " << message_;
 }
 
