@@ -16,7 +16,7 @@ PROTO_OBJS = src/object_store.pb.o src/object_store.grpc.pb.o
 UTILS_OBJS = src/util/logging.o src/util/socket_utils.o
 COMMON_OBJS = src/common/id.o src/common/buffer.o src/common/status.o
 OBJECT_STORE_OBJS = src/local_store_client.o src/global_control_store.o src/object_store_state.o \
-	src/object_writer.o src/object_sender.o src/distributed_object_store.o
+	src/object_writer.o src/object_sender.o src/distributed_object_store.o src/receiver.o
 
 all: notification multicast_test reduce_test subset_reduce_test allreduce_test gather_test allgather_test py_distributed_object_store python/object_store_pb2_grpc.py
 
