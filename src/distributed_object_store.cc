@@ -13,8 +13,6 @@
 #include "logging.h"
 
 using objectstore::ObjectStore;
-using objectstore::PullReply;
-using objectstore::PullRequest;
 using objectstore::RedirectReduceReply;
 using objectstore::RedirectReduceRequest;
 using objectstore::ReduceToReply;
@@ -31,22 +29,6 @@ public:
   ObjectStoreServiceImpl(ObjectSender &object_sender,
                          DistributedObjectStore &store)
       : ObjectStore::Service(), object_sender_(object_sender), store_(store) {}
-
-  grpc::Status Pull(grpc::ServerContext *context, const PullRequest *request,
-                    PullReply *reply) {
-    TIMELINE("ObjectStoreServiceImpl::Pull()");
-    ObjectID object_id = ObjectID::FromBinary(request->object_id());
-
-    LOG(DEBUG) << ": Received a pull request from " << request->puller_ip()
-               << " for object " << object_id.ToString();
-
-    object_sender_.send_object(request);
-    LOG(DEBUG) << ": Finished a pull request from " << request->puller_ip()
-               << " for object " << object_id.ToString();
-
-    reply->set_ok(true);
-    return grpc::Status::OK;
-  }
 
   grpc::Status ReduceTo(grpc::ServerContext *context,
                         const ReduceToRequest *request, ReduceToReply *reply) {
@@ -93,22 +75,6 @@ private:
 ////////////////////////////////////////////////////////////////
 // The gRPC client side of the object store
 ////////////////////////////////////////////////////////////////
-
-bool DistributedObjectStore::PullObject(const std::string &remote_address,
-                                        const ObjectID &object_id) {
-  TIMELINE("DistributedObjectStore::PullObject");
-  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  PullRequest request;
-  PullReply reply;
-  request.set_object_id(object_id.Binary());
-  request.set_puller_ip(my_address_);
-  auto stub = get_stub(remote_grpc_address);
-  // TODO: make sure that grpc stub is thread-safe.
-  auto status = stub->Pull(&context, request, &reply);
-  return reply.ok();
-}
 
 bool DistributedObjectStore::InvokeReduceTo(
     const std::string &remote_address, const ObjectID &reduction_id,
@@ -210,6 +176,7 @@ DistributedObjectStore::DistributedObjectStore(
       object_writer_{state_, gcs_client_, local_store_client_, my_address_,
                      object_writer_port},
       object_sender_{state_, gcs_client_, local_store_client_, my_address_},
+      receiver_{state_, gcs_client_, local_store_client_, my_address_, object_writer_port},
       grpc_port_(grpc_port),
       grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)),
       pool_(HOPLITE_THREADPOOL_SIZE_FOR_RPC) {
@@ -355,14 +322,7 @@ void DistributedObjectStore::Get(const ObjectID &object_id,
     if (!local_store_client_.ObjectExists(object_id)) {
       LOG(DEBUG) << "Cannot find " << object_id.ToString()
                  << " in local store. Try to pull it from remote";
-      // ==> This ObjectID refers to a remote object.
-      SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
-      if (!check_and_store_inband_data(object_id, reply.object_size,
-                                       reply.inband_data)) {
-        // send pull request to one of the location
-        DCHECK(PullObject(reply.sender_ip, object_id))
-            << "Failed to pull object";
-      }
+      receiver_.pull_object(object_id);
     }
   }
 
@@ -388,23 +348,6 @@ DistributedObjectStore::GetUnreducedObjects(const ObjectID &reduction_id) {
     return unreduced_objects_.find(reduction_id) != unreduced_objects_.end();
   });
   return unreduced_objects_[reduction_id];
-}
-
-bool DistributedObjectStore::check_and_store_inband_data(
-    const ObjectID &object_id, int64_t object_size,
-    const std::string &inband_data) {
-  TIMELINE("DistributedObjectStore::check_and_store_inband_data");
-  if (inband_data.size() > 0) {
-    LOG(DEBUG) << "fetching object directly from inband data";
-    DCHECK(inband_data.size() <= inband_data_size_limit)
-        << "unexpected inband data size";
-    std::shared_ptr<Buffer> data;
-    local_store_client_.Create(object_id, object_size, &data);
-    data->CopyFrom(inband_data);
-    local_store_client_.Seal(object_id);
-    return true;
-  }
-  return false;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -533,7 +476,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_pipe_impl(
       std::string address = ready_id_message.sender_ip;
       size_t object_size = ready_id_message.object_size;
       const std::string &inband_data = ready_id_message.inband_data;
-      if (check_and_store_inband_data(ready_id, object_size, inband_data)) {
+      if (receiver_.check_and_store_inband_data(ready_id, object_size, inband_data)) {
         // mark this object as local
         address = my_address_;
       }
@@ -641,7 +584,7 @@ std::unordered_set<ObjectID> DistributedObjectStore::poll_and_reduce_grid_impl(
       std::string address = ready_id_message.sender_ip;
       size_t object_size = ready_id_message.object_size;
       const std::string &inband_data = ready_id_message.inband_data;
-      if (check_and_store_inband_data(ready_id, object_size, inband_data)) {
+      if (receiver_.check_and_store_inband_data(ready_id, object_size, inband_data)) {
         // mark this object as local
         address = my_address_;
       }

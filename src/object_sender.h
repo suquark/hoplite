@@ -6,6 +6,8 @@
 #include <queue>
 #include <thread>
 
+#include <netinet/in.h> // struct sockaddr_in
+
 #include "global_control_store.h"
 #include "local_store_client.h"
 #include "object_store.pb.h"
@@ -19,17 +21,16 @@ public:
 
   void AppendTask(const objectstore::ReduceToRequest *request);
 
-  inline std::thread Run() {
-    std::thread sender_thread(&ObjectSender::worker_loop, this);
-    return sender_thread;
-  }
+  std::thread Run();
 
-  void send_object(const objectstore::PullRequest *request);
-
-  inline void Shutdown() { exit_ = true; }
+  void Shutdown();
 
 private:
   void worker_loop();
+
+  void listener_loop();
+
+  int send_object(int conn_fd, const ObjectID &object_id, int64_t offset);
 
   void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
@@ -42,6 +43,13 @@ private:
   std::string my_address_;
 
   std::atomic<bool> exit_;
+
+  // for the TCP listener
+  int server_fd_;
+  std::thread server_thread_;
+  struct sockaddr_in address_;
+  // thread pool for launching tasks
+  ctpl::thread_pool pool_;
 };
 
 #endif // OBJECT_SENDER_H
