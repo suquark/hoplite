@@ -63,3 +63,38 @@ inline int stream_write(int conn_fd, T *stream) {
   }
   return 0;
 }
+
+template <typename T>
+inline int stream_send(int conn_fd, T *stream, int64_t offset=0) {
+  TIMELINE("ObjectSender::stream_send()");
+  const uint8_t *data_ptr = stream->Data();
+  const int64_t object_size = stream->Size();
+
+  if (stream->IsFinished()) {
+    int status = send_all(conn_fd, data_ptr + offset, object_size - offset);
+    if (status) {
+      LOG(ERROR) << "Failed to send object.";
+      return status;
+    }
+  }
+  int64_t cursor = offset;
+  while (cursor < object_size) {
+    int64_t current_progress = stream->progress;
+    if (cursor < current_progress) {
+      int bytes_sent =
+          send(conn_fd, data_ptr + cursor, current_progress - cursor, 0);
+      if (bytes_sent < 0) {
+        LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno)
+                   << ", code=" << errno << ")";
+        if (errno == EAGAIN) {
+          continue;
+        }
+        LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno)
+                   << ", code=" << errno << ")";
+        return errno;
+      }
+      cursor += bytes_sent;
+    }
+  }
+  return 0;
+}

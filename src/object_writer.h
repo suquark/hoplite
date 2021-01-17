@@ -30,9 +30,6 @@ public:
 private:
   void worker_loop();
 
-  int receive_object(int conn_fd, const ObjectID &object_id,
-                     int64_t object_size);
-
   int receive_and_reduce_object(int conn_fd, const ObjectID &reduction_id,
                                 const std::vector<ObjectID> &object_ids,
                                 bool is_endpoint);

@@ -2,6 +2,12 @@
 #include "receiver.h"
 #include "finegrained_pipelining.h"
 
+#include "object_store.pb.h"
+#include "util/protobuf_utils.h"
+
+using objectstore::ObjectWriterRequest;
+using objectstore::ReceiveObjectRequest;
+
 Receiver::Receiver(ObjectStoreState &state,
                    GlobalControlStoreClient &gcs_client,
                    LocalStoreClient &local_store_client,
@@ -27,7 +33,8 @@ bool Receiver::check_and_store_inband_data(
   return false;
 }
 
-int Receiver::receive_object(const std::string &sender_ip, int sender_port, Buffer *stream) {
+int Receiver::receive_object(
+    const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream) {
   TIMELINE(std::string("Receiver::receive_object() ") + object_id.ToString() + " " + std::to_string(object_size));    
   LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << object_size;
   int conn_fd;
@@ -36,7 +43,16 @@ int Receiver::receive_object(const std::string &sender_ip, int sender_port, Buff
     LOG(ERROR) << "Failed to connect to sender (ip=" << sender_ip << ", port=" << sender_port << ").";
     return ec;
   }
-  // TODO(siyuan): Add code for RPC header.
+
+  // send request
+  ObjectWriterRequest req;
+  auto ro_request = new ReceiveObjectRequest();
+  ro_request->set_object_id(object_id->Binary());
+  ro_request->set_offset(stream->progress);
+  req.set_allocated_receive_object(ro_request);
+  SendProtobufMessage(conn_fd, req);
+
+  // start receiving object
   int ec = stream_write<Buffer>(conn_fd, stream);
   if (!ec) {
 #ifdef HOPLITE_ENABLE_ACK
@@ -70,7 +86,7 @@ void Receiver::pull_object(const ObjectID &object_id) {
     // immediately.
     // ---------------------------------------------------------------------------------------------
     while (!stream->IsFinished()) {
-      int status = receive_object(reply.sender_ip, SENDER_PORT, stream.get());
+      int status = receive_object(reply.sender_ip, HOPLITE_SENDER_PORT, object_id, stream.get());
       if (status) {
         LOG(ERROR) << "Failed to receive object " << object_id << " from sender " << reply.sender_ip; 
       }

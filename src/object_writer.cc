@@ -15,20 +15,9 @@
 #include "object_writer.h"
 #include "socket_utils.h"
 #include "finegrained_pipelining.h"
+#include "util/protobuf_utils.h"
 
 using objectstore::ObjectWriterRequest;
-
-void ReceiveMessage(int conn_fd, ObjectWriterRequest *request) {
-  size_t message_len;
-  int status = recv_all(conn_fd, &message_len, sizeof(message_len));
-  DCHECK(!status) << "receive message_len failed";
-
-  std::vector<uint8_t> message(message_len);
-  status = recv_all(conn_fd, message.data(), message_len);
-  DCHECK(!status) << "receive message failed";
-
-  request->ParseFromArray(message.data(), message.size());
-}
 
 template <typename T, typename DT>
 int stream_reduce_add(int conn_fd, T *stream,
@@ -115,20 +104,8 @@ void TCPServer::worker_loop() {
              incoming_ip);
 
     ObjectWriterRequest message;
-    ReceiveMessage(conn_fd, &message);
+    ReceiveProtobufMessage(conn_fd, &message);
     switch (message.message_type_case()) {
-    case ObjectWriterRequest::kReceiveObject: {
-      auto request = message.receive_object();
-      ObjectID object_id = ObjectID::FromBinary(request.object_id());
-      int64_t object_size = request.object_size();
-      (void)pool_.push([=](int fd) {
-        int status = receive_object(conn_fd, object_id, object_size);
-        if (status) {
-          LOG(FATAL) << "[receive_object] receive object failed. " << strerror(errno)
-              << ", code=" << errno << ")";
-        }
-      });
-    } break;
     case ObjectWriterRequest::kReceiveAndReduceObject: {
       auto request = message.receive_and_reduce_object();
       ObjectID reduction_id = ObjectID::FromBinary(request.reduction_id());
@@ -213,33 +190,4 @@ int TCPServer::receive_and_reduce_object(
 #endif
   close(conn_fd);
   return 0;
-}
-
-int TCPServer::receive_object(int conn_fd, const ObjectID &object_id,
-                              int64_t object_size) {
-  TIMELINE(std::string("TCPServer::receive_object() ") + object_id.ToString() +
-           " " + std::to_string(object_size));
-  LOG(DEBUG) << "start receiving object " << object_id.ToString()
-             << ", size = " << object_size;
-
-  // receive object buffer
-  std::shared_ptr<Buffer> stream;
-  auto pstatus = local_store_client_.Create(object_id, object_size, &stream);
-  DCHECK(pstatus.ok()) << "Plasma failed to allocate " << object_id.ToString()
-                       << " size = " << object_size
-                       << ", status = " << pstatus.ToString();
-
-  // notify other nodes that our stream is on progress
-  gcs_client_.WriteLocation(object_id, server_ipaddr_, false, object_size);
-  int status = stream_write<Buffer>(conn_fd, stream.get());
-  if (!status) {
-    local_store_client_.Seal(object_id);
-#ifdef HOPLITE_ENABLE_ACK
-    // TODO: handle error here.
-    send_ack(conn_fd);
-#endif
-    LOG(DEBUG) << object_id.ToString() << " received";
-  }
-  close(conn_fd);
-  return status;
 }

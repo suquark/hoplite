@@ -29,9 +29,10 @@ public:
   /// starts from the initial progress of the stream.
   /// \param sender_ip The IP address of the sender.
   /// \param sender_port The port of the sender.
+  /// \param object_id The ID of the object.
   /// \param stream The buffer for receiving the object.
   /// \return The error code. 0 means success.
-  int receive_object(const std::string &sender_ip, int sender_port, Buffer *stream);
+  int receive_object(const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream);
 
   /// Pull object from remote object store. This function also provides fault tolerance.
   /// \param object_id The object to pull.
