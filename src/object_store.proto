@@ -89,6 +89,7 @@ message WriteLocationReply {
 message GetLocationSyncRequest {
   bytes object_id = 1;
   bool occupying = 2;
+  bytes receiver_ip = 3;
 }
 
 message GetLocationSyncReply {

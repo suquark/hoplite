@@ -23,11 +23,23 @@ class ObjectDependency {
   ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback);
 
   // append the node in the dependency. returns the parent in the dependency chain.
-  std::string Append(const std::string &node);
+  std::string Append(const std::string &node, std::string *inband_data, std::function<void()> on_fail=nullptr);
 
   void HandleCompletion(const std::string &node);
 
+  void HandleInbandCompletion(const std::string &inband_data);
+
   void HandleFailure(const std::string &failed_node);
+
+  std::string GetInbandData() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return inband_data_;
+  }
+
+  bool HasInbandData() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !inband_data_.empty();
+  }
 
  private:
   void register_new_chain(const std::shared_ptr<chain_type> &c);
@@ -37,6 +49,10 @@ class ObjectDependency {
   void update_chain(int64_t key, const std::shared_ptr<chain_type> &c);
 
   ObjectID object_id_;
+  // TODO: We should implement LRU gabage collection for the inband data
+  // storage. But it doesn't matter now because these data take too few
+  // space.
+  std::string inband_data_;
   std::function<void(const ObjectID&)> object_ready_callback_;
 
   std::mutex mutex_;

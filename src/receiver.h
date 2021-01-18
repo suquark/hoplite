@@ -17,7 +17,7 @@
 class Receiver {
 public:
   Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
-           const std::string &server_ipaddr, int port);
+           const std::string &my_address, int port);
 
   /// If the inband data exists, store the object with the inband data.
   bool check_and_store_inband_data(const ObjectID &object_id, int64_t object_size, const std::string &inband_data);
@@ -40,7 +40,7 @@ private:
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
 
-  const std::string &server_ipaddr_;
+  const std::string &my_address_;
   struct sockaddr_in address_;
   // thread pool for launching tasks
   ctpl::thread_pool pool_;

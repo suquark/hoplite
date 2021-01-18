@@ -25,9 +25,17 @@ void ObjectDependency::update_chain(int64_t key, const std::shared_ptr<chain_typ
 }
 
 // append the node in the dependency. returns the parent in the dependency chain.
-std::string ObjectDependency::Append(const std::string &node) {
+std::string ObjectDependency::Append(
+    const std::string &node, std::string *inband_data, std::function<void()> on_fail) {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (!inband_data_.empty()) {
+    *inband_data = inband_data_;
+    return "";
+  }
   if (available_keys_.size() <= 0) {
+    if (on_fail != nullptr) {
+      on_fail();
+    }
     return "";
   }
   std::string parent = "";
@@ -63,7 +71,7 @@ std::string ObjectDependency::Append(const std::string &node) {
 }
 
 void ObjectDependency::HandleCompletion(const std::string &node) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   auto &c = node_to_chain_[node];
   DCHECK(c->size() > 0) << "we assume that each chain should have length >= 1";
   if (c->size() == 1) {
@@ -81,9 +89,19 @@ void ObjectDependency::HandleCompletion(const std::string &node) {
       register_new_chain(new_chain);
     } while (n != node);
     if (available_keys_.size() > 0 && notification_required) {
+      lock.unlock();
+      // we must unlock here because the callback may access this lock again.
       object_ready_callback_(object_id_);
     }
   }
+}
+
+void ObjectDependency::HandleInbandCompletion(const std::string &inband_data) {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    inband_data_ = inband_data;
+  }
+  object_ready_callback_(object_id_);
 }
 
 void ObjectDependency::HandleFailure(const std::string &failed_node) {
@@ -125,8 +143,7 @@ void ObjectDependency::HandleFailure(const std::string &failed_node) {
   if (!new_chain->empty()) {
     bool notification_required = available_keys_.empty();
     register_new_chain(new_chain);
-    if (notification_required) {
-      object_ready_callback_(object_id_);
-    }
+    // no need to notify completion here, because at least the chain of failed node
+    // is available before.
   }
 }

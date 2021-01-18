@@ -9,8 +9,8 @@ using objectstore::ObjectWriterRequest;
 using objectstore::ReceiveObjectRequest;
 
 Receiver::Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
-                   const std::string &server_ipaddr, int port)
-    : state_(state), gcs_client_(gcs_client), server_ipaddr_(server_ipaddr), local_store_client_(local_store_client),
+                   const std::string &my_address, int port)
+    : state_(state), gcs_client_(gcs_client), my_address_(my_address), local_store_client_(local_store_client),
       pool_(HOPLITE_MAX_INFLOW_CONCURRENCY) {}
 
 bool Receiver::check_and_store_inband_data(const ObjectID &object_id, int64_t object_size,
@@ -58,7 +58,7 @@ int Receiver::receive_object(const std::string &sender_ip, int sender_port, cons
 }
 
 void Receiver::pull_object(const ObjectID &object_id) {
-  SyncReply reply = gcs_client_.GetLocationSync(object_id, true);
+  SyncReply reply = gcs_client_.GetLocationSync(object_id, true, my_address_);
   if (!check_and_store_inband_data(object_id, reply.object_size, reply.inband_data)) {
     // prepare object buffer for receiving.
     std::shared_ptr<Buffer> stream;
@@ -66,7 +66,7 @@ void Receiver::pull_object(const ObjectID &object_id) {
     DCHECK(pstatus.ok()) << "Plasma failed to allocate " << object_id.ToString() << " size = " << reply.object_size
                          << ", status = " << pstatus.ToString();
     // notify other nodes that our stream is on progress
-    gcs_client_.WriteLocation(object_id, server_ipaddr_, false, reply.object_size);
+    gcs_client_.WriteLocation(object_id, my_address_, false, reply.object_size);
     std::string sender_ip = reply.sender_ip;
     // ---------------------------------------------------------------------------------------------
     // Here is our fault tolerance logic for multicast.
