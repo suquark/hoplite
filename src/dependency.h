@@ -1,4 +1,5 @@
 #pragma once
+
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -23,7 +24,8 @@ class ObjectDependency {
   ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback);
 
   // append the node in the dependency. returns the parent in the dependency chain.
-  std::string Append(const std::string &node, std::string *inband_data, std::function<void()> on_fail=nullptr);
+  bool Get(const std::string &node, bool occupying,
+      std::string *sender, std::string *inband_data, std::function<void()> on_fail=nullptr);
 
   void HandleCompletion(const std::string &node);
 

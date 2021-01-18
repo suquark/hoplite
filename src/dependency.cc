@@ -24,19 +24,18 @@ void ObjectDependency::update_chain(int64_t key, const std::shared_ptr<chain_typ
   register_new_chain(c);
 }
 
-// append the node in the dependency. returns the parent in the dependency chain.
-std::string ObjectDependency::Append(
-    const std::string &node, std::string *inband_data, std::function<void()> on_fail) {
+bool ObjectDependency::Get(const std::string &node, bool occupying,
+      std::string *sender, std::string *inband_data, std::function<void()> on_fail) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
-    return "";
+    return true;
   }
   if (available_keys_.size() <= 0) {
     if (on_fail != nullptr) {
       on_fail();
     }
-    return "";
+    return false;
   }
   std::string parent = "";
   // we are sure we can find one in the priority queue
@@ -45,29 +44,32 @@ std::string ObjectDependency::Append(
     pq_.pop();
     if (removed_keys_.count(key) <= 0) {
       auto &c = chains_[key];
-      parent = c->back();
-      if (node_to_chain_.count(node) > 0) {
-        auto &old_c = node_to_chain_[node];
-        // this should always be suspended chains
-        DCHECK(suspended_chains_.count(old_c) > 0);
-        DCHECK(old_c->front() == node);
-        for (auto n: *old_c) {
-          c->push_back(n);
-          node_to_chain_[n] = c;
+      *sender = c->back();
+      if (occupying) {
+        if (node_to_chain_.count(node) <= 0) {
+          c->push_back(node);
+          node_to_chain_[node] = c;
+        } else {
+          // this path indicates the node is suspended
+          auto &old_c = node_to_chain_[node];
+          // this should always be suspended chains
+          DCHECK(suspended_chains_.count(old_c) > 0);
+          DCHECK(old_c->front() == node);
+          for (auto n: *old_c) {
+            c->push_back(n);
+            node_to_chain_[n] = c;
+          }
+          suspended_chains_.erase(old_c);
         }
-        suspended_chains_.erase(old_c);
-      } else {
-        c->push_back(node);
-        node_to_chain_[node] = c;
+        update_chain(key, c);
       }
-      update_chain(key, c);
       break;
     } else {
       // no longer in priority queue. stop tracking it.
       removed_keys_.erase(key);
     }
   }
-  return parent;
+  return true;
 }
 
 void ObjectDependency::HandleCompletion(const std::string &node) {

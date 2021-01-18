@@ -24,7 +24,7 @@ python/object_store_pb2_grpc.py:
 	python -m pip install grpcio-tools
 	python -m grpc_tools.protoc -Isrc --python_out=python --grpc_python_out=python src/object_store.proto
 
-notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
+notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/dependency.o src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 notification_server_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification_server_test.o
