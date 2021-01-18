@@ -20,7 +20,7 @@ bool compare_priority(const std::pair<int, int64_t> &left, const std::pair<int, 
 
 class ObjectDependency {
  public:
-  ObjectDependency(const ObjectID& object_id, std::function<void()> object_ready_callback);
+  ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback);
 
   // append the node in the dependency. returns the parent in the dependency chain.
   std::string Append(const std::string &node);
@@ -37,7 +37,7 @@ class ObjectDependency {
   void update_chain(int64_t key, const std::shared_ptr<chain_type> &c);
 
   ObjectID object_id_;
-  std::function<void()> object_ready_callback_;
+  std::function<void(const ObjectID&)> object_ready_callback_;
 
   std::mutex mutex_;
   std::atomic<int64_t> index_;

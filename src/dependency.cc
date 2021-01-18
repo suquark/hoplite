@@ -1,7 +1,7 @@
 #include "dependency.h"
 #include "util/logging.h"
 
-ObjectDependency::ObjectDependency(const ObjectID& object_id, std::function<void()> object_ready_callback)
+ObjectDependency::ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback)
     : object_id_(object_id), object_ready_callback_(object_ready_callback), index_(0), pq_(compare_priority) {}
 
 void ObjectDependency::register_new_chain(const std::shared_ptr<chain_type> &c) {
@@ -70,17 +70,18 @@ void ObjectDependency::HandleCompletion(const std::string &node) {
     DCHECK(c->front() == node) << "when there is only one node, it should be the node itself.";
     // nothing to handle here
   } else {
+    bool notification_required = available_keys_.empty();
     // We also complete all previous nodes.
     // They must have been completed because of the dependency.
-    bool new_chain_created = false;
-    for (std::string n=""; n!=node; n=c->front()) {
+    std::string n;
+    do {
+      n = c->front();
       c->pop_front();
       auto new_chain = std::make_shared<chain_type>(std::initializer_list<std::string>{n});
       register_new_chain(new_chain);
-      new_chain_created = true;
-    }
-    if (new_chain_created) {
-      // TODO: use a callback to notify the object is ready.
+    } while (n != node);
+    if (available_keys_.size() > 0 && notification_required) {
+      object_ready_callback_(object_id_);
     }
   }
 }
@@ -122,7 +123,10 @@ void ObjectDependency::HandleFailure(const std::string &failed_node) {
     suspended_chains_.insert(c);
   }
   if (!new_chain->empty()) {
+    bool notification_required = available_keys_.empty();
     register_new_chain(new_chain);
-    // TODO: use a callback to notify the object is ready.
+    if (notification_required) {
+      object_ready_callback_(object_id_);
+    }
   }
 }
