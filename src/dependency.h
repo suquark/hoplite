@@ -44,6 +44,8 @@ public:
     return !inband_data_.empty();
   }
 
+  std::string DebugPrint();
+
 private:
   void create_new_chain(const std::string &node);
 

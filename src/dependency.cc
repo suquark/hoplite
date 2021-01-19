@@ -103,10 +103,10 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
     return;
   }
   auto &c = node_to_chain_[node];
-  DCHECK(c->size() > 0) << "we assume that each chain should have length >= 1";
+  DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1." << DebugPrint();
   if (c->size() == 1) {
     DCHECK(c->front() == node) << "When there is only one node, it should be the node itself (" << node << "). "
-                               << "However, \"" << c->front() << "\" is found";
+                               << "However, \"" << c->front() << "\" is found." << DebugPrint();
     // nothing to handle here
   } else {
     bool notification_required = available_keys_.empty();
@@ -184,4 +184,39 @@ void ObjectDependency::HandleFailure(const std::string &failed_node) {
     // no need to notify completion here, because at least the chain of failed node
     // is available before.
   }
+}
+
+std::string ObjectDependency::DebugPrint() {
+  std::stringstream s;
+  s << std::endl << "=========================================" << std::endl;
+  for (auto const &x : chains_) {
+    s << "Chain #" << x.first << ", size=" << x.second->size() << ": [";
+    for (auto const &y : *x.second) {
+      s << y << " ";
+    }
+    s << "]" << std::endl;
+  }
+
+  s << "Available: [";
+  for (auto const &x : available_keys_) {
+    s << x << " ";
+  }
+  s << "]" << std::endl;
+
+  s << "Removed: [";
+  for (auto const &x : removed_keys_) {
+    s << x << " ";
+  }
+  s << "]" << std::endl;
+
+  s << "Priority Queue: [";
+  auto pq_copied = pq_;
+  while (!pq_copied.empty()) {
+    const auto &pair = pq_copied.top();
+    s << "(" << pair.first << ", " << pair.second << "), ";
+    pq_copied.pop();
+  }
+  s << "]" << std::endl;
+  s << "=========================================" << std::endl;
+  return s.str();
 }
