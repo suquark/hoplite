@@ -60,7 +60,7 @@ public:
                      const uint8_t *inband_data = nullptr, bool blocking = false);
 
   // Get object location from the notification server.
-  SyncReply GetLocationSync(const ObjectID &object_id, bool occupying);
+  SyncReply GetLocationSync(const ObjectID &object_id, bool occupying, const std::string &receiver_ip);
 
   std::shared_ptr<ObjectNotifications> GetLocationAsync(const std::vector<ObjectID> &object_ids,
                                                         const std::string &query_id, bool occupying);
