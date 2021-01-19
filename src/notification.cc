@@ -241,17 +241,17 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
                                                        const GetLocationAsyncRequest *request,
                                                        GetLocationAsyncReply *reply) {
   TIMELINE("notification GetLocationAsync");
-  std::string receiver_ip = request.receiver_ip();
+  std::string receiver_ip = request->receiver_ip();
   GetLocationAsyncAnswerRequest req;
 
   std::unique_lock<std::mutex> l(object_location_mutex_);
   // TODO: pass in repeated object ids will send twice.
-  for (auto object_id_it : request.object_ids()) {
+  for (auto object_id_it : request->object_ids()) {
     ObjectID object_id = ObjectID::FromBinary(object_id_it);
     int64_t object_size;
     std::string sender_ip;
     std::string inband_data;
-    bool success = get_dependency(object_id).Get(receiver_ip, request->occupying(), &object_size, &sender, &inband_data, [&]() {
+    bool success = get_dependency(object_id).Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
       // this makes sure that no on completion event will happen before we queued our request
       pending_receiver_ips_[object_id].emplace(
         ReceiverQueueElement{ReceiverQueueElement::ASYNC, {}, NULL, receiver_ip, request->query_id(), request->occupying()});
@@ -261,7 +261,7 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
       GetLocationAsyncAnswerRequest::ObjectInfo *object = req.add_objects();
       object->set_object_id(object_id.Binary());
       object->set_sender_ip(std::move(sender_ip));
-      object->set_query_id(request.query_id());
+      object->set_query_id(request->query_id());
       object->set_object_size(object_size);
       object->set_inband_data(std::move(inband_data));
     }
@@ -269,9 +269,9 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
   l.unlock();
 
   if (req.objects_size() > 0) {
-    thread_pool_.push([this, receiver_ip](int id, GetLocationAsyncAnswerRequest r) {
+    thread_pool_.push([this, receiver_ip, req](int id, GetLocationAsyncAnswerRequest r) {
       send_notification(receiver_ip, r);
-    })(std::move(req));
+    }, std::move(req));
   }
   reply->set_ok(true);
   return grpc::Status::OK;

@@ -27,7 +27,7 @@ public:
 
   std::shared_ptr<Buffer> GetBufferNoExcept(const ObjectID &object_id);
 
-  std::shared_ptr<Buffer> GetBufferOrCreate(const ObjectID &object_id, int64_t size, std::shared_ptr<Buffer> *data);
+  Status GetBufferOrCreate(const ObjectID &object_id, int64_t size, std::shared_ptr<Buffer> *data);
 
   Status Delete(const ObjectID &object_id);
 
