@@ -27,6 +27,8 @@ void ObjectDependency::update_chain(int64_t key, const std::shared_ptr<chain_typ
 
 bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *object_size, std::string *sender,
                            std::string *inband_data, std::function<void()> on_fail) {
+  TIMELINE("ObjectDependency::Get");
+  LOG(DEBUG) << "[Dependency] Get for " << node;
   std::lock_guard<std::mutex> lock(mutex_);
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
@@ -76,6 +78,8 @@ bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *obj
 }
 
 void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_size) {
+  TIMELINE("ObjectDependency::HandleCompletion");
+  LOG(DEBUG) << "[Dependency] handles completion for " << object_id_.ToString();
   std::unique_lock<std::mutex> lock(mutex_);
   if (object_size_ < 0) {
     object_size_ = object_size;
@@ -107,6 +111,7 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
 }
 
 void ObjectDependency::HandleInbandCompletion(const std::string &inband_data) {
+  LOG(DEBUG) << "[Dependency] handles inband completion for " << object_id_.ToString();
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (object_size_ < 0) {
@@ -120,6 +125,8 @@ void ObjectDependency::HandleInbandCompletion(const std::string &inband_data) {
 }
 
 void ObjectDependency::HandleFailure(const std::string &failed_node) {
+  TIMELINE("ObjectDependency::HandleFailure");
+  LOG(DEBUG) << "[Dependency] handles failure for " << failed_node;
   std::lock_guard<std::mutex> lock(mutex_);
   if (node_to_chain_.count(failed_node) <= 0) {
     // the error has been handled.

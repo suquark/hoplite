@@ -134,6 +134,7 @@ grpc::Status NotificationServiceImpl::Connect(grpc::ServerContext *context, cons
 
 std::shared_ptr<ObjectDependency> NotificationServiceImpl::get_dependency(const ObjectID &object_id) {
   std::lock_guard<std::mutex> lock(object_dependencies_mutex_);
+  LOG(DEBUG) << "get_dependency() for " << object_id.ToString();
   if (!object_dependencies_.count(object_id)) {
     object_dependencies_[object_id] = std::make_shared<ObjectDependency>(
         object_id, [this](const ObjectID &object_id) { handle_object_ready(object_id); });
@@ -142,6 +143,7 @@ std::shared_ptr<ObjectDependency> NotificationServiceImpl::get_dependency(const 
 }
 
 void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
+  TIMELINE("[object directory server] handle_object_ready");
   std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
   std::string inband_data = dep->GetInbandData();
 
