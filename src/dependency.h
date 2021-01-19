@@ -21,6 +21,7 @@ bool compare_priority(const std::pair<int, int64_t> &left, const std::pair<int, 
 
 class ObjectDependency {
 public:
+  ObjectDependency() {}
   ObjectDependency(const ObjectID &object_id, std::function<void(const ObjectID &)> object_ready_callback);
 
   // append the node in the dependency. returns the parent in the dependency chain.
