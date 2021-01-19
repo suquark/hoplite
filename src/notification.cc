@@ -227,14 +227,14 @@ grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *conte
           ReceiverQueueElement{ReceiverQueueElement::SYNC, sync_mutex, reply, receiver_ip, {}, request->occupying()});
     }
   });
-  if (!inband_data.empty()) {
-    reply->set_inband_data(inband_data);
-    reply->set_object_size(object_size);
-    return grpc::Status::OK;
-  }
   if (!success) {
+    // we must wait the lock outside so we would not block the dependency manager.
     sync_mutex->lock();
     DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
+  } else {
+    reply->set_sender_ip(std::move(sender_ip));
+    reply->set_object_size(object_size);
+    reply->set_inband_data(std::move(inband_data));
   }
   return grpc::Status::OK;
 }
