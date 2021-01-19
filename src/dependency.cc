@@ -104,8 +104,7 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
     return;
   }
   auto &c = node_to_chain_[node];
-  DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")." 
-                        << DebugPrint();
+  DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")." << DebugPrint();
   if (c->size() == 1) {
     DCHECK(c->front() == node) << "When there is only one node, it should be the node itself (" << node << "). "
                                << "However, \"" << c->front() << "\" is found." << DebugPrint();
@@ -119,7 +118,7 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
       c->pop_front();
       create_new_chain(n);
     }
-    DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")." 
+    DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")."
                           << DebugPrint();
     // handle edge case
     if (c->size() > 1) {
