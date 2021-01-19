@@ -85,7 +85,6 @@ void TCPServer::worker_loop() {
                  << "Shutting down the object writer ...";
       return;
     }
-    DCHECK(conn_fd >= 0) << "socket accept error";
 #ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
     DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
         << "Cannot enable non-blocking for the socket (errno = " << errno << ").";

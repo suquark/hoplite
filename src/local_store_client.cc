@@ -9,12 +9,7 @@ LocalStoreClient::LocalStoreClient(const bool use_plasma, const std::string &pla
   // }
 }
 
-Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data) {
-  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
-  // if (use_plasma_) {
-  //   return plasma_client_.Create(object_id, data_size, NULL, 0, data);
-  // }
-
+Status LocalStoreClient::create_internal(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data) {
   buffers_[object_id] = std::make_shared<Buffer>(data_size);
   *data = buffers_[object_id];
   total_store_size_ += data_size;
@@ -28,6 +23,11 @@ Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size, st
     buffer_ptr->ShrinkForLRU();
   }
   return Status::OK();
+}
+
+Status LocalStoreClient::Create(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data) {
+  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
+  return create_internal(object_id, data_size, data);
 }
 
 Status LocalStoreClient::Seal(const ObjectID &object_id) {
@@ -78,6 +78,16 @@ std::shared_ptr<Buffer> LocalStoreClient::GetBufferNoExcept(const ObjectID &obje
   std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   DCHECK(object_exists_unsafe(object_id, false));
   return buffers_[object_id];
+}
+
+Status LocalStoreClient::GetBufferOrCreate(const ObjectID &object_id, int64_t size, std::shared_ptr<Buffer> *data) {
+  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
+  if (!buffers_.count(object_id)) {
+    return create_internal(object_id, size, data);
+  }
+  DCHECK(object_exists_unsafe(object_id, false));
+  *data = buffers_[object_id];
+  return Status::OK();
 }
 
 Status LocalStoreClient::Delete(const ObjectID &object_id) {

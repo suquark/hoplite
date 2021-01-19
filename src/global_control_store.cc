@@ -181,13 +181,15 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id, const st
   }
 }
 
-SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, bool occupying) {
+SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, bool occupying,
+                                                    const std::string &receiver_ip) {
   TIMELINE("GetLocationSync");
   grpc::ClientContext context;
   GetLocationSyncRequest request;
   GetLocationSyncReply reply;
   request.set_object_id(object_id.Binary());
   request.set_occupying(occupying);
+  request.set_receiver_ip(receiver_ip);
   notification_stub_->GetLocationSync(&context, request, &reply);
   return {std::string(reply.sender_ip()), reply.object_size(), reply.inband_data()};
 }

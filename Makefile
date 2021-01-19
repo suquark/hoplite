@@ -24,7 +24,7 @@ python/object_store_pb2_grpc.py:
 	python -m pip install grpcio-tools
 	python -m grpc_tools.protoc -Isrc --python_out=python --grpc_python_out=python src/object_store.proto
 
-notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification.o
+notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/dependency.o src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 notification_server_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification_server_test.o
@@ -61,6 +61,6 @@ allgather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean_bins:
-	rm -rf multicast_test reduce_test subset_reduce_test all_reduce_test python/*.cpp python/*.so *.so
+	rm -rf multicast_test reduce_test gather_test subset_reduce_test all_reduce_test python/*.cpp python/*.so *.so
 clean:
-	rm -rf notification notification_server_test multicast_test reduce_test subset_reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp python/*.so python/object_store_pb2_grpc.py python/object_store_pb2.py *.o *.so
+	rm -rf notification notification_server_test multicast_test reduce_test gather_test subset_reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp python/*.so python/object_store_pb2_grpc.py python/object_store_pb2.py *.o *.so

@@ -60,7 +60,6 @@ void ObjectSender::listener_loop() {
                  << "Shutting down the object sender ...";
       return;
     }
-    DCHECK(conn_fd >= 0) << "socket accept error";
     char *incoming_ip = inet_ntoa(address_.sin_addr);
     LOG(DEBUG) << "recieve a TCP connection from " << incoming_ip;
     TIMELINE(std::string("Sender::worker_loop(), requester_ip = ") + incoming_ip);
@@ -71,7 +70,7 @@ void ObjectSender::listener_loop() {
     case ObjectWriterRequest::kReceiveObject: {
       auto request = message.receive_object();
       ObjectID object_id = ObjectID::FromBinary(request.object_id());
-      int ec = send_object(conn_fd, object_id, request.offset());
+      int ec = send_object(conn_fd, object_id, request.object_size(), request.offset());
       if (ec) {
         LOG(ERROR) << "[Sender] Failed to send object. " << strerror(errno) << ", error_code=" << errno << ")";
       }
@@ -82,9 +81,10 @@ void ObjectSender::listener_loop() {
   }
 }
 
-int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t offset) {
+int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t object_size, int64_t offset) {
   // fetch object from local store
-  std::shared_ptr<Buffer> stream = local_store_client_.GetBufferNoExcept(object_id);
+  std::shared_ptr<Buffer> stream;
+  local_store_client_.GetBufferOrCreate(object_id, object_size, &stream);
   LOG(DEBUG) << object_id.ToString() << " find in local store. Ready to send.";
   if (stream->IsFinished()) {
     LOG(DEBUG) << "[Sender] fetched a completed object from local store: " << object_id.ToString();
@@ -94,12 +94,6 @@ int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t of
   int ec = stream_send<Buffer>(conn_fd, stream.get(), offset);
   LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
-  // TODO: this is for reference counting in the notification service.
-  // When we get an object's location from the server for broadcast, we
-  // reduce the reference count. This line is used to increase the ref count
-  // back after we finish the sending. It is better to move this line to the
-  // receiver side since the decrease is done by the receiver.
-  gcs_client_.WriteLocation(object_id, my_address_, true, stream->Size(), stream->Data());
   return ec;
 }
 
