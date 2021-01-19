@@ -30,7 +30,8 @@ bool Receiver::check_and_store_inband_data(const ObjectID &object_id, int64_t ob
 
 int Receiver::receive_object(const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream) {
   TIMELINE(std::string("Receiver::receive_object() ") + object_id.ToString());
-  LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << stream->Size();
+  LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << stream->Size()
+             << ", intial_progress=" << stream->progress;
   int conn_fd;
   int ec = tcp_connect(sender_ip, sender_port, &conn_fd);
   if (ec) {
@@ -69,6 +70,7 @@ void Receiver::pull_object(const ObjectID &object_id) {
     auto pstatus = local_store_client_.GetBufferOrCreate(object_id, reply.object_size, &stream);
     DCHECK(pstatus.ok()) << "Plasma failed to allocate " << object_id.ToString() << " size = " << reply.object_size
                          << ", status = " << pstatus.ToString();
+    LOG(DEBUG) << "Created buffer for " << object_id.ToString() << ", size=" << reply.object_size;
     std::string sender_ip = reply.sender_ip;
     // ---------------------------------------------------------------------------------------------
     // Here is our fault tolerance logic for multicast.
@@ -79,6 +81,8 @@ void Receiver::pull_object(const ObjectID &object_id) {
     // immediately.
     // ---------------------------------------------------------------------------------------------
     while (!stream->IsFinished()) {
+      LOG(DEBUG) << "Try receiving " << object_id.ToString() << " from " << reply.sender_ip
+                 << ", size=" << reply.object_size;
       int status = receive_object(reply.sender_ip, HOPLITE_SENDER_PORT, object_id, stream.get());
       if (status) {
         LOG(ERROR) << "Failed to receive object " << object_id.Hex() << " from sender " << reply.sender_ip;
