@@ -24,11 +24,12 @@ void ObjectDependency::update_chain(int64_t key, const std::shared_ptr<chain_typ
   register_new_chain(c);
 }
 
-bool ObjectDependency::Get(const std::string &node, bool occupying,
+bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *object_size,
       std::string *sender, std::string *inband_data, std::function<void()> on_fail) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
+    *object_size = object_size_;
     return true;
   }
   if (available_keys_.size() <= 0) {
@@ -69,11 +70,17 @@ bool ObjectDependency::Get(const std::string &node, bool occupying,
       removed_keys_.erase(key);
     }
   }
+  *object_size = object_size_;
   return true;
 }
 
-void ObjectDependency::HandleCompletion(const std::string &node) {
+void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_size) {
   std::unique_lock<std::mutex> lock(mutex_);
+  if (object_size_ < 0) {
+    object_size_ = object_size;
+  } else {
+    DCHECK(object_size_ == object_size) << "Size of object " << object_id_.Hex() << " has changed.";
+  }
   auto &c = node_to_chain_[node];
   DCHECK(c->size() > 0) << "we assume that each chain should have length >= 1";
   if (c->size() == 1) {
@@ -101,6 +108,11 @@ void ObjectDependency::HandleCompletion(const std::string &node) {
 void ObjectDependency::HandleInbandCompletion(const std::string &inband_data) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (object_size_ < 0) {
+      object_size_ = inband_data.size();
+    } else {
+      DCHECK(object_size_ == inband_data.size()) << "Size of object " << object_id_.Hex() << " has changed.";
+    }
     inband_data_ = inband_data;
   }
   object_ready_callback_(object_id_);

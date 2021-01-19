@@ -24,10 +24,10 @@ class ObjectDependency {
   ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback);
 
   // append the node in the dependency. returns the parent in the dependency chain.
-  bool Get(const std::string &node, bool occupying,
+  bool Get(const std::string &node, bool occupying, int64_t *object_size,
       std::string *sender, std::string *inband_data, std::function<void()> on_fail=nullptr);
 
-  void HandleCompletion(const std::string &node);
+  void HandleCompletion(const std::string &node, int64_t object_size);
 
   void HandleInbandCompletion(const std::string &inband_data);
 
@@ -51,6 +51,7 @@ class ObjectDependency {
   void update_chain(int64_t key, const std::shared_ptr<chain_type> &c);
 
   ObjectID object_id_;
+  int64_t object_size_ = -1;
   // TODO: We should implement LRU gabage collection for the inband data
   // storage. But it doesn't matter now because these data take too few
   // space.
