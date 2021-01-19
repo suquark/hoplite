@@ -22,17 +22,44 @@ inline bool compare_priority(const std::pair<int, int64_t> &left, const std::pai
 class ObjectDependency {
 public:
   ObjectDependency() {}
+
+  /// Constructor for the object dependency manager.
+  /// \param[in] object_id The ID of the object this object dependency manager handles.
+  /// \param[in] object_ready_callback A callback that will be triggered when we know the object is
+  /// ready for pulling somewhere.
   ObjectDependency(const ObjectID &object_id, std::function<void(const ObjectID &)> object_ready_callback);
 
-  // append the node in the dependency. returns the parent in the dependency chain.
-  bool Get(const std::string &node, bool occupying, int64_t *object_size, std::string *sender, std::string *inband_data,
+  /// Get the information for pulling the object. We will return the best plan for the recevier.
+  /// Once the information is returned, we append the receiver in the dependency if the receiver wants to occupy
+  /// the object.
+  /// \param[in] receiver The receiver we are going to provide info for.
+  /// \param[in] occupying If True, then the receiver wants to occupy the object.
+  /// \param[out] object_size The object size info.
+  /// \param[out] sender The sender info.
+  /// \param[out] inband_data We provide the object content as inband data if the object is small enough.
+  /// \param[in] on_fail An optional function that handles the case that we cannot get the info immediately.
+  /// The function call is secured by the internal lock so the info will not get updated inside the function call.
+  /// \return True if we successfully returned the information for the receiver.
+  bool Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender, std::string *inband_data,
            std::function<void()> on_fail = nullptr);
 
-  void HandleCompletion(const std::string &node, int64_t object_size);
+  /// The receiver declares it has got a complete object. This receiver can become the sender for later
+  /// receivers.
+  /// \param[in] receiver The receiver that has the complete object.
+  /// \param[in] object_size The size of the complete object.
+  void HandleCompletion(const std::string &receiver, int64_t object_size);
 
+  /// The receiver declares it has got a complete object. The object is so small that we directly keeps it here.
+  /// \param[in] inband_data The complete small object.
   void HandleInbandCompletion(const std::string &inband_data);
 
-  void HandleFailure(const std::string &failed_node);
+  /// Handles failure for a node.
+  /// \param[in] receiver The receiver we need to take care of. Usually this is caused by the failed of its sender.
+  /// \param[out] alternative_sender The alternative sender we suggest for the receiver. This would enable
+  /// recovering from error as fast as possible.
+  /// \return If True, we find an alternative sender for the receiver. Otherwise we will handle it later when the
+  /// receiver pulls for object again.
+  bool HandleFailure(const std::string &receiver, std::string *alternative_sender);
 
   std::string GetInbandData() {
     std::lock_guard<std::mutex> lock(mutex_);

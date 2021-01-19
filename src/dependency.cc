@@ -33,10 +33,10 @@ void ObjectDependency::update_chain(int64_t key, const std::shared_ptr<chain_typ
   register_new_chain(c);
 }
 
-bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *object_size, std::string *sender,
+bool ObjectDependency::Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
                            std::string *inband_data, std::function<void()> on_fail) {
   TIMELINE("ObjectDependency::Get");
-  LOG(DEBUG) << "[Dependency] Get for " << node;
+  LOG(DEBUG) << "[Dependency] Get for " << receiver;
   std::lock_guard<std::mutex> lock(mutex_);
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
@@ -58,15 +58,15 @@ bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *obj
       auto &c = chains_[key];
       *sender = c->back();
       if (occupying) {
-        if (node_to_chain_.count(node) <= 0) {
-          c->push_back(node);
-          node_to_chain_[node] = c;
+        if (node_to_chain_.count(receiver) <= 0) {
+          c->push_back(receiver);
+          node_to_chain_[receiver] = c;
         } else {
           // this path indicates the node is suspended
-          auto &old_c = node_to_chain_[node];
+          auto &old_c = node_to_chain_[receiver];
           // this should always be suspended chains
           DCHECK(suspended_chains_.count(old_c) > 0);
-          DCHECK(old_c->front() == node);
+          DCHECK(old_c->front() == receiver);
           for (auto n : *old_c) {
             c->push_back(n);
             node_to_chain_[n] = c;
@@ -85,7 +85,7 @@ bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *obj
   return true;
 }
 
-void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_size) {
+void ObjectDependency::HandleCompletion(const std::string &receiver, int64_t object_size) {
   TIMELINE("ObjectDependency::HandleCompletion");
   LOG(DEBUG) << "[Dependency] handles completion for " << object_id_.ToString() << ", size=" << object_size;
   std::unique_lock<std::mutex> lock(mutex_);
@@ -94,16 +94,16 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
   } else {
     DCHECK(object_size_ == object_size) << "Size of object " << object_id_.Hex() << " has changed.";
   }
-  if (!node_to_chain_.count(node)) {
+  if (!node_to_chain_.count(receiver)) {
     LOG(DEBUG) << "[Dependency] handles completion for the initial object of " << object_id_.ToString()
-               << " created by " << node;
-    create_new_chain(node);
+               << " created by " << receiver;
+    create_new_chain(receiver);
     lock.unlock();
     // we must unlock here because the callback may access this lock again.
     object_ready_callback_(object_id_);
     return;
   }
-  auto &c = node_to_chain_[node];
+  auto &c = node_to_chain_[receiver];
   DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")." << DebugPrint();
   if (c->size() == 1) {
     DCHECK(c->front() == node) << "When there is only one node, it should be the node itself (" << node << "). "
@@ -150,17 +150,17 @@ void ObjectDependency::HandleInbandCompletion(const std::string &inband_data) {
   object_ready_callback_(object_id_);
 }
 
-void ObjectDependency::HandleFailure(const std::string &failed_node) {
+bool ObjectDependency::HandleFailure(const std::string &receiver, std::string *alternative_sender) {
   TIMELINE("ObjectDependency::HandleFailure");
-  LOG(DEBUG) << "[Dependency] handles failure for " << failed_node;
+  LOG(DEBUG) << "[Dependency] handles failure for " << receiver;
   std::lock_guard<std::mutex> lock(mutex_);
-  if (node_to_chain_.count(failed_node) <= 0) {
+  if (node_to_chain_.count(receiver) <= 0) {
     // the error has been handled.
     return;
   }
   // copy out and erase the value
-  auto c = node_to_chain_[failed_node];
-  node_to_chain_.erase(failed_node);
+  auto c = node_to_chain_[receiver];
+  node_to_chain_.erase(receiver);
   int64_t key = reversed_map_[c];
   reversed_map_.erase(c);
   bool active = (suspended_chains_.count(c) == 0);
@@ -173,7 +173,7 @@ void ObjectDependency::HandleFailure(const std::string &failed_node) {
   while (!c->empty()) {
     std::string n = c->front();
     c->pop_front();
-    if (n == failed_node) {
+    if (n == receiver) {
       break;
     } else {
       new_chain->push_back(n);
