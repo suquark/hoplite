@@ -84,7 +84,7 @@ bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *obj
 
 void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_size) {
   TIMELINE("ObjectDependency::HandleCompletion");
-  LOG(DEBUG) << "[Dependency] handles completion for " << object_id_.ToString();
+  LOG(DEBUG) << "[Dependency] handles completion for " << object_id_.ToString() << ", size=" << object_size;
   std::unique_lock<std::mutex> lock(mutex_);
   if (object_size_ < 0) {
     object_size_ = object_size;

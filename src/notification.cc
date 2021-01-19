@@ -162,6 +162,8 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
     switch (receiver.type) {
     case ReceiverQueueElement::SYNC: {
       // Reply to synchronous get_location call
+      LOG(DEBUG) << "The location of " << object_id.ToString() << " is informed now. "
+                 << "sender_ip = " << sender_ip << ", object_size = " << object_size;
       receiver.reply->set_sender_ip(std::move(sender_ip));
       receiver.reply->set_object_size(object_size);
       receiver.reply->set_inband_data(std::move(inband_data));
@@ -192,6 +194,7 @@ grpc::Status NotificationServiceImpl::WriteLocation(grpc::ServerContext *context
   ObjectID object_id = ObjectID::FromBinary(request->object_id());
   std::string sender_ip = request->sender_ip();
   bool finished = request->finished();
+  // TODO(siyuan): deal with 'finished' property
   std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
   if (request->has_inband_data_case() == WriteLocationRequest::kInbandData) {
     dep->HandleInbandCompletion(request->inband_data());
@@ -228,10 +231,14 @@ grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *conte
     }
   });
   if (!success) {
+    LOG(DEBUG) << "The location of " << object_id.ToString()
+               << " is unavailable yet. Waiting for further notification.";
     // we must wait the lock outside so we would not block the dependency manager.
     sync_mutex->lock();
     DCHECK(sync_mutex.use_count() == 1) << "sync_mutex memory leak detected";
   } else {
+    LOG(DEBUG) << "The location of " << object_id.ToString() << " is already know. "
+               << "sender_ip = " << sender_ip << ", object_size = " << object_size;
     reply->set_sender_ip(std::move(sender_ip));
     reply->set_object_size(object_size);
     reply->set_inband_data(std::move(inband_data));
