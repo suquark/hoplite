@@ -134,14 +134,14 @@ grpc::Status NotificationServiceImpl::Connect(grpc::ServerContext *context, cons
 ObjectDependency &NotificationServiceImpl::get_dependency(const ObjectID &object_id) {
   if (!object_dependencies_.count(object_id)) {
     object_dependencies_.emplace(
-        object_id, ObjectDependency(object_id, std::bind(&NotificationServiceImpl::handle_object_ready, this)));
+        object_id, ObjectDependency(object_id, [this](const ObjectID &object_id) { handle_object_ready(object_id); }));
   }
   return object_dependencies_[object_id];
 }
 
 void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
   // object_location_mutex_ should be held before entering here
-  std::queue<ReceiverQueueElement> &q = pending_receiver_ips_[object_id].second;
+  std::queue<ReceiverQueueElement> &q = pending_receiver_ips_[object_id];
   ObjectDependency &dep = get_dependency(object_id);
   std::string inband_data = dep.GetInbandData();
 
@@ -175,7 +175,7 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
       object->set_inband_data(std::move(inband_data));
       thread_pool_.push([this, receiver_ip](int id, GetLocationAsyncAnswerRequest r) {
         send_notification(receiver_ip, r);
-      })(std::move(req));
+      }, std::move(req));
     } break;
     }
     q.pop();

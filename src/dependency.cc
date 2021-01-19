@@ -3,7 +3,7 @@
 
 ObjectDependency::ObjectDependency(const ObjectID &object_id,
                                    std::function<void(const ObjectID &)> object_ready_callback)
-    : object_id_(object_id), object_ready_callback_(object_ready_callback), index_(0), pq_(compare_priority) {}
+    : object_id_(object_id), object_ready_callback_(object_ready_callback), index_(0), pq_(&compare_priority) {}
 
 void ObjectDependency::register_new_chain(const std::shared_ptr<chain_type> &c) {
   int64_t new_key = ++index_;
