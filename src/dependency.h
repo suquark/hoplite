@@ -14,7 +14,7 @@
 
 using chain_type = std::list<std::string>;
 
-bool compare_priority(const std::pair<int, int64_t> &left, const std::pair<int, int64_t> &right) {
+inline bool compare_priority(const std::pair<int, int64_t> &left, const std::pair<int, int64_t> &right) {
   // smaller number means higher priority for us
   return left.first > right.first;
 }
