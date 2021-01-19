@@ -45,6 +45,8 @@ public:
   }
 
 private:
+  void create_new_chain(const std::string &node);
+
   void register_new_chain(const std::shared_ptr<chain_type> &c);
 
   void disable_chain(int64_t key);

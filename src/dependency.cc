@@ -5,6 +5,11 @@ ObjectDependency::ObjectDependency(const ObjectID &object_id,
                                    std::function<void(const ObjectID &)> object_ready_callback)
     : object_id_(object_id), object_ready_callback_(object_ready_callback), index_(0), pq_(&compare_priority) {}
 
+void ObjectDependency::create_new_chain(const std::string &node) {
+  auto new_chain = std::make_shared<chain_type>(std::initializer_list<std::string>{node});
+  register_new_chain(new_chain);
+}
+
 void ObjectDependency::register_new_chain(const std::shared_ptr<chain_type> &c) {
   int64_t new_key = ++index_;
   available_keys_.insert(new_key);
@@ -86,6 +91,15 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
   } else {
     DCHECK(object_size_ == object_size) << "Size of object " << object_id_.Hex() << " has changed.";
   }
+  if (!node_to_chain_.count(node)) {
+    LOG(DEBUG) << "[Dependency] handles completion for the initial object of " << object_id_.ToString()
+               << " created by " << node;
+    create_new_chain(node);
+    lock.unlock();
+    // we must unlock here because the callback may access this lock again.
+    object_ready_callback_(object_id_);
+    return;
+  }
   auto &c = node_to_chain_[node];
   DCHECK(c->size() > 0) << "we assume that each chain should have length >= 1";
   if (c->size() == 1) {
@@ -99,8 +113,7 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
     do {
       n = c->front();
       c->pop_front();
-      auto new_chain = std::make_shared<chain_type>(std::initializer_list<std::string>{n});
-      register_new_chain(new_chain);
+      create_new_chain(n);
     } while (n != node);
     if (available_keys_.size() > 0 && notification_required) {
       lock.unlock();
