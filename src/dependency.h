@@ -65,7 +65,7 @@ private:
   std::unordered_map<int64_t, std::shared_ptr<chain_type>> chains_;
   std::unordered_map<std::shared_ptr<chain_type>, int64_t> reversed_map_;
 
-  std::priority_queue<std::pair<int, int64_t>, decltype(&compare_priority)> pq_;
+  std::priority_queue<std::pair<int, int64_t>, std::vector<std::pair<int, int64_t>>, decltype(&compare_priority)> pq_;
   std::unordered_set<int64_t> available_keys_;
   std::unordered_set<int64_t> removed_keys_;
 
