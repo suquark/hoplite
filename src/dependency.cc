@@ -13,9 +13,11 @@ void ObjectDependency::create_new_chain(const std::string &node) {
 void ObjectDependency::register_new_chain(const std::shared_ptr<chain_type> &c) {
   int64_t new_key = ++index_;
   available_keys_.insert(new_key);
-  reversed_map_[c] = new_key;
-  chains_[new_key] = c;
-  int new_size = c->size();
+  // copy out the pointer to maintain its reference count
+  std::shared_ptr<chain_type> new_chain = c;
+  reversed_map_[new_chain] = new_key;
+  chains_[new_key] = new_chain;
+  int new_size = new_chain->size();
   pq_.push(std::make_pair(new_size, new_key));
 }
 
