@@ -181,7 +181,8 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id, const st
   }
 }
 
-SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, bool occupying, const std::string &receiver_ip) {
+SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, bool occupying,
+                                                    const std::string &receiver_ip) {
   TIMELINE("GetLocationSync");
   grpc::ClientContext context;
   GetLocationSyncRequest request;

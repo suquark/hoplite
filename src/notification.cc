@@ -13,11 +13,11 @@
 #include <unordered_set>
 #include <utility>
 
+#include "dependency.h"
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 #include "util/ctpl_stl.h"
-#include "dependency.h"
 
 using objectstore::BarrierReply;
 using objectstore::BarrierRequest;
@@ -56,8 +56,8 @@ public:
 private:
   bool send_notification(const std::string &receiver_ip, const GetLocationAsyncAnswerRequest &request);
 
-  objectstore::NotificationListener::Stub *create_or_get_notification_listener_stub(
-      const std::string &remote_grpc_address);
+  objectstore::NotificationListener::Stub *
+  create_or_get_notification_listener_stub(const std::string &remote_grpc_address);
 
   void handle_object_ready(const ObjectID &object_id);
 
@@ -134,7 +134,7 @@ grpc::Status NotificationServiceImpl::Connect(grpc::ServerContext *context, cons
 ObjectDependency &NotificationServiceImpl::get_dependency(const ObjectID &object_id) {
   if (!object_dependencies_.count(object_id)) {
     object_dependencies_.emplace(
-      object_id, ObjectDependency(object_id, std::bind(&NotificationServiceImpl::handle_object_ready, this)));
+        object_id, ObjectDependency(object_id, std::bind(&NotificationServiceImpl::handle_object_ready, this)));
   }
   return object_dependencies_[object_id];
 }
@@ -152,9 +152,8 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
     std::string inband_data;
     std::string sender_ip;
     if (inband_data.empty()) {
-      dep.Get(receiver_ip, receiver.occupying, &object_size, &sender_ip, &inband_data, []() {
-        LOG(FATAL) << "Not expect to fail when there are objects ready";
-      });
+      dep.Get(receiver_ip, receiver.occupying, &object_size, &sender_ip, &inband_data,
+              []() { LOG(FATAL) << "Not expect to fail when there are objects ready"; });
     }
     switch (receiver.type) {
     case ReceiverQueueElement::SYNC: {
@@ -215,13 +214,14 @@ grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *conte
   std::string sender_ip;
 
   std::unique_lock<std::mutex> l(object_location_mutex_);
-  bool success = get_dependency(object_id).Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
-    // this makes sure that no on completion event will happen before we queued our request
-    sync_mutex = std::make_shared<std::mutex>();
-    sync_mutex->lock();
-    pending_receiver_ips_[object_id].emplace(
-      ReceiverQueueElement{ReceiverQueueElement::SYNC, sync_mutex, reply, receiver_ip, {}, request->occupying()});
-  });
+  bool success =
+      get_dependency(object_id).Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
+        // this makes sure that no on completion event will happen before we queued our request
+        sync_mutex = std::make_shared<std::mutex>();
+        sync_mutex->lock();
+        pending_receiver_ips_[object_id].emplace(
+            ReceiverQueueElement{ReceiverQueueElement::SYNC, sync_mutex, reply, receiver_ip, {}, request->occupying()});
+      });
   // unlock so that object dependency can get processed
   l.unlock();
 
@@ -251,11 +251,12 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
     int64_t object_size;
     std::string sender_ip;
     std::string inband_data;
-    bool success = get_dependency(object_id).Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
-      // this makes sure that no on completion event will happen before we queued our request
-      pending_receiver_ips_[object_id].emplace(
-        ReceiverQueueElement{ReceiverQueueElement::ASYNC, {}, NULL, receiver_ip, request->query_id(), request->occupying()});
-    });
+    bool success =
+        get_dependency(object_id).Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
+          // this makes sure that no on completion event will happen before we queued our request
+          pending_receiver_ips_[object_id].emplace(ReceiverQueueElement{
+              ReceiverQueueElement::ASYNC, {}, NULL, receiver_ip, request->query_id(), request->occupying()});
+        });
     if (success) {
       // Batching replies to asynchronous get_location call
       GetLocationAsyncAnswerRequest::ObjectInfo *object = req.add_objects();
@@ -269,9 +270,9 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
   l.unlock();
 
   if (req.objects_size() > 0) {
-    thread_pool_.push([this, receiver_ip, req](int id, GetLocationAsyncAnswerRequest r) {
-      send_notification(receiver_ip, r);
-    }, std::move(req));
+    thread_pool_.push(
+        [this, receiver_ip, req](int id, GetLocationAsyncAnswerRequest r) { send_notification(receiver_ip, r); },
+        std::move(req));
   }
   reply->set_ok(true);
   return grpc::Status::OK;

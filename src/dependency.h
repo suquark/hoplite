@@ -1,14 +1,14 @@
 #pragma once
 
+#include <atomic>
 #include <functional>
+#include <list>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <queue>
-#include <atomic>
-#include <list>
 
 #include "common/id.h"
 
@@ -20,12 +20,12 @@ bool compare_priority(const std::pair<int, int64_t> &left, const std::pair<int, 
 }
 
 class ObjectDependency {
- public:
-  ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback);
+public:
+  ObjectDependency(const ObjectID &object_id, std::function<void(const ObjectID &)> object_ready_callback);
 
   // append the node in the dependency. returns the parent in the dependency chain.
-  bool Get(const std::string &node, bool occupying, int64_t *object_size,
-      std::string *sender, std::string *inband_data, std::function<void()> on_fail=nullptr);
+  bool Get(const std::string &node, bool occupying, int64_t *object_size, std::string *sender, std::string *inband_data,
+           std::function<void()> on_fail = nullptr);
 
   void HandleCompletion(const std::string &node, int64_t object_size);
 
@@ -43,7 +43,7 @@ class ObjectDependency {
     return !inband_data_.empty();
   }
 
- private:
+private:
   void register_new_chain(const std::shared_ptr<chain_type> &c);
 
   void disable_chain(int64_t key);
@@ -56,7 +56,7 @@ class ObjectDependency {
   // storage. But it doesn't matter now because these data take too few
   // space.
   std::string inband_data_;
-  std::function<void(const ObjectID&)> object_ready_callback_;
+  std::function<void(const ObjectID &)> object_ready_callback_;
 
   std::mutex mutex_;
   std::atomic<int64_t> index_;

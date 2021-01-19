@@ -1,7 +1,8 @@
 #include "dependency.h"
 #include "util/logging.h"
 
-ObjectDependency::ObjectDependency(const ObjectID& object_id, std::function<void(const ObjectID&)> object_ready_callback)
+ObjectDependency::ObjectDependency(const ObjectID &object_id,
+                                   std::function<void(const ObjectID &)> object_ready_callback)
     : object_id_(object_id), object_ready_callback_(object_ready_callback), index_(0), pq_(compare_priority) {}
 
 void ObjectDependency::register_new_chain(const std::shared_ptr<chain_type> &c) {
@@ -24,8 +25,8 @@ void ObjectDependency::update_chain(int64_t key, const std::shared_ptr<chain_typ
   register_new_chain(c);
 }
 
-bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *object_size,
-      std::string *sender, std::string *inband_data, std::function<void()> on_fail) {
+bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *object_size, std::string *sender,
+                           std::string *inband_data, std::function<void()> on_fail) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
@@ -56,7 +57,7 @@ bool ObjectDependency::Get(const std::string &node, bool occupying, int64_t *obj
           // this should always be suspended chains
           DCHECK(suspended_chains_.count(old_c) > 0);
           DCHECK(old_c->front() == node);
-          for (auto n: *old_c) {
+          for (auto n : *old_c) {
             c->push_back(n);
             node_to_chain_[n] = c;
           }
