@@ -105,7 +105,8 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
   auto &c = node_to_chain_[node];
   DCHECK(c->size() > 0) << "we assume that each chain should have length >= 1";
   if (c->size() == 1) {
-    DCHECK(c->front() == node) << "when there is only one node, it should be the node itself.";
+    DCHECK(c->front() == node) << "When there is only one node, it should be the node itself (" << node << "). "
+                               << "However, \"" << c->front() << "\" is found";
     // nothing to handle here
   } else {
     bool notification_required = available_keys_.empty();
