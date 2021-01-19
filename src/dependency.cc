@@ -103,7 +103,8 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
     return;
   }
   auto &c = node_to_chain_[node];
-  DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1." << DebugPrint();
+  DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")." 
+                        << DebugPrint();
   if (c->size() == 1) {
     DCHECK(c->front() == node) << "When there is only one node, it should be the node itself (" << node << "). "
                                << "However, \"" << c->front() << "\" is found." << DebugPrint();
@@ -188,7 +189,7 @@ void ObjectDependency::HandleFailure(const std::string &failed_node) {
 
 std::string ObjectDependency::DebugPrint() {
   std::stringstream s;
-  s << std::endl << "=========================================" << std::endl;
+  s << std::endl << "==============================================================" << std::endl;
   for (auto const &x : chains_) {
     s << "Chain #" << x.first << ", size=" << x.second->size() << ": [";
     for (auto const &y : *x.second) {
@@ -217,6 +218,6 @@ std::string ObjectDependency::DebugPrint() {
     pq_copied.pop();
   }
   s << "]" << std::endl;
-  s << "=========================================" << std::endl;
+  s << "==============================================================" << std::endl;
   return s.str();
 }
