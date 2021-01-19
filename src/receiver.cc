@@ -42,6 +42,7 @@ int Receiver::receive_object(const std::string &sender_ip, int sender_port, cons
   ObjectWriterRequest req;
   auto ro_request = new ReceiveObjectRequest();
   ro_request->set_object_id(object_id.Binary());
+  ro_request->set_object_size(stream->Size());
   ro_request->set_offset(stream->progress);
   req.set_allocated_receive_object(ro_request);
   SendProtobufMessage(conn_fd, req);
@@ -54,6 +55,9 @@ int Receiver::receive_object(const std::string &sender_ip, int sender_port, cons
   ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
   LOG(DEBUG) << "receive " << object_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
+  if (stream->IsFinished()) {
+    gcs_client_.WriteLocation(object_id, my_address_, true, stream->Size(), stream->Data());
+  }
   return ec;
 }
 
@@ -62,11 +66,9 @@ void Receiver::pull_object(const ObjectID &object_id) {
   if (!check_and_store_inband_data(object_id, reply.object_size, reply.inband_data)) {
     // prepare object buffer for receiving.
     std::shared_ptr<Buffer> stream;
-    auto pstatus = local_store_client_.Create(object_id, reply.object_size, &stream);
+    auto pstatus = local_store_client_.GetBufferOrCreate(object_id, reply.object_size, &stream);
     DCHECK(pstatus.ok()) << "Plasma failed to allocate " << object_id.ToString() << " size = " << reply.object_size
                          << ", status = " << pstatus.ToString();
-    // notify other nodes that our stream is on progress
-    gcs_client_.WriteLocation(object_id, my_address_, false, reply.object_size);
     std::string sender_ip = reply.sender_ip;
     // ---------------------------------------------------------------------------------------------
     // Here is our fault tolerance logic for multicast.
@@ -81,7 +83,6 @@ void Receiver::pull_object(const ObjectID &object_id) {
       if (status) {
         LOG(ERROR) << "Failed to receive object " << object_id.Hex() << " from sender " << reply.sender_ip;
       }
-      // TODO(siyuan): Change the sender.
     }
     local_store_client_.Seal(object_id);
   }

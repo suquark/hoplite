@@ -47,7 +47,8 @@ service ObjectStore {
 
 message ReceiveObjectRequest {
   bytes object_id = 1;
-  int64 offset = 2;
+  int64 object_size = 2;
+  int64 offset = 3;
 }
 
 message ReceiveAndReduceObjectRequest {

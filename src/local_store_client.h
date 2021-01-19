@@ -27,11 +27,14 @@ public:
 
   std::shared_ptr<Buffer> GetBufferNoExcept(const ObjectID &object_id);
 
+  std::shared_ptr<Buffer> GetBufferOrCreate(const ObjectID &object_id, int64_t size, std::shared_ptr<Buffer> *data);
+
   Status Delete(const ObjectID &object_id);
 
   Status Wait(const ObjectID &object_id);
 
 private:
+  Status create_internal(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data);
   bool object_exists_unsafe(const ObjectID &object_id, bool require_finished);
   const bool use_plasma_;
   std::mutex local_store_mutex_;

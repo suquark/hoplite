@@ -29,7 +29,7 @@ private:
 
   void listener_loop();
 
-  int send_object(int conn_fd, const ObjectID &object_id, int64_t offset);
+  int send_object(int conn_fd, const ObjectID &object_id, int64_t object_size, int64_t offset);
 
   void send_object_for_reduce(const objectstore::ReduceToRequest *request);
 
