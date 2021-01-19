@@ -133,8 +133,10 @@ grpc::Status NotificationServiceImpl::Connect(grpc::ServerContext *context, cons
 
 ObjectDependency &NotificationServiceImpl::get_dependency(const ObjectID &object_id) {
   if (!object_dependencies_.count(object_id)) {
-    object_dependencies_.emplace(
-        object_id, ObjectDependency(object_id, [this](const ObjectID &object_id) { handle_object_ready(object_id); }));
+    object_dependencies_[object_id] = ObjectDependency(object_id, 
+      [this](const ObjectID &object_id) {
+      handle_object_ready(object_id); 
+    }));
   }
   return object_dependencies_[object_id];
 }
@@ -173,9 +175,9 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
       object->set_query_id(receiver.query_id);
       object->set_object_size(object_size);
       object->set_inband_data(std::move(inband_data));
-      thread_pool_.push([this, receiver_ip](int id, GetLocationAsyncAnswerRequest r) {
-        send_notification(receiver_ip, r);
-      }, std::move(req));
+      thread_pool_.push(
+          [this, receiver_ip](int id, GetLocationAsyncAnswerRequest r) { send_notification(receiver_ip, r); },
+          std::move(req));
     } break;
     }
     q.pop();
