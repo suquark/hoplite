@@ -7,6 +7,7 @@ ObjectDependency::ObjectDependency(const ObjectID &object_id,
 
 void ObjectDependency::create_new_chain(const std::string &node) {
   auto new_chain = std::make_shared<chain_type>(std::initializer_list<std::string>{node});
+  node_to_chain_[node] = new_chain;
   register_new_chain(new_chain);
 }
 
@@ -114,11 +115,20 @@ void ObjectDependency::HandleCompletion(const std::string &node, int64_t object_
     // We also complete all previous nodes.
     // They must have been completed because of the dependency.
     std::string n;
-    do {
-      n = c->front();
+    while ((n = c->front()) != node) {
       c->pop_front();
       create_new_chain(n);
-    } while (n != node);
+    }
+    DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << node << ")." 
+                          << DebugPrint();
+    // handle edge case
+    if (c->size() > 1) {
+      c->pop_front();
+      create_new_chain(n);
+    }
+    // update the chain because its size changed
+    update_chain(reversed_map_[c], c);
+    // TODO(siyuan): maybe we should remove this since it would never be reached.
     if (available_keys_.size() > 0 && notification_required) {
       lock.unlock();
       // we must unlock here because the callback may access this lock again.
