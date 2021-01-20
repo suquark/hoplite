@@ -10,8 +10,6 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 ## setup
 ROOT_DIR=$(dirname $(realpath -s $0))
 
-fail_at=$1
-shift
 test_name=$1
 test_executable=$test_name
 test_executable_abspath=$ROOT_DIR/$test_executable
