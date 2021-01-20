@@ -40,8 +40,8 @@ public:
   /// \param[in] on_fail An optional function that handles the case that we cannot get the info immediately.
   /// The function call is secured by the internal lock so the info will not get updated inside the function call.
   /// \return True if we successfully returned the information for the receiver.
-  bool Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender, std::string *inband_data,
-           std::function<void()> on_fail = nullptr);
+  bool Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
+           std::string *inband_data, std::function<void()> on_fail = nullptr);
 
   /// The receiver declares it has got a complete object. This receiver can become the sender for later
   /// receivers.
@@ -82,6 +82,11 @@ private:
 
   void update_chain(int64_t key, const std::shared_ptr<chain_type> &c);
 
+  void recover_chain(const std::shared_ptr<chain_type> &c, const std::string &sender);
+
+  bool get_impl_(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
+                 std::string *inband_data, std::function<void()> on_fail);
+
   ObjectID object_id_;
   int64_t object_size_ = -1;
   // TODO: We should implement LRU gabage collection for the inband data
@@ -96,6 +101,7 @@ private:
   std::unordered_map<std::string, std::shared_ptr<chain_type>> node_to_chain_;
   std::unordered_map<int64_t, std::shared_ptr<chain_type>> chains_;
   std::unordered_map<std::shared_ptr<chain_type>, int64_t> reversed_map_;
+  std::unordered_map<std::string, std::string> recevier_to_sender_;
 
   std::priority_queue<std::pair<int, int64_t>, std::vector<std::pair<int, int64_t>>, decltype(&compare_priority)> pq_;
   std::unordered_set<int64_t> available_keys_;
