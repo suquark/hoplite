@@ -125,6 +125,16 @@ message GetLocationAsyncAnswerReply {
   bool ok = 1;
 }
 
+message HandlePullObjectFailureRequest {
+  bytes object_id = 1;
+  bytes receiver_ip = 2;
+}
+
+message HandlePullObjectFailureReply {
+  bytes alternative_sender_ip = 1;
+  bool success = 2;
+}
+
 message ConnectRequest {
   bytes sender_ip = 1;
 }
@@ -150,6 +160,7 @@ service NotificationServer {
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
   rpc GetLocationAsync(GetLocationAsyncRequest) returns (GetLocationAsyncReply);
+  rpc HandlePullObjectFailure(HandlePullObjectFailureRequest) returns (HandlePullObjectFailureReply);
 }
 
 service NotificationListener {

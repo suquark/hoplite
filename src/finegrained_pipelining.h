@@ -30,6 +30,9 @@ template <typename T> inline int stream_write_next(int conn_fd, T *stream, int64
       }
       LOG(ERROR) << "[stream_write_next] socket recv error (" << strerror(errno) << ", code=" << errno << ")";
       return -1;
+    } else if (bytes_recv == 0) {
+      LOG(ERROR) << "[stream_write_next] 0 bytes received (" << strerror(errno) << ", code=" << errno << ")";
+      return -1;
     }
     *receive_progress += bytes_recv;
     return 0;

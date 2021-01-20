@@ -30,8 +30,8 @@ bool Receiver::check_and_store_inband_data(const ObjectID &object_id, int64_t ob
 
 int Receiver::receive_object(const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream) {
   TIMELINE(std::string("Receiver::receive_object() ") + object_id.ToString());
-  LOG(DEBUG) << "start receiving object " << object_id.ToString() << ", size = " << stream->Size()
-             << ", intial_progress=" << stream->progress;
+  LOG(DEBUG) << "start receiving object " << object_id.ToString() << " from " << sender_ip
+             << ", size = " << stream->Size() << ", intial_progress=" << stream->progress;
   int conn_fd;
   int ec = tcp_connect(sender_ip, sender_port, &conn_fd);
   if (ec) {
@@ -81,11 +81,17 @@ void Receiver::pull_object(const ObjectID &object_id) {
     // immediately.
     // ---------------------------------------------------------------------------------------------
     while (!stream->IsFinished()) {
-      LOG(DEBUG) << "Try receiving " << object_id.ToString() << " from " << reply.sender_ip
-                 << ", size=" << reply.object_size;
-      int status = receive_object(reply.sender_ip, HOPLITE_SENDER_PORT, object_id, stream.get());
-      if (status) {
-        LOG(ERROR) << "Failed to receive object " << object_id.Hex() << " from sender " << reply.sender_ip;
+      LOG(DEBUG) << "Try receiving " << object_id.ToString() << " from " << sender_ip << ", size=" << reply.object_size;
+      int ec = receive_object(sender_ip, HOPLITE_SENDER_PORT, object_id, stream.get());
+      if (ec) {
+        LOG(ERROR) << "Failed to receive " << object_id.ToString() << " from sender " << sender_ip;
+        bool success = gcs_client_.HandlePullObjectFailure(object_id, my_address_, &sender_ip);
+        if (!success) {
+          LOG(ERROR) << "Cannot immediately recover from error. Retrying get location again...";
+          reply = gcs_client_.GetLocationSync(object_id, true, my_address_);
+          sender_ip = reply.sender_ip;
+        }
+        LOG(INFO) << "Retry receiving object from " << sender_ip;
       }
     }
     local_store_client_.Seal(object_id);
