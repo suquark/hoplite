@@ -33,6 +33,8 @@ using objectstore::GetLocationAsyncReply;
 using objectstore::GetLocationAsyncRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
+using objectstore::HandlePullObjectFailureReply;
+using objectstore::HandlePullObjectFailureRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -52,6 +54,9 @@ public:
 
   grpc::Status GetLocationAsync(grpc::ServerContext *context, const GetLocationAsyncRequest *request,
                                 GetLocationAsyncReply *reply);
+
+  grpc::Status HandlePullObjectFailure(grpc::ServerContext *context, const HandlePullObjectFailureRequest *request,
+                                       HandlePullObjectFailureReply *reply);
 
 private:
   bool send_notification(const std::string &receiver_ip, const GetLocationAsyncAnswerRequest &request);
@@ -283,6 +288,17 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
         std::move(req));
   }
   reply->set_ok(true);
+  return grpc::Status::OK;
+}
+
+grpc::Status NotificationServiceImpl::HandlePullObjectFailure(grpc::ServerContext *context,
+                                                              const HandlePullObjectFailureRequest *request,
+                                                              HandlePullObjectFailureReply *reply) {
+  auto dep = get_dependency(ObjectID::FromBinary(request->object_id()));
+  std::string alternative_sender;
+  bool success = dep.HandleFailure(request->receiver_ip(), &alternative_sender);
+  reply->set_alternative_sender_ip(std::move(alternative_sender));
+  reply->set_success(success);
   return grpc::Status::OK;
 }
 
