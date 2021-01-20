@@ -296,7 +296,7 @@ grpc::Status NotificationServiceImpl::HandlePullObjectFailure(grpc::ServerContex
                                                               HandlePullObjectFailureReply *reply) {
   auto dep = get_dependency(ObjectID::FromBinary(request->object_id()));
   std::string alternative_sender;
-  bool success = dep.HandleFailure(request->receiver_ip(), &alternative_sender);
+  bool success = dep->HandleFailure(request->receiver_ip(), &alternative_sender);
   reply->set_alternative_sender_ip(std::move(alternative_sender));
   reply->set_success(success);
   return grpc::Status::OK;

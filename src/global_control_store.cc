@@ -17,6 +17,8 @@ using objectstore::GetLocationAsyncReply;
 using objectstore::GetLocationAsyncRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
+using objectstore::HandlePullObjectFailureReply;
+using objectstore::HandlePullObjectFailureRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -220,6 +222,20 @@ std::shared_ptr<ObjectNotifications> GlobalControlStoreClient::GetLocationAsync(
       },
       std::move(request));
   return notifications;
+}
+
+bool GlobalControlStoreClient::HandlePullObjectFailure(const ObjectID &object_id, const std::string &receiver_ip,
+                                                       std::string *alternative_sender_ip) {
+  TIMELINE("HandlePullObjectFailure");
+  grpc::ClientContext context;
+  HandlePullObjectFailureRequest request;
+  HandlePullObjectFailureReply reply;
+  request.set_object_id(object_id.Binary());
+  request.set_receiver_ip(receiver_ip);
+  auto status = notification_stub_->HandlePullObjectFailure(&context, request, &reply);
+  DCHECK(status.ok()) << status.error_message();
+  *alternative_sender_ip = reply.alternative_sender_ip();
+  return reply.success();
 }
 
 void GlobalControlStoreClient::worker_loop() {

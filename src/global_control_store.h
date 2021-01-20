@@ -64,6 +64,8 @@ public:
 
   std::shared_ptr<ObjectNotifications> GetLocationAsync(const std::vector<ObjectID> &object_ids,
                                                         const std::string &query_id, bool occupying);
+  bool HandlePullObjectFailure(const ObjectID &object_id, const std::string &receiver_ip,
+                               std::string *alternative_sender_ip);
 
   inline std::thread Run() {
     std::thread notification_thread(&GlobalControlStoreClient::worker_loop, this);
