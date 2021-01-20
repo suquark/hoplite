@@ -2,6 +2,7 @@
 if [ "$#" -lt 1 ]; then 
     echo "kill the current rank";
     kill $(cat /tmp/hoplite_test.pid)
+    exit
 fi
 if [ "$#" -gt 1 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many arguments: $#"; exit -1; fi
 
