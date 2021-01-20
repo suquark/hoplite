@@ -27,7 +27,7 @@ int stream_reduce_add(int conn_fd, T *stream, std::vector<uint8_t *> reduce_buff
   uint8_t *data_ptr = stream->MutableData();
   const int64_t object_size = stream->Size();
   while (receive_progress < object_size) {
-    int status = stream_write_next<T>(conn_fd, stream, &receive_progress);
+    int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (status) {
       // return the error
       return status;
