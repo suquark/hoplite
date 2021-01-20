@@ -81,15 +81,14 @@ void Receiver::pull_object(const ObjectID &object_id) {
     // immediately.
     // ---------------------------------------------------------------------------------------------
     while (!stream->IsFinished()) {
-      LOG(DEBUG) << "Try receiving " << object_id.ToString() << " from " << sender_ip
-                 << ", size=" << reply.object_size;
+      LOG(DEBUG) << "Try receiving " << object_id.ToString() << " from " << sender_ip << ", size=" << reply.object_size;
       int ec = receive_object(sender_ip, HOPLITE_SENDER_PORT, object_id, stream.get());
       if (ec) {
         LOG(ERROR) << "Failed to receive " << object_id.ToString() << " from sender " << sender_ip;
         bool success = gcs_client_.HandlePullObjectFailure(object_id, my_address_, &sender_ip);
         if (!success) {
-          LOG(ERROR) << "Cannot immediately recover from error. Retrying get location again..."
-          reply = gcs_client_.GetLocationSync(object_id, true, my_address_);
+          LOG(ERROR) << "Cannot immediately recover from error. Retrying get location again..." reply =
+              gcs_client_.GetLocationSync(object_id, true, my_address_);
           sender_ip = reply.sender_ip;
         }
         LOG(INFO) << "Retry receiving object from " << sender_ip;
