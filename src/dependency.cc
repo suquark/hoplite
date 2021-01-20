@@ -55,7 +55,6 @@ bool ObjectDependency::Get(const std::string &receiver, bool occupying, int64_t 
 bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
                                  std::string *inband_data, std::function<void()> on_fail) {
   LOG(DEBUG) << "[Dependency] Get for " << receiver;
-  std::lock_guard<std::mutex> lock(mutex_);
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
     *object_size = object_size_;
