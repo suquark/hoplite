@@ -15,7 +15,7 @@
 
 constexpr int64_t STREAM_MAX_BLOCK_SIZE = 4 * (2 << 20); // 4MB
 
-template <typename T> inline int stream_write_next(int conn_fd, T *stream, int64_t *receive_progress) {
+template <typename T> inline int stream_receive_next(int conn_fd, T *stream, int64_t *receive_progress) {
   int remaining_size = stream->Size() - *receive_progress;
   // here we receive no more than STREAM_MAX_BLOCK_SIZE for streaming
   int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE ? STREAM_MAX_BLOCK_SIZE : remaining_size;
@@ -24,14 +24,14 @@ template <typename T> inline int stream_write_next(int conn_fd, T *stream, int64
     if (bytes_recv < 0) {
       if (errno == EAGAIN) {
 #ifndef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
-        LOG(WARNING) << "[stream_write_next] socket recv error (EAGAIN). Ignored.";
+        LOG(WARNING) << "[stream_receive_next] socket recv error (EAGAIN). Ignored.";
 #endif
         continue;
       }
-      LOG(ERROR) << "[stream_write_next] socket recv error (" << strerror(errno) << ", code=" << errno << ")";
+      LOG(ERROR) << "[stream_receive_next] socket recv error (" << strerror(errno) << ", code=" << errno << ")";
       return -1;
     } else if (bytes_recv == 0) {
-      LOG(ERROR) << "[stream_write_next] 0 bytes received (" << strerror(errno) << ", code=" << errno << ")";
+      LOG(ERROR) << "[stream_receive_next] 0 bytes received (" << strerror(errno) << ", code=" << errno << ")";
       return -1;
     }
     *receive_progress += bytes_recv;
@@ -43,7 +43,7 @@ template <typename T> inline int stream_receive(int conn_fd, T *stream, int64_t 
   TIMELINE("stream_receive");
   int64_t receive_progress = offset;
   while (receive_progress < stream->Size()) {
-    int ec = stream_write_next<T>(conn_fd, stream, &receive_progress);
+    int ec = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (ec) {
       // return the error
       LOG(ERROR) << "[stream_receive] socket receive error (" << strerror(errno) << ", code=" << errno
