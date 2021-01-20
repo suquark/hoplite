@@ -126,22 +126,23 @@ void ObjectDependency::HandleCompletion(const std::string &receiver, int64_t obj
     // nothing to handle here
   } else {
     bool notification_required = available_keys_.empty();
-    // We also complete all previous nodes.
-    // They must have been completed because of the dependency.
+    // We complete all previous nodes. They must have been completed because of the dependency.
+    // The current node should not be moved out from the chain because:
+    // 1. If it is not the last node in the chain, it may still serves as a sender.
+    // 2. If it is the last node in the chain, we just need to keep the chain.
+    bool updated = false;
     std::string n;
     while ((n = c->front()) != receiver) {
       c->pop_front();
+      updated = true;
       create_new_chain(n);
     }
     DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << receiver << ")."
                           << DebugPrint();
-    // handle edge case
-    if (c->size() > 1) {
-      c->pop_front();
-      create_new_chain(n);
+    if (updated) {
+      // update the chain because its size changed
+      update_chain(reversed_map_[c], c);
     }
-    // update the chain because its size changed
-    update_chain(reversed_map_[c], c);
     // TODO(siyuan): maybe we should remove this since it would never be reached.
     if (available_keys_.size() > 0 && notification_required) {
       lock.unlock();
