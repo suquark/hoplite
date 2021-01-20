@@ -71,7 +71,6 @@ bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, in
   // we are sure we can find one in the priority queue
   while (true) {
     int64_t key = pq_.top().second;
-    pq_.pop();
     if (removed_keys_.count(key) <= 0) {
       auto &c = chains_[key];
       *sender = c->back();
@@ -80,6 +79,7 @@ bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, in
           c->push_back(receiver);
           node_to_chain_[receiver] = c;
           recevier_to_sender_[receiver] = *sender;
+          update_chain(key, c);
         } else {
           // this path indicates the node is suspended
           recover_chain(node_to_chain_[receiver], *sender);
@@ -88,6 +88,7 @@ bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, in
       break;
     } else {
       // no longer in priority queue. stop tracking it.
+      pq_.pop();
       removed_keys_.erase(key);
     }
   }
