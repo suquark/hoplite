@@ -24,7 +24,7 @@ python/object_store_pb2_grpc.py:
 	python -m pip install grpcio-tools
 	python -m grpc_tools.protoc -Isrc --python_out=python --grpc_python_out=python src/object_store.proto
 
-notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/dependency.o src/notification.o
+notification: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/dependency.o src/reduce_dependency.o src/notification.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 notification_server_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification_server_test.o
@@ -54,6 +54,9 @@ gather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) gat
 allgather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) allgather_test.o
 	$(MPICXX) $^ $(LDFLAGS) -o $@
 
+reduce_dependency_test: $(UTILS_OBJS) $(COMMON_OBJS) src/reduce_dependency.cc reduce_dependency_test.cc
+	$(CXX) $^ -lz -Isrc -std=c++11 -O2 -g -fPIC -o $@
+
 %.grpc.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=src/ --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $<
 
@@ -61,6 +64,8 @@ allgather_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS) 
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean_bins:
-	rm -rf multicast_test reduce_test gather_test subset_reduce_test all_reduce_test python/*.cpp python/*.so *.so
-clean:
-	rm -rf notification notification_server_test multicast_test reduce_test gather_test subset_reduce_test all_reduce_test src/*.o src/*.pb.cc src/*.pb.h src/util/*.o python/*.cpp python/*.so python/object_store_pb2_grpc.py python/object_store_pb2.py *.o *.so
+	rm -rf notification *_test python/*.cpp python/*.so *.so
+clean_objfiles:
+	rm -rf *.o src/*.o src/common/*.o src/util/*.o
+clean: clean_bins clean_objfiles
+	rm -rf src/*.pb.cc src/*.pb.h python/object_store_pb2_grpc.py python/object_store_pb2.py 
