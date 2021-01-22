@@ -5,15 +5,20 @@
 #include <vector>
 
 struct Node {
+  // assotiated with the reduced object
   ObjectID object_id;
   std::string owner_ip;
+  bool finished = false;
   bool is_tree_node = false;
+
   Node *parent = NULL;
   // In the chain, one node only has left node.
   Node *left_child = NULL;
   Node *right_child = NULL;
+
   int subtree_size = -1;
   int order = -1;
+
   int init_order() {
     if (parent == NULL) {
       order = left_child->subtree_size;
