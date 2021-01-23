@@ -5,7 +5,6 @@
 #include "common/config.h"
 #include "util/logging.h"
 
-// maximum_chain_length = object_size / (HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY);
 
 ReduceTreeChain::ReduceTreeChain(int64_t object_count, int64_t maximum_chain_length)
     : object_count_(object_count), maximum_chain_length_(maximum_chain_length) {
@@ -149,4 +148,42 @@ std::string ReduceTreeChain::DebugString() {
   }
   s << "==============================================================" << std::endl;
   return s.str();
+}
+
+Node* ReduceTask::AddObject(const ObjectID& object_id, int64_t object_size, const std::string &owner_ip) {
+  if (!rtc_) { 
+    int64_t maximum_chain_length = round(double(object_size) / double(HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY));
+    // add one for the reduction result receiver
+    rtc_.reset(new ReduceTreeChain(num_reduce_objects_ + 1, maximum_chain_length));
+  }
+  if (num_ready_objects_ >= num_ready_objects_ + 1) {
+    // We already have enough nodes in the tree. Push more into the backup node.
+    backup_objects_.push({object_id, owner_ip});
+    return NULL;
+  }
+  Node* n = rtc_->GetNode(num_ready_objects_);
+  if (!n->parent) {
+    n->object_id = reduction_id_;
+    n->owner_ip = reduce_dst_;
+    owner_to_node_[n->owner_ip] = n;
+    // skip the root node
+    n = rtc_->GetNode(++num_ready_objects_);
+  }
+  n->object_id = object_id;
+  n->owner_ip = owner_ip;
+  owner_to_node_[owner_ip] = n;
+  num_ready_objects_++;
+  return n;
+}
+
+void ReduceTask::CompleteReduce(const std::string &receiver_ip) {
+  owner_to_node_[receiver_ip]->set_finished();
+}
+
+Node* ReduceTask::LocateFailure(const std::string &receiver_ip, bool left_child) {
+  if (left_child) {
+    return owner_to_node_[receiver_ip]->left_child;
+  } else {
+    return owner_to_node_[receiver_ip]->right_child;
+  }
 }
