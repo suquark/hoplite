@@ -64,7 +64,7 @@ public:
 
   void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node);
 
-  void ReduceInbandObject(const std::string &receiver_ip, const std::string &inband_data);
+  void InvokeReduceInbandObject(const std::string &receiver_ip, const std::string &inband_data);
 
 private:
   bool send_notification(const std::string &receiver_ip, const GetLocationAsyncAnswerRequest &request);
@@ -253,7 +253,7 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
             std::string reduced_inband_data = n->get_inband_data();
             thread_pool_.push(
                 [this, reduction_id, receiver_ip](int id, std::string reduced_inband_data) {
-                  ReduceInbandObject(reduction_id, receiver_ip, reduced_inband_data);
+                  InvokeReduceInbandObject(reduction_id, receiver_ip, reduced_inband_data);
                 },
                 std::move(reduced_inband_data));
           }
@@ -407,8 +407,8 @@ void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_nod
   });
 }
 
-void NotificationServiceImpl::ReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
-                                                 const std::string &inband_data) {
+void NotificationServiceImpl::InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
+                                                       const std::string &inband_data) {
   TIMELINE("notification ReduceInbandObject");
   auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
   objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
