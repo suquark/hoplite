@@ -24,6 +24,10 @@ struct Node {
   int subtree_size = -1;
   int order = -1;
 
+  bool location_known() {
+    return !owner_ip.empty();
+  }
+
   // set finished recursively
   void set_finished() {
     finished = true;
@@ -57,6 +61,10 @@ struct Node {
   }
 };
 
+struct InbandDataNode: Node {
+  std::vector<float> reduced_inband_data;
+};
+
 class ReduceTreeChain {
 public:
   /// Constructor
@@ -81,6 +89,7 @@ private:
   int64_t maximum_chain_length_;
 };
 
+// TODO(siyuan): support more reduce types
 class ReduceTask {
 public:
   ReduceTask(const std::string &reduce_dst, const std::vector<ObjectID> &remote_objects_for_reduce,
@@ -89,6 +98,34 @@ public:
         num_reduce_objects_(num_reduce_objects) {}
 
   Node *AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip);
+
+  /// 
+  /// \return The destination node.
+  InbandDataNode* AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
+    float* data = (float*)inband_data.data();
+    size_t size = inband_data.size() / sizeof(float);
+    if (reduced_inband_dst_.reduced_inband_data.empty()) {
+      reduced_inband_dst_.reduced_inband_data = std::vector<float>(data, data + size);
+      reduced_inband_dst_.object_id = reduction_id_;
+      reduced_inband_dst_.owner_ip = reduce_dst_;
+    } else {
+      // if we have got enough objects, skip reducing
+      if (num_ready_objects_ < num_reduce_objects_) {
+        for (size_t i = 0; i < size; i++) {
+          reduced_inband_dst_.reduced_inband_data[i] += data[i];
+        }
+      }
+    }
+    num_ready_objects_++;
+    if (num_ready_objects_ >= num_reduce_objects_) {
+      reduced_inband_dst_.finished = true;
+    }
+    return &reduced_inband_dst_;
+  }
+
+  std::vector<float> &GetInbandReducedData() {
+    return reduced_inband_data_;
+  }
 
   void CompleteReduce(const std::string &receiver_ip);
 
@@ -103,6 +140,9 @@ private:
   std::unique_ptr<ReduceTreeChain> rtc_;
   std::unordered_map<std::string, Node *> owner_to_node_;
   std::queue<std::pair<ObjectID, std::string>> backup_objects_;
+  // for inband data
+  std::vector<float> reduced_inband_data_;
+  InbandDataNode reduced_inband_dst_;
 };
 
 class ReduceManager {
@@ -126,6 +166,19 @@ public:
     if (object_id_to_tasks_.count(object_id)) {
       for (auto &task : object_id_to_tasks_[object_id]) {
         Node *n = task->AddObject(object_id, object_size, owner_ip);
+        if (n) {
+          nodes.push_back(n);
+        }
+      }
+    }
+    return nodes;
+  }
+
+  std::vector<InbandDataNode *> AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
+    std::vector<InbandDataNode *> nodes;
+    if (object_id_to_tasks_.count(object_id)) {
+      for (auto &task : object_id_to_tasks_[object_id]) {
+        InbandDataNode *n = task->AddInbandObject(object_id, inband_data);
         if (n) {
           nodes.push_back(n);
         }

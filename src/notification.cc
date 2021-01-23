@@ -217,6 +217,35 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
           [this, receiver_ip](int id, GetLocationAsyncAnswerRequest r) { send_notification(receiver_ip, r); },
           std::move(req));
     } break;
+    case ReceiverQueueElement::REDUCE: {
+      if (inband_data.empty()) {
+        std::vector<Node *> nodes = reduce_manager_.AddObject(object_id, object_size, owner_ip);
+        for (auto& n: nodes) {
+          // check if we have a child dependency
+          if (n->left_child && n->left_child->location_known()) {
+            // receive(n, n->left_child, left)
+          }
+          if (n->right_child && n->right_child->location_known()) {
+            LOG(FATAL) << "This case should not exist";
+          }
+          // check if we have a parent dependency
+          if (n->parent && n->parent->location_known()) {
+            if (n->parent->left_child == n) {
+              // receive(n->parent, n, left)
+            } else {
+              // receive(n->parent, n, right)
+            }
+          }
+        }
+      } else {
+        std::vector<InbandDataNode *> nodes = reduce_manager_.AddInbandObject(object_id, std::move(inband_data));
+        for (auto& n: nodes) {
+          if (n->finished) {
+            // TODO(siyuan): send: n->owner_ip; n->reduced_inband_data
+          }
+        }
+      }
+    } break;
     }
     q.pop();
   }
