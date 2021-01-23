@@ -17,6 +17,7 @@
 #include "logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
+#include "reduce_dependency.h"
 #include "util/ctpl_stl.h"
 
 using objectstore::BarrierReply;
@@ -74,7 +75,7 @@ private:
 
   const int notification_listener_port_;
   struct ReceiverQueueElement {
-    enum { SYNC, ASYNC } type;
+    enum { SYNC, ASYNC, REDUCE } type;
     // For synchronous recevier
     std::shared_ptr<std::mutex> sync_mutex;
     GetLocationSyncReply *reply;
@@ -85,19 +86,49 @@ private:
     // Whether to delete the reference to the object or not
     bool occupying;
   };
-  std::unordered_map<ObjectID, std::queue<ReceiverQueueElement>> pending_receiver_ips_;
+  class PendingQueue {
+  public:
+    void EnqueueGetLocationSync(const ObjectID &object_id, const std::shared_ptr<std::mutex> &sync_mutex,
+                                GetLocationSyncReply *reply, const std::string &receiver_ip, bool occupying) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pending_objects_[object_id].emplace(
+          ReceiverQueueElement{ReceiverQueueElement::SYNC, sync_mutex, reply, receiver_ip, {}, occupying});
+    }
+    void EnqueueGetLocationAsync(const ObjectID &object_id, const std::string &receiver_ip, const std::string &query_id,
+                                 bool occupying) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pending_objects_[object_id].emplace(
+          ReceiverQueueElement{ReceiverQueueElement::ASYNC, {}, NULL, receiver_ip, query_id, occupying});
+    }
+    void EnqueueGetLocationForReduce(const ObjectID &object_id) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pending_objects_[object_id].emplace(ReceiverQueueElement{ReceiverQueueElement::REDUCE, {}, NULL, {}, {}, true});
+    }
+    std::queue<ReceiverQueueElement> PopQueue(const ObjectID &object_id) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      return std::move(pending_objects_[object_id]);
+    }
+
+  private:
+    std::unordered_map<ObjectID, std::queue<ReceiverQueueElement>> pending_objects_;
+    std::mutex mutex_;
+  };
+
+  PendingQueue pending_queue_;
 
   std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
   std::unordered_map<std::string, std::unique_ptr<objectstore::NotificationListener::Stub>>
       notification_listener_stub_pool_;
   std::mutex channel_pool_mutex_;
-  std::mutex object_location_mutex_;
 
   // thread pool for launching tasks
   ctpl::thread_pool thread_pool_;
 
   std::mutex object_dependencies_mutex_;
   std::unordered_map<ObjectID, std::shared_ptr<ObjectDependency>> object_dependencies_;
+
+  // for reduce tasks
+  ReduceManager reduce_manager_;
 };
 
 NotificationServiceImpl::NotificationServiceImpl(const int notification_listener_port)
@@ -151,9 +182,7 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
   TIMELINE("[object directory server] handle_object_ready");
   std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
   std::string inband_data = dep->GetInbandData();
-
-  std::lock_guard<std::mutex> l(object_location_mutex_);
-  std::queue<ReceiverQueueElement> &q = pending_receiver_ips_[object_id];
+  std::queue<ReceiverQueueElement> q = pending_queue_.PopQueue(object_id);
   while (!q.empty()) {
     ReceiverQueueElement &receiver = q.front();
     std::string receiver_ip = receiver.receiver_ip;
@@ -229,11 +258,7 @@ grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *conte
     // this makes sure that no on completion event will happen before we queued our request
     sync_mutex = std::make_shared<std::mutex>();
     sync_mutex->lock();
-    {
-      std::lock_guard<std::mutex> lock(object_location_mutex_);
-      pending_receiver_ips_[object_id].emplace(
-          ReceiverQueueElement{ReceiverQueueElement::SYNC, sync_mutex, reply, receiver_ip, {}, request->occupying()});
-    }
+    pending_queue_.EnqueueGetLocationSync(object_id, sync_mutex, reply, receiver_ip, request->occupying());
   });
   if (!success) {
     LOG(DEBUG) << "The location of " << object_id.ToString()
@@ -268,9 +293,7 @@ grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *cont
     std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
     bool success = dep->Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
       // this makes sure that no on completion event will happen before we queued our request
-      std::lock_guard<std::mutex> lock(object_location_mutex_);
-      pending_receiver_ips_[object_id].emplace(ReceiverQueueElement{
-          ReceiverQueueElement::ASYNC, {}, NULL, receiver_ip, request->query_id(), request->occupying()});
+      pending_queue_.EnqueueGetLocationAsync(object_id, receiver_ip, request->query_id(), request->occupying());
     });
     if (success) {
       // Batching replies to asynchronous get_location call
