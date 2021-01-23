@@ -59,6 +59,13 @@ public:
   grpc::Status HandlePullObjectFailure(grpc::ServerContext *context, const HandlePullObjectFailureRequest *request,
                                        HandlePullObjectFailureReply *reply);
 
+  void InvokePullAndReduceObject(const std::string &receiver_ip, const ObjectID &reduction_id, bool is_tree_branch,
+                                 const std::string &sender_ip, bool from_left_child);
+
+  void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node);
+
+  void ReduceInbandObject(const std::string &receiver_ip, const std::string &inband_data);
+
 private:
   bool send_notification(const std::string &receiver_ip, const GetLocationAsyncAnswerRequest &request);
 
@@ -219,29 +226,36 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
     } break;
     case ReceiverQueueElement::REDUCE: {
       if (inband_data.empty()) {
-        std::vector<Node *> nodes = reduce_manager_.AddObject(object_id, object_size, owner_ip);
-        for (auto& n: nodes) {
+        auto results = reduce_manager_.AddObject(object_id, object_size, owner_ip);
+        for (auto &r : results) {
+          Node *n = r.first;
+          ObjectID &reduction_id = r.second;
           // check if we have a child dependency
           if (n->left_child && n->left_child->location_known()) {
-            // receive(n, n->left_child, left)
+            InvokePullAndReduceObject(n, n->left_child, reduction_id);
           }
           if (n->right_child && n->right_child->location_known()) {
             LOG(FATAL) << "This case should not exist";
           }
           // check if we have a parent dependency
           if (n->parent && n->parent->location_known()) {
-            if (n->parent->left_child == n) {
-              // receive(n->parent, n, left)
-            } else {
-              // receive(n->parent, n, right)
-            }
+            InvokePullAndReduceObject(n->parent, n, reduction_id);
           }
         }
       } else {
-        std::vector<InbandDataNode *> nodes = reduce_manager_.AddInbandObject(object_id, std::move(inband_data));
-        for (auto& n: nodes) {
+        auto results = reduce_manager_.AddInbandObject(object_id, std::move(inband_data));
+        for (auto &r : results) {
+          InbandDataNode *n = r.first;
           if (n->finished) {
-            // TODO(siyuan): send: n->owner_ip; n->reduced_inband_data
+            ObjectID reduction_id = r.second;
+            std::string receiver_ip = n->owner_ip;
+            // n->reduced_inband_data
+            std::string reduced_inband_data = n->get_inband_data();
+            thread_pool_.push(
+                [this, reduction_id, receiver_ip](int id, std::string reduced_inband_data) {
+                  ReduceInbandObject(reduction_id, receiver_ip, reduced_inband_data);
+                },
+                std::move(reduced_inband_data));
           }
         }
       }
@@ -363,6 +377,48 @@ bool NotificationServiceImpl::send_notification(const std::string &receiver_ip,
   GetLocationAsyncAnswerReply reply;
   stub->GetLocationAsyncAnswer(&context, request, &reply);
   return reply.ok();
+}
+
+void NotificationServiceImpl::InvokePullAndReduceObject(const std::string &receiver_ip, const ObjectID &reduction_id,
+                                                        bool is_tree_branch, const std::string &sender_ip,
+                                                        bool from_left_child) {
+  TIMELINE("notification InvokePullAndReduceObject");
+  auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
+  objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
+  grpc::ClientContext context;
+  PullAndReduceObjectRequest request;
+  request.set_reduction_id(reduction_id.Binary());
+  request.set_is_tree_branch(is_tree_branch);
+  request.set_sender_ip(sender_ip);
+  request.set_from_left_child(from_left_child);
+  PullAndReduceObjectReply reply;
+  auto status = stub->PullAndReduceObject(&context, request, &reply);
+  DCHECK(status.ok());
+}
+
+void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,
+                                                        const ObjectID &reduction_id) {
+  std::string receiver_ip = receiver_node->owner_ip;
+  std::string sender_ip = sender_node->owner_ip;
+  bool is_tree_branch = receiver_node->is_tree_branch();
+  bool from_left_child = (receiver_node->left_child == sender_node);
+  thread_pool_.push([this, receiver_ip, reduction_id, sender_ip, is_tree_branch, from_left_child](int id) {
+    InvokePullAndReduceObject(receiver_ip, reduction_id, is_tree_branch, sender_ip, from_left_child);
+  });
+}
+
+void NotificationServiceImpl::ReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
+                                                 const std::string &inband_data) {
+  TIMELINE("notification ReduceInbandObject");
+  auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
+  objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
+  grpc::ClientContext context;
+  ReduceInbandObjectRequest request;
+  request.set_reduction_id(reduction_id.Binary());
+  request.set_inband_data(inband_data);
+  ReduceInbandObjectReply reply;
+  auto status = stub->ReduceInbandObject(&context, request, &reply);
+  DCHECK(status.ok());
 }
 
 objectstore::NotificationListener::Stub *

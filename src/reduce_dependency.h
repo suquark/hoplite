@@ -24,9 +24,8 @@ struct Node {
   int subtree_size = -1;
   int order = -1;
 
-  bool location_known() {
-    return !owner_ip.empty();
-  }
+  bool is_tree_branch() const { return left_child && right_child; }
+  bool location_known() const { return !owner_ip.empty(); }
 
   // set finished recursively
   void set_finished() {
@@ -61,8 +60,11 @@ struct Node {
   }
 };
 
-struct InbandDataNode: Node {
+struct InbandDataNode : Node {
   std::vector<float> reduced_inband_data;
+  std::string get_inband_data() {
+    return std::string((char *)reduced_inband_data.data(), reduced_inband_data.size() * sizeof(float));
+  }
 };
 
 class ReduceTreeChain {
@@ -99,10 +101,10 @@ public:
 
   Node *AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip);
 
-  /// 
+  ///
   /// \return The destination node.
-  InbandDataNode* AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
-    float* data = (float*)inband_data.data();
+  InbandDataNode *AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
+    float *data = (float *)inband_data.data();
     size_t size = inband_data.size() / sizeof(float);
     if (reduced_inband_dst_.reduced_inband_data.empty()) {
       reduced_inband_dst_.reduced_inband_data = std::vector<float>(data, data + size);
@@ -123,9 +125,9 @@ public:
     return &reduced_inband_dst_;
   }
 
-  std::vector<float> &GetInbandReducedData() {
-    return reduced_inband_data_;
-  }
+  std::vector<float> &GetInbandReducedData() { return reduced_inband_data_; }
+
+  ObjectID GetReductionID() const { return reduction_id_; }
 
   void CompleteReduce(const std::string &receiver_ip);
 
@@ -160,27 +162,29 @@ public:
   /// \param[in] object_id The ID of the object.
   /// \param[in] object_size The size of the object.
   /// \param[in] owner_ip The address of the owner of the object.
-  /// \return All nodes associate with the object.
-  std::vector<Node *> AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip) {
-    std::vector<Node *> nodes;
+  /// \return All nodes+reduction_id associate with the object.
+  std::vector<std::pair<Node *, ObjectID>> AddObject(const ObjectID &object_id, int64_t object_size,
+                                                     const std::string &owner_ip) {
+    std::vector<std::pair<Node *, ObjectID>> nodes;
     if (object_id_to_tasks_.count(object_id)) {
       for (auto &task : object_id_to_tasks_[object_id]) {
         Node *n = task->AddObject(object_id, object_size, owner_ip);
         if (n) {
-          nodes.push_back(n);
+          nodes.push_back(std::make_pair(n, task->GetReductionID()));
         }
       }
     }
     return nodes;
   }
 
-  std::vector<InbandDataNode *> AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
-    std::vector<InbandDataNode *> nodes;
+  std::vector<std::pair<InbandDataNode *, ObjectID>> AddInbandObject(const ObjectID &object_id,
+                                                                     const std::string &inband_data) {
+    std::vector<std::pair<InbandDataNode *, ObjectID>> nodes;
     if (object_id_to_tasks_.count(object_id)) {
       for (auto &task : object_id_to_tasks_[object_id]) {
         InbandDataNode *n = task->AddInbandObject(object_id, inband_data);
         if (n) {
-          nodes.push_back(n);
+          nodes.push_back(std::make_pair(n, task->GetReductionID()));
         }
       }
     }

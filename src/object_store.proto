@@ -125,6 +125,8 @@ message GetLocationAsyncAnswerReply {
   bool ok = 1;
 }
 
+// broadcast fault tolerance API
+
 message HandlePullObjectFailureRequest {
   bytes object_id = 1;
   bytes receiver_ip = 2;
@@ -134,6 +136,28 @@ message HandlePullObjectFailureReply {
   bytes alternative_sender_ip = 1;
   bool success = 2;
 }
+
+// reduce API
+
+message PullAndReduceObjectRequest {
+  bytes reduction_id = 1;
+  bool is_tree_branch = 2;
+  bytes sender_ip = 3;
+  bool from_left_child = 4;
+}
+
+message PullAndReduceObjectReply {
+}
+
+message ReduceInbandObjectRequest {
+  bytes reduction_id = 1;
+  bytes inband_data = 2;
+}
+
+message ReduceInbandObjectReply {
+}
+
+// other API
 
 message ConnectRequest {
   bytes sender_ip = 1;
@@ -166,6 +190,6 @@ service NotificationServer {
 service NotificationListener {
   rpc ConnectListener(ConnectListenerRequest) returns (ConnectListenerReply);
   rpc GetLocationAsyncAnswer(GetLocationAsyncAnswerRequest) returns (GetLocationAsyncAnswerReply);
+  rpc PullAndReduceObject(PullAndReduceObjectRequest) returns (PullAndReduceObjectReply);
+  rpc ReduceInbandObject(ReduceInbandObjectRequest) returns (ReduceInbandObjectReply);
 }
-
-
