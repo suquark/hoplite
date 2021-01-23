@@ -69,12 +69,29 @@ void ObjectSender::listener_loop() {
     switch (message.message_type_case()) {
     case ObjectWriterRequest::kReceiveObject: {
       auto request = message.receive_object();
-      ObjectID object_id = ObjectID::FromBinary(request.object_id());
-      int ec = send_object(conn_fd, object_id, request.object_size(), request.offset());
-      if (ec) {
-        LOG(ERROR) << "[Sender] Failed to send object. " << strerror(errno) << ", error_code=" << errno << ")";
-      }
+      pool_.push(
+          [this, conn_fd](int tid, auto request) {
+            ObjectID object_id = ObjectID::FromBinary(request.object_id());
+            int ec = send_object(conn_fd, object_id, request.object_size(), request.offset());
+            if (ec) {
+              LOG(ERROR) << "[Sender] Failed to send object. " << strerror(errno) << ", error_code=" << errno << ")";
+            }
+          },
+          std::move(request));
     } break;
+    case ObjectWriterRequest::kReceiveReducedObjectRequest: {
+      auto request = message.receive_reduced_object();
+      pool_.push(
+          [this, conn_fd](int tid, auto request) {
+            ObjectID reduction_id = ObjectID::FromBinary(request.reduction_id());
+            int ec = send_reduced_object(conn_fd, reduction_id, request.object_size());
+            if (ec) {
+              LOG(ERROR) << "[Sender] Failed to send reduced object. " << strerror(errno) << ", error_code=" << errno
+                         << ")";
+            }
+          },
+          std::move(request));
+    }
     default:
       LOG(FATAL) << "unrecognized message type " << message.message_type_case();
     }
@@ -92,6 +109,21 @@ int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t ob
     LOG(DEBUG) << "[Sender] fetching a partial object: " << object_id.ToString();
   }
   int ec = stream_send<Buffer>(conn_fd, stream.get(), offset);
+  LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
+  close(conn_fd);
+  return ec;
+}
+
+int ObjectSender::send_reduced_object(int conn_fd, const ObjectID &reduction_id, int64_t object_size) {
+  TIMELINE("ObjectSender::send_reduced_object")
+  // fetch object from object_store_state
+  std::shared_ptr<Buffer> stream = state_.get_or_create_reduction_stream(reduction_id, size);
+  if (stream->IsFinished()) {
+    LOG(DEBUG) << "[Sender] fetched a completed object from local reduction_stream: " << object_id.ToString();
+  } else {
+    LOG(DEBUG) << "[Sender] fetched a partial object from reduction_stream: " << object_id.ToString();
+  }
+  int ec = stream_send<Buffer>(conn_fd, stream.get(), 0);
   LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
   return ec;

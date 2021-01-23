@@ -36,6 +36,10 @@ using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
 using objectstore::HandlePullObjectFailureReply;
 using objectstore::HandlePullObjectFailureRequest;
+using objectstore::PullAndReduceObjectReply;
+using objectstore::PullAndReduceObjectRequest;
+using objectstore::ReduceInbandObjectReply;
+using objectstore::ReduceInbandObjectRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 

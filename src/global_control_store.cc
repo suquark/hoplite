@@ -19,6 +19,10 @@ using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
 using objectstore::HandlePullObjectFailureReply;
 using objectstore::HandlePullObjectFailureRequest;
+using objectstore::PullAndReduceObjectReply;
+using objectstore::PullAndReduceObjectRequest;
+using objectstore::ReduceInbandObjectReply;
+using objectstore::ReduceInbandObjectRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -55,6 +59,20 @@ public:
   grpc::Status ConnectListener(grpc::ServerContext *context, const ConnectListenerRequest *request,
                                ConnectListenerReply *reply) {
     TIMELINE("ConnectListener");
+    return grpc::Status::OK;
+  }
+
+  grpc::Status PullAndReduceObject(grpc::ServerContext *context, const PullAndReduceObjectRequest *request,
+                                   PullAndReduceObjectReply *reply) {
+    TIMELINE("PullAndReduceObject");
+
+    return grpc::Status::OK;
+  }
+
+  grpc::Status ReduceInbandObject(grpc::ServerContext *context, const ReduceInbandObjectRequest *request,
+                                  ReduceInbandObjectReply *reply) {
+    TIMELINE("ReduceInbandObject");
+
     return grpc::Status::OK;
   }
 

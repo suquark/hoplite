@@ -57,10 +57,16 @@ message ReceiveAndReduceObjectRequest {
   bool is_endpoint = 3;
 }
 
+message ReceiveReducedObjectRequest {
+  bytes reduction_id = 1;
+  int64 object_size = 2;
+}
+
 message ObjectWriterRequest {
   oneof message_type {
     ReceiveObjectRequest receive_object = 1;
     ReceiveAndReduceObjectRequest receive_and_reduce_object = 2;
+    ReceiveReducedObjectRequest receive_reduced_object = 3;
   }
 }
 

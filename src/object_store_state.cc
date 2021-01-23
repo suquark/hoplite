@@ -19,6 +19,20 @@ std::shared_ptr<Buffer> ObjectStoreState::get_reduction_stream(const ObjectID &r
   return reduction_stream_[reduction_id];
 }
 
+std::shared_ptr<Buffer> ObjectStoreState::get_or_create_reduction_stream(const ObjectID &reduction_id, size_t size) {
+  std::unique_lock<std::mutex> l(reduction_stream_mutex_);
+  auto search = reduction_stream_.find(reduction_id);
+  if (search == reduction_stream_.end()) {
+    auto stream = std::make_shared<Buffer>(size);
+    reduction_stream_[reduction_id] = stream;
+    l.unlock();
+    reduction_stream_cv_.notify_all();
+    return stream;
+  } else {
+    return search->second;
+  }
+}
+
 void ObjectStoreState::release_reduction_stream(const ObjectID &reduction_id) {
   std::unique_lock<std::mutex> l(reduction_stream_mutex_);
   // release the memory
