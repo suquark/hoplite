@@ -109,7 +109,7 @@ int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t ob
 int ObjectSender::send_reduced_object(int conn_fd, const ObjectID &reduction_id, int64_t object_size, int64_t offset) {
   TIMELINE("ObjectSender::send_reduced_object");
   // fetch object from object_store_state
-  std::shared_ptr<Buffer> stream = state_.get_or_create_reduction_stream(reduction_id, size);
+  std::shared_ptr<Buffer> stream = state_.get_or_create_reduction_stream(reduction_id, object_size);
   if (stream->IsFinished()) {
     LOG(DEBUG) << "[Sender] fetched a completed object from local reduction_stream: " << reduction_id.ToString();
   } else {

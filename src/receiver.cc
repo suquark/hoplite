@@ -239,7 +239,7 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
       // This is the endpoint. The local object should have been created.
       task->target_stream = local_store_client_.GetBufferNoExcept(reduction_id);
     } else {
-      task->target_stream = state_.get_or_create_reduction_stream(reduction_id);
+      task->target_stream = state_.get_or_create_reduction_stream(reduction_id, object_size);
     }
   }
   if (is_tree_branch && !task->left_stream) {

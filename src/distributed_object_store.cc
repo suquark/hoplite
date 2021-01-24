@@ -74,7 +74,7 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
     : my_address_(my_address), gcs_client_{notification_server_address, my_address_, notification_server_port},
       local_store_client_{false, plasma_socket}, object_sender_{state_, gcs_client_, local_store_client_, my_address_},
       receiver_{state_, gcs_client_, local_store_client_, my_address_, object_writer_port},
-      notification_listener_(my_address_, notification_listen_port, receiver_), grpc_port_(grpc_port),
+      notification_listener_(my_address_, notification_listen_port, state_, receiver_), grpc_port_(grpc_port),
       grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)), pool_(HOPLITE_THREADPOOL_SIZE_FOR_RPC) {
   TIMELINE("DistributedObjectStore construction function");
   // Creating the first random ObjectID will initialize the random number
@@ -172,8 +172,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
   }
   DCHECK(local_objects.size() <= 1);
 
-  auto status = gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
-  DCHECK(status.ok());
+  gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
 
   state_.create_local_reduce_task(reduction_id, local_objects);
   // this is not necessary, but we can create the reduction object ahead of time
