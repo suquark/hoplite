@@ -205,8 +205,9 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
         // now we can publish the reduction id
         if (!n->parent->is_root()) {
           auto dep = get_dependency(reduction_id);
-          if (!dep.Available(reduction_id)) {
-            dep->HandleCompletion(n->parent->owner_ip, request->object_size());
+          // the root could be registered twice, so we check the availability first
+          if (!dep->Available()) {
+            dep->HandleCompletion(n->parent->owner_ip, object_size);
           }
         }
       }
