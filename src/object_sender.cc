@@ -84,7 +84,7 @@ void ObjectSender::listener_loop() {
       pool_.push(
           [this, conn_fd](int tid, auto request) {
             ObjectID reduction_id = ObjectID::FromBinary(request.reduction_id());
-            int ec = send_reduced_object(conn_fd, reduction_id, request.object_size());
+            int ec = send_reduced_object(conn_fd, reduction_id, request.object_size(), request.offset());
             if (ec) {
               LOG(ERROR) << "[Sender] Failed to send reduced object. " << strerror(errno) << ", error_code=" << errno
                          << ")";

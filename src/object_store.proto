@@ -60,6 +60,7 @@ message ReceiveAndReduceObjectRequest {
 message ReceiveReducedObjectRequest {
   bytes reduction_id = 1;
   int64 object_size = 2;
+  int64 offset = 3;
 }
 
 message ObjectWriterRequest {
@@ -150,6 +151,10 @@ message PullAndReduceObjectRequest {
   bool is_tree_branch = 2;
   bytes sender_ip = 3;
   bool from_left_child = 4;
+  // The ObjectID of the receiver.
+  bytes object_id_to_reduce = 5;
+  // The ObjectID of the sender.
+  bytes object_id_to_pull = 6;
 }
 
 message PullAndReduceObjectReply {

@@ -63,10 +63,8 @@ public:
   grpc::Status HandlePullObjectFailure(grpc::ServerContext *context, const HandlePullObjectFailureRequest *request,
                                        HandlePullObjectFailureReply *reply);
 
-  void InvokePullAndReduceObject(const std::string &receiver_ip, const ObjectID &reduction_id, bool is_tree_branch,
-                                 const std::string &sender_ip, bool from_left_child);
-
-  void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node);
+  void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
+                                 int64_t object_size);
 
   void InvokeReduceInbandObject(const std::string &receiver_ip, const std::string &inband_data);
 
@@ -236,14 +234,14 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
           ObjectID &reduction_id = r.second;
           // check if we have a child dependency
           if (n->left_child && n->left_child->location_known()) {
-            InvokePullAndReduceObject(n, n->left_child, reduction_id);
+            InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size);
           }
           if (n->right_child && n->right_child->location_known()) {
             LOG(FATAL) << "This case should not exist";
           }
           // check if we have a parent dependency
           if (n->parent && n->parent->location_known()) {
-            InvokePullAndReduceObject(n->parent, n, reduction_id);
+            InvokePullAndReduceObject(n->parent, n, reduction_id, object_size);
           }
         }
       } else {
@@ -383,31 +381,24 @@ bool NotificationServiceImpl::send_notification(const std::string &receiver_ip,
   return reply.ok();
 }
 
-void NotificationServiceImpl::InvokePullAndReduceObject(const std::string &receiver_ip, const ObjectID &reduction_id,
-                                                        bool is_tree_branch, const std::string &sender_ip,
-                                                        bool from_left_child) {
-  TIMELINE("notification InvokePullAndReduceObject");
-  auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
-  objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
-  grpc::ClientContext context;
-  PullAndReduceObjectRequest request;
-  request.set_reduction_id(reduction_id.Binary());
-  request.set_is_tree_branch(is_tree_branch);
-  request.set_sender_ip(sender_ip);
-  request.set_from_left_child(from_left_child);
-  PullAndReduceObjectReply reply;
-  auto status = stub->PullAndReduceObject(&context, request, &reply);
-  DCHECK(status.ok());
-}
-
 void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,
-                                                        const ObjectID &reduction_id) {
-  std::string receiver_ip = receiver_node->owner_ip;
-  std::string sender_ip = sender_node->owner_ip;
-  bool is_tree_branch = receiver_node->is_tree_branch();
-  bool from_left_child = (receiver_node->left_child == sender_node);
-  thread_pool_.push([this, receiver_ip, reduction_id, sender_ip, is_tree_branch, from_left_child](int id) {
-    InvokePullAndReduceObject(receiver_ip, reduction_id, is_tree_branch, sender_ip, from_left_child);
+                                                        const ObjectID &reduction_id, int64_t object_size) {
+  thread_pool_.push([this, receiver_node, sender_node, reduction_id, object_size](int id) {
+    TIMELINE("notification InvokePullAndReduceObject");
+    auto remote_address = receiver_node->owner_ip + ":" + std::to_string(notification_listener_port_);
+    objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
+    grpc::ClientContext context;
+    PullAndReduceObjectRequest request;
+    request.set_reduction_id(reduction_id.Binary());
+    request.set_is_tree_branch(receiver_node->is_tree_branch());
+    request.set_sender_ip(sender_node->owner_ip);
+    request.set_from_left_child(receiver_node->left_child == sender_node);
+    request.set_object_size(object_size);
+    request.set_object_id_to_reduce(receiver_node->object_id.Binary());
+    request.set_object_id_to_pull(sender_node->object_id.Binary());
+    PullAndReduceObjectReply reply;
+    auto status = stub->PullAndReduceObject(&context, request, &reply);
+    DCHECK(status.ok());
   });
 }
 

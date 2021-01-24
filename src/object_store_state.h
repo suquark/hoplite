@@ -11,18 +11,6 @@
 #include "common/buffer.h"
 #include "common/id.h"
 
-class ReduceTaskRoot {};
-
-class ReduceTaskMiddlePoint {
-public:
-  int left_child_recv_fd = -1;
-  int right_child_recv_fd = -1;
-  std::thread left_recv_thread_;
-  std::thread right_recv_thread_;
-};
-
-class ClientReduceManager {};
-
 class ObjectStoreState {
 
 public:

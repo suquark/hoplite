@@ -7,6 +7,7 @@
 
 using objectstore::ObjectWriterRequest;
 using objectstore::ReceiveObjectRequest;
+using objectstore::ReceiveReducedObjectRequest;
 
 Receiver::Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
                    const std::string &my_address, int port)
@@ -96,4 +97,139 @@ void Receiver::pull_object(const ObjectID &object_id) {
     }
     local_store_client_.Seal(object_id);
   }
+}
+
+int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child) {
+  TIMELINE(std::string("Receiver::receive_object() ") + reduction_id_.ToString());
+  Buffer *stream;
+  if (is_left_child) {
+    if (!is_tree_branch) {
+      // directly reduced to the target stream
+      stream = target_stream.get();
+    } else {
+      // reduced to the left stream temporarily, and the right child thread will reduce it to the target stream
+      stream = left_stream.get();
+    }
+  } else {
+    // directly reduced to the target stream
+    stream = target_stream.get();
+  }
+  LOG(DEBUG) << "start receiving object " << reduction_id_.ToString() << " from " << sender_ip
+             << ", size = " << stream->Size() << ", intial_progress=" << stream->progress;
+  int conn_fd;
+  int ec = tcp_connect(sender_ip, sender_port, &conn_fd);
+  if (ec) {
+    LOG(ERROR) << "Failed to connect to sender (ip=" << sender_ip << ", port=" << sender_port << ").";
+    return ec;
+  }
+  if (is_left_child) {
+    left_recv_conn_fd_ = conn_fd;
+  } else {
+    right_recv_conn_fd_ = conn_fd;
+  }
+  // send request
+  ObjectWriterRequest req;
+  auto ro_request = new ReceiveReducedObjectRequest();
+  ro_request->reduction_id(reduction_id_.Binary());
+  ro_request->set_object_size(stream->Size());
+  ro_request->set_offset(stream->progress);
+  req.set_allocated_receive_reduced_object(ro_request);
+  SendProtobufMessage(conn_fd, req);
+
+  if (intended_reset_) {
+    // when the outside code close the fd, the fd may not have been closed. double check and handle it here
+    close(conn_fd);
+    return -1;
+  }
+
+  // start receiving object
+#ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
+  DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
+      << "Cannot enable non-blocking for the socket (errno = " << errno << ").";
+#endif
+  if (is_left_child) {
+    ec = stream_reduce_add<Buffer, float>(conn_fd, stream, *local_object, stream->progress);
+  } else {
+    ec = stream_reduce_add<Buffer, float>(conn_fd, stream, *left_stream, stream->progress);
+  }
+  LOG(DEBUG) << "receive " << object_id.ToString() << " done, error_code=" << ec;
+  close(conn_fd);
+  return ec;
+}
+
+void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_child) {
+  DCHECK(!is_left_child && is_tree_branch);
+  auto func = [&, sender_ip]() {
+    int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
+    if (ec) {
+      if (!intended_reset_) {
+        LOG(FATAL) << "Failed to receive " << object_id.ToString() << " from sender " << sender_ip;
+        // TODO(siyuan): handle failure.
+      } else {
+        LOG(INFO) << "Intended reset receiving " << object_id.ToString() << " from sender " << sender_ip;
+      }
+    }
+  } if (is_left_child) {
+    DCHECK(!left_recv_thread.joinable());
+    left_sender_ip_ = sender_ip;
+    left_recv_thread_ = std::thread(func);
+  }
+  else {
+    DCHECK(!left_recv_thread.joinable());
+    right_recv_thread_ = std::thread(func);
+    right_sender_ip_ = sender_ip;
+  }
+}
+
+void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_left_child) {
+  intended_reset_ = true;
+  close(left_recv_conn_fd_);
+  close(right_recv_conn_fd_);
+  if (left_recv_thread_.joinable()) {
+    left_recv_thread_.join();
+  }
+  if (right_recv_thread_.joinable()) {
+    right_recv_thread_.join();
+  }
+  intended_reset_ = false;
+  // target stream is required to reset anyway
+  target_stream->progress = 0;
+  if (is_left_child) {
+    start_recv(new_sender_ip, /*is_left_child=*/true);
+    start_recv(right_sender_ip_, /*is_left_child=*/false);
+  } else {
+    DCHECK(is_tree_branch);
+    right_stream->progress = 0;
+    start_recv(left_sender_ip_, /*is_left_child=*/true);
+    start_recv(new_sender_ip, /*is_left_child=*/false);
+  }
+}
+
+void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch,
+                                         const std::string &sender_ip, bool from_left_child, int64_t object_size,
+                                         const ObjectID &object_id_to_reduce, const ObjectID &object_id_to_pull) {
+  TIMELINE("Receiver::receive_and_reduce_object() ");
+  std::shared_ptr<ReduceReceiverTask> task;
+  if (!reduce_receiver_tasks_.count(reduction_id)) {
+    task = std::make_shared<ReduceReceiverTask>(is_tree_branch);
+    reduce_receiver_tasks_[reduction_id] = task;
+  } else {
+    task = reduce_receiver_tasks_[reduction_id];
+  }
+  if (!task->local_object) {
+    Status s = local_store_client_.GetBufferOrCreate(object_id, object_size, &task->local_object);
+    DCHECK(s.ok());
+  }
+  if (!task->target_stream) {
+    if (local_store_client_.ObjectExists(reduction_id, false)) {
+      // This is the endpoint. The local object should have been created.
+      task->target_stream = local_store_client_.GetBufferNoExcept(reduction_id);
+    } else {
+      task->target_stream = state_.get_or_create_reduction_stream(reduction_id);
+    }
+  }
+  if (is_tree_branch && !task->left_stream) {
+    task->left_stream = std::make_shared<Buffer>(target_stream->Size());
+  }
+  start_recv(sender_ip, from_left_child);
 }

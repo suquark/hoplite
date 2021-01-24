@@ -48,6 +48,10 @@ private:
   size_t cursor_ = 0;
 };
 
+class ReduceTaskRoot {};
+
+class ClientReduceManager {};
+
 class GlobalControlStoreClient {
 public:
   GlobalControlStoreClient(const std::string &notification_server_address, const std::string &my_address,

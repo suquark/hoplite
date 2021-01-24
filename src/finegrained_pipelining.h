@@ -92,3 +92,39 @@ template <typename T> inline int stream_send(int conn_fd, T *stream, int64_t off
   }
   return 0;
 }
+
+/// reduce(conn, dep_stream) -> stream
+template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add");
+  LOG(DEBUG) << "stream_reduce_add(), offset=" << offset;
+  int64_t receive_progress = offset;
+  const size_t element_size = sizeof(DT);
+  uint8_t *data_ptr = stream->MutableData();
+  uint8_t *dep_data_ptr = dep_stream.MutableData();
+  const int64_t object_size = stream->Size();
+  while (receive_progress < object_size) {
+    int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
+    if (status) {
+      // return the error
+      return status;
+    }
+    // reduce related objects
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+    auto progress = stream->progress.load();
+    auto dep_stream_progress = dep_stream.progress.load();
+#else
+    auto progress = stream->progress;
+    auto dep_stream_progress = dep_stream.progress;
+#endif
+    if (dep_stream_progress > progress) {
+      int64_t n_reduce_elements = (receive_progress - std::min(dep_stream_progress, receive_progress)) / element_size;
+      DT *cursor = static_cast<DT *>(data_ptr + progress);
+      const DT *own_data_cursor = static_cast<DT *>(dep_data_ptr + progress);
+      for (size_t i = 0; i < n_reduce_elements; i++) {
+        cursor[i] += own_data_cursor[i];
+      }
+      stream->progress += n_reduce_elements * element_size;
+    }
+  }
+  return 0;
+}
