@@ -220,12 +220,8 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
         ObjectID reduction_id = r.second;
         std::string receiver_ip = n->owner_ip;
         // n->reduced_inband_data
-        std::string reduced_inband_data = n->get_inband_data();
-        thread_pool_.push(
-            [this, receiver_ip, reduction_id](int id, std::string reduced_inband_data) {
-              InvokeReduceInbandObject(receiver_ip, reduction_id, reduced_inband_data);
-            },
-            std::move(reduced_inband_data));
+        auto dep = get_dependency(reduction_id);
+        dep->HandleInbandCompletion(n->get_inband_data());
       }
     }
   }

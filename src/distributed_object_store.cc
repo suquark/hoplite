@@ -171,12 +171,22 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
     }
   }
   DCHECK(local_objects.size() <= 1);
-  if (num_reduce_objects < 0) {
-    num_reduce_objects = objects_to_reduce.size();
-  }
+
   // this must be ahead of 'CreateReduceTask' to avoid concurrency issues
   // (e.g. local_reduce_task accessed before created).
   state_.create_local_reduce_task(reduction_id, local_objects);
+  if (local_objects.size() > 0) {
+    int64_t size = local_store_client_.GetBufferNoExcept(local_objects[0])->Size();
+    if (size <= inband_data_size_limit) {
+      // for inband data, we just let the object store handle for us
+      objects_to_reduce.push_back(local_objects[0]);
+      local_objects.pop_back();
+    }
+  }
+  if (num_reduce_objects < 0) {
+    // negative means all included
+    num_reduce_objects = objects_to_reduce.size();
+  }
   gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
   // this is not necessary, but we can create the reduction object ahead of time
   if (local_objects.size() > 0) {
