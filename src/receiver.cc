@@ -136,7 +136,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   ObjectWriterRequest req;
   if (is_sender_leaf) {
     auto ro_request = new ReceiveObjectRequest();
-    ro_request->set_object_id(is_left_child ? this->left_sender_object : this->right_sender_object);
+    ro_request->set_object_id(is_left_child ? this->left_sender_object.Binary() : this->right_sender_object.Binary());
     ro_request->set_object_size(stream->Size());
     ro_request->set_offset(stream->progress);
     req.set_allocated_receive_object(ro_request);
