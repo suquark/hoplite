@@ -83,7 +83,7 @@ void ObjectSender::listener_loop() {
             }
           },
           std::move(request));
-    }
+    } break;
     default:
       LOG(FATAL) << "unrecognized message type " << message.message_type_case();
     }
