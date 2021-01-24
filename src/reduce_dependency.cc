@@ -157,6 +157,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     rtc_.reset(new ReduceTreeChain(num_reduce_objects_ + 1, maximum_chain_length));
     // we initialize the root node here, because it could be skipped later
     Node *root = rtc_->GetRoot();
+    DCHECK(!root->parent);
     root->object_id = reduction_id_;
     root->owner_ip = reduce_dst_;
   }

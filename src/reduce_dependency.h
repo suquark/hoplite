@@ -82,7 +82,7 @@ public:
     if (tree_.size()) {
       return &tree_[0];
     } else {
-      return &chains_[0][0];
+      return &chains_[0].back();
     }
   }
 
