@@ -117,7 +117,7 @@ template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream,
     auto dep_stream_progress = dep_stream.progress;
 #endif
     if (dep_stream_progress > progress) {
-      int64_t n_reduce_elements = (receive_progress - std::min(dep_stream_progress, receive_progress)) / element_size;
+      int64_t n_reduce_elements = (std::min(dep_stream_progress, receive_progress) - progress) / element_size;
       DT *cursor = (DT *)(data_ptr + progress);
       const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
       for (size_t i = 0; i < n_reduce_elements; i++) {
@@ -125,6 +125,22 @@ template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream,
       }
       stream->progress += n_reduce_elements * element_size;
     }
+  }
+  while (!stream->IsFinished()) {
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+    auto progress = stream->progress.load();
+    auto dep_stream_progress = dep_stream.progress.load();
+#else
+    auto progress = stream->progress;
+    auto dep_stream_progress = dep_stream.progress;
+#endif
+    int64_t n_reduce_elements = (dep_stream_progress - progress) / element_size;
+    DT *cursor = (DT *)(data_ptr + progress);
+    const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
+    for (size_t i = 0; i < n_reduce_elements; i++) {
+      cursor[i] += own_data_cursor[i];
+    }
+    stream->progress += n_reduce_elements * element_size;
   }
   return 0;
 }
