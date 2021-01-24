@@ -174,9 +174,10 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
   if (num_reduce_objects < 0) {
     num_reduce_objects = objects_to_reduce.size();
   }
-  gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
-
+  // this must be ahead of 'CreateReduceTask' to avoid concurrency issues
+  // (e.g. local_reduce_task accessed before created).
   state_.create_local_reduce_task(reduction_id, local_objects);
+  gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
   // this is not necessary, but we can create the reduction object ahead of time
   if (local_objects.size() > 0) {
     int64_t size = local_store_client_.GetBufferNoExcept(local_objects[0])->Size();
