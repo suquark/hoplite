@@ -67,6 +67,8 @@ void ObjectSender::listener_loop() {
             int ec = send_object(conn_fd, object_id, request.object_size(), request.offset());
             if (ec) {
               LOG(ERROR) << "[Sender] Failed to send object. " << strerror(errno) << ", error_code=" << errno << ")";
+            } else {
+              LOG(DEBUG) << "[Sender] Send finished successfully.";
             }
           },
           std::move(request));
@@ -80,6 +82,8 @@ void ObjectSender::listener_loop() {
             if (ec) {
               LOG(ERROR) << "[Sender] Failed to send reduced object. " << strerror(errno) << ", error_code=" << errno
                          << ")";
+            } else {
+              LOG(DEBUG) << "[Sender] Send finished successfully.";
             }
           },
           std::move(request));

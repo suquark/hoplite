@@ -88,12 +88,13 @@ message HandlePullObjectFailureReply {
 
 message PullAndReduceObjectRequest {
   bytes reduction_id = 1;
-  bool is_tree_branch = 2;
+  bool is_tree_branch = 2;  // Is the receiver a tree branch node?
   bytes sender_ip = 3;
   bool from_left_child = 4;
   bytes object_id_to_reduce = 5;  // The ObjectID of the receiver.
   bytes object_id_to_pull = 6;  // The ObjectID of the sender.
   int64 object_size = 7;
+  bool is_sender_leaf = 8;  // Is the sender a leaf node?
 }
 
 message PullAndReduceObjectReply {

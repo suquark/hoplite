@@ -24,7 +24,8 @@ struct Node {
   int subtree_size = -1;
   int order = -1;
 
-  bool is_tree_branch() const { return left_child && right_child; }
+  bool is_tree_branch() const { return left_child != NULL && right_child != NULL; }
+  bool is_leaf() const { return left_child == NULL && right_child == NULL; }
   bool location_known() const { return !owner_ip.empty(); }
 
   // set finished recursively

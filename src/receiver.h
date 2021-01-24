@@ -21,11 +21,15 @@ struct ReduceReceiverTask {
       : reduction_id_(reduction_id), is_tree_branch_(is_tree_branch), intended_reset_(false), local_task_(local_task) {}
   volatile int left_recv_conn_fd_;
   volatile int right_recv_conn_fd_;
-  int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child);
+  int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child, bool is_sender_leaf);
 
   std::shared_ptr<Buffer> target_stream;
   std::shared_ptr<Buffer> local_object;
   std::shared_ptr<Buffer> left_stream;
+  bool is_left_sender_leaf = false;
+  ObjectID left_sender_object;
+  bool is_right_sender_leaf = false;
+  ObjectID right_sender_object;
 
   void start_recv(const std::string &sender_ip, bool is_left_child);
   void reset_recv(const std::string &new_sender_ip, bool is_left_child);
@@ -57,7 +61,8 @@ public:
   /// the reduce caller, where the receiver has no object to reduce.
   void receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch, const std::string &sender_ip,
                                  bool from_left_child, int64_t object_size, const ObjectID &object_id_to_reduce,
-                                 const ObjectID &object_id_to_pull, const std::shared_ptr<LocalReduceTask> &local_task);
+                                 const ObjectID &object_id_to_pull, bool is_sender_leaf,
+                                 const std::shared_ptr<LocalReduceTask> &local_task);
 
 private:
   /// Receive object from the sender. This is a low-level function. The object receiving

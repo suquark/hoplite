@@ -103,7 +103,9 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   TIMELINE(std::string("Receiver::receive_object() ") + reduction_id_.ToString());
   Buffer *stream;
   bool work_on_target_stream = true;
+  bool is_sender_leaf;
   if (is_left_child) {
+    is_sender_leaf = this->is_left_sender_leaf;
     if (!is_tree_branch_) {
       // directly reduced to the target stream
       stream = target_stream.get();
@@ -113,6 +115,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
       work_on_target_stream = false;
     }
   } else {
+    is_sender_leaf = this->is_right_sender_leaf;
     // directly reduced to the target stream
     stream = target_stream.get();
   }
@@ -131,11 +134,19 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   }
   // send request
   ObjectWriterRequest req;
-  auto ro_request = new ReceiveReducedObjectRequest();
-  ro_request->set_reduction_id(reduction_id_.Binary());
-  ro_request->set_object_size(stream->Size());
-  ro_request->set_offset(stream->progress);
-  req.set_allocated_receive_reduced_object(ro_request);
+  if (is_sender_leaf) {
+    auto ro_request = new ReceiveObjectRequest();
+    ro_request->set_object_id(is_left_child ? this->left_sender_object : this->right_sender_object);
+    ro_request->set_object_size(stream->Size());
+    ro_request->set_offset(stream->progress);
+    req.set_allocated_receive_object(ro_request);
+  } else {
+    auto ro_request = new ReceiveReducedObjectRequest();
+    ro_request->set_reduction_id(reduction_id_.Binary());
+    ro_request->set_object_size(stream->Size());
+    ro_request->set_offset(stream->progress);
+    req.set_allocated_receive_reduced_object(ro_request);
+  }
   SendProtobufMessage(conn_fd, req);
 
   if (intended_reset_) {
@@ -220,7 +231,7 @@ void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_le
 void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch,
                                          const std::string &sender_ip, bool from_left_child, int64_t object_size,
                                          const ObjectID &object_id_to_reduce, const ObjectID &object_id_to_pull,
-                                         const std::shared_ptr<LocalReduceTask> &local_task) {
+                                         bool is_sender_leaf, const std::shared_ptr<LocalReduceTask> &local_task) {
   TIMELINE("Receiver::receive_and_reduce_object() ");
   std::shared_ptr<ReduceReceiverTask> task;
   {
@@ -246,6 +257,13 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
   }
   if (is_tree_branch && !task->left_stream) {
     task->left_stream = std::make_shared<Buffer>(task->target_stream->Size());
+  }
+  if (from_left_child) {
+    task->is_left_sender_leaf = is_sender_leaf;
+    task->left_sender_object = object_id_to_pull;
+  } else {
+    task->is_right_sender_leaf = is_sender_leaf;
+    task->right_sender_object = object_id_to_pull;
   }
   task->start_recv(sender_ip, from_left_child);
 }

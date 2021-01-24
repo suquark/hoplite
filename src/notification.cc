@@ -364,6 +364,7 @@ void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_nod
     request.set_object_size(object_size);
     request.set_object_id_to_reduce(receiver_node->object_id.Binary());
     request.set_object_id_to_pull(sender_node->object_id.Binary());
+    request.set_is_sender_leaf(sender_node->is_leaf());
     PullAndReduceObjectReply reply;
     auto status = stub->PullAndReduceObject(&context, request, &reply);
     DCHECK(status.ok());
