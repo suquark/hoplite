@@ -51,10 +51,9 @@ public:
     TIMELINE("ReduceInbandObject");
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     std::shared_ptr<LocalReduceTask> task = state_.get_local_reduce_task(reduction_id);
-    std::string &inband_data = request->inband_data();
     std::shared_ptr<Buffer> buffer;
-    local_store_client_->GetBufferOrCreate(reduction_id, inband_data.size(), &buffer);
-    buffer->CopyFrom(inband_data);
+    local_store_client_.GetBufferOrCreate(reduction_id, request->inband_data().size(), &buffer);
+    buffer->CopyFrom(request->inband_data());
     task->NotifyFinished();
     return grpc::Status::OK;
   }
