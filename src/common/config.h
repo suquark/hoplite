@@ -20,9 +20,14 @@
 // Maximum inflow concurrency for a node
 #define HOPLITE_MAX_INFLOW_CONCURRENCY 2
 
+// Maximum outflow concurrency for a node
+#define HOPLITE_MAX_OUTLOW_CONCURRENCY 2
+
 // The thread pool size for the distributed store to launch
 // RPCs like `InvokeReduceTo` and `InvokeRedirectReduce`.
 #define HOPLITE_THREADPOOL_SIZE_FOR_RPC 10
+
+#define HOPLITE_MULTITHREAD_REDUCE_SIZE (1 << 28)
 
 // Make the Put() call blocking on 'WriteLocation'
 #ifndef HOPLITE_PUT_BLOCKING

@@ -3,31 +3,6 @@ syntax = "proto3";
 package objectstore;
 
 // Object Control Protocol
-
-message ReduceToRequest {
-  bytes reduction_id = 1;
-  oneof reduction_source {
-    bytes src_object_id = 2;
-  }
-  repeated bytes dst_object_ids = 3;
-  bytes dst_address = 4;
-  bool is_endpoint = 5;
-}
-
-message ReduceToReply {
-  bool ok = 1;
-}
-
-message RedirectReduceRequest {
-  bytes reduction_id = 1;
-  repeated bytes object_ids = 2;
-  int64 num_reduce_objects = 3;
-}
-
-message RedirectReduceReply {
-  bool ok = 1;
-}
-
 message RemoteGetReducedObjectsRequest {
   bytes reduction_id = 1;
 }
@@ -37,8 +12,6 @@ message RemoteGetReducedObjectsReply {
 }
 
 service ObjectStore {
-  rpc ReduceTo(ReduceToRequest) returns (ReduceToReply);
-  rpc RedirectReduce(RedirectReduceRequest) returns (RedirectReduceReply);
   rpc RemoteGetReducedObjects(RemoteGetReducedObjectsRequest)
       returns (RemoteGetReducedObjectsReply);
 }
@@ -51,16 +24,16 @@ message ReceiveObjectRequest {
   int64 offset = 3;
 }
 
-message ReceiveAndReduceObjectRequest {
+message ReceiveReducedObjectRequest {
   bytes reduction_id = 1;
-  repeated bytes object_ids = 2;
-  bool is_endpoint = 3;
+  int64 object_size = 2;
+  int64 offset = 3;
 }
 
 message ObjectWriterRequest {
   oneof message_type {
     ReceiveObjectRequest receive_object = 1;
-    ReceiveAndReduceObjectRequest receive_and_reduce_object = 2;
+    ReceiveReducedObjectRequest receive_reduced_object = 2;
   }
 }
 
@@ -99,31 +72,7 @@ message GetLocationSyncReply {
   bytes inband_data = 3;
 }
 
-message GetLocationAsyncRequest {
-  repeated bytes object_ids = 1;
-  bytes receiver_ip = 2;
-  bytes query_id = 3;
-  bool occupying = 4;
-}
-
-message GetLocationAsyncReply {
-  bool ok = 1;
-}
-
-message GetLocationAsyncAnswerRequest {
-  message ObjectInfo {
-    bytes object_id = 1;
-    bytes sender_ip = 2;
-    bytes query_id = 3;
-    int64 object_size = 4;
-    bytes inband_data = 5;
-  }
-  repeated ObjectInfo objects = 1;
-}
-
-message GetLocationAsyncAnswerReply {
-  bool ok = 1;
-}
+// broadcast fault tolerance API
 
 message HandlePullObjectFailureRequest {
   bytes object_id = 1;
@@ -134,6 +83,42 @@ message HandlePullObjectFailureReply {
   bytes alternative_sender_ip = 1;
   bool success = 2;
 }
+
+// reduce API
+
+message PullAndReduceObjectRequest {
+  bytes reduction_id = 1;
+  bool is_tree_branch = 2;  // Is the receiver a tree branch node?
+  bytes sender_ip = 3;
+  bool from_left_child = 4;
+  bytes object_id_to_reduce = 5;  // The ObjectID of the receiver.
+  bytes object_id_to_pull = 6;  // The ObjectID of the sender.
+  int64 object_size = 7;
+  bool is_sender_leaf = 8;  // Is the sender a leaf node?
+}
+
+message PullAndReduceObjectReply {
+}
+
+message ReduceInbandObjectRequest {
+  bytes reduction_id = 1;
+  bytes inband_data = 2;
+}
+
+message ReduceInbandObjectReply {
+}
+
+message CreateReduceTaskRequest {
+  bytes reduce_dst = 1;
+  repeated bytes objects_to_reduce = 2;
+  bytes reduction_id = 3;
+  int32 num_reduce_objects = 4;
+}
+
+message CreateReduceTaskReply {
+}
+
+// other API
 
 message ConnectRequest {
   bytes sender_ip = 1;
@@ -159,13 +144,12 @@ service NotificationServer {
   rpc Connect(ConnectRequest) returns (ConnectReply);
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
-  rpc GetLocationAsync(GetLocationAsyncRequest) returns (GetLocationAsyncReply);
   rpc HandlePullObjectFailure(HandlePullObjectFailureRequest) returns (HandlePullObjectFailureReply);
+  rpc CreateReduceTask(CreateReduceTaskRequest) returns (CreateReduceTaskReply);
 }
 
 service NotificationListener {
   rpc ConnectListener(ConnectListenerRequest) returns (ConnectListenerReply);
-  rpc GetLocationAsyncAnswer(GetLocationAsyncAnswerRequest) returns (GetLocationAsyncAnswerReply);
+  rpc PullAndReduceObject(PullAndReduceObjectRequest) returns (PullAndReduceObjectReply);
+  rpc ReduceInbandObject(ReduceInbandObjectRequest) returns (ReduceInbandObjectReply);
 }
-
-

@@ -17,9 +17,9 @@
 // components headers
 #include "global_control_store.h"
 #include "local_store_client.h"
+#include "notification_listener.h"
 #include "object_sender.h"
 #include "object_store_state.h"
-#include "object_writer.h"
 #include "receiver.h"
 #include "util/ctpl_stl.h"
 
@@ -49,32 +49,10 @@ public:
 
   std::unordered_set<ObjectID> GetUnreducedObjects(const ObjectID &reduction_id);
 
-  inline void join_tasks() {
-    object_sender_thread_.join();
-    object_control_thread_.join();
-    notification_thread_.join();
-  }
+  void join_tasks() { object_control_thread_.join(); }
 
 private:
   void worker_loop();
-
-  // we do not use reference for its parameters because it will be executed
-  // in a thread.
-  void poll_and_reduce(const std::vector<ObjectID> object_ids, const ObjectID reduction_id, ssize_t num_reduce_objects);
-
-  std::unordered_set<ObjectID> poll_and_reduce_pipe_impl(const std::shared_ptr<ObjectNotifications> &notifications,
-                                                         const std::vector<ObjectID> &notification_candidates,
-                                                         std::vector<ObjectID> &local_object_ids,
-                                                         const int64_t object_size,
-                                                         const std::shared_ptr<Buffer> &buffer,
-                                                         const ObjectID &reduction_id, ssize_t num_reduce_objects);
-
-  std::unordered_set<ObjectID> poll_and_reduce_grid_impl(const std::shared_ptr<ObjectNotifications> &notifications,
-                                                         const std::vector<ObjectID> &notification_candidates,
-                                                         std::vector<ObjectID> &local_object_ids,
-                                                         const int64_t object_size,
-                                                         const std::shared_ptr<Buffer> &buffer,
-                                                         const ObjectID &reduction_id, ssize_t num_reduce_objects);
 
   template <typename T> void reduce_local_objects(const std::vector<ObjectID> &object_ids, Buffer *output) {
     DCHECK(output->Size() % sizeof(T) == 0) << "Buffer size cannot be divide whole by the element size";
@@ -108,20 +86,13 @@ private:
   ObjectStoreState state_;
   GlobalControlStoreClient gcs_client_;
   LocalStoreClient local_store_client_;
-  TCPServer object_writer_;
   ObjectSender object_sender_;
   Receiver receiver_;
+  NotificationListener notification_listener_;
 
   ////////////////////////////////////////////////////////////////////////////////
   // Object Control
   ////////////////////////////////////////////////////////////////////////////////
-
-  bool InvokeReduceTo(const std::string &remote_address, const ObjectID &reduction_id,
-                      const std::vector<ObjectID> &dst_object_ids, const std::string &dst_address, bool is_endpoint,
-                      const ObjectID *src_object_id = nullptr);
-
-  bool InvokeRedirectReduce(const std::string &remote_address, const std::vector<ObjectID> &object_ids,
-                            const ObjectID &reduction_id, ssize_t num_reduce_objects);
 
   // Helper function for getting reduced objects from a remote node. This is
   // used by the grid implementation.
@@ -145,23 +116,16 @@ private:
   void create_stub(const std::string &remote_grpc_address);
   // the thread running the gRPC service
   std::thread object_control_thread_;
-  // a thread pool for submitting gRPC calls
-  ctpl::thread_pool pool_;
 
   ////////////////////////////////////////////////////////////////////////////////
   // Own data fields of the object store
   ////////////////////////////////////////////////////////////////////////////////
 
   // A map for currently working reduction tasks.
-  std::mutex reduction_tasks_mutex_;
-  std::unordered_map<ObjectID, std::thread> reduction_tasks_;
   std::mutex reduced_objects_mutex_;
   std::condition_variable reduced_objects_cv_;
   std::unordered_map<ObjectID, std::unordered_set<ObjectID>> reduced_objects_;
   std::unordered_map<ObjectID, std::unordered_set<ObjectID>> unreduced_objects_;
-  std::thread object_writer_thread_;
-  std::thread object_sender_thread_;
-  std::thread notification_thread_;
 };
 
 #endif // DISTRIBUTED_OBJECT_STORE_H

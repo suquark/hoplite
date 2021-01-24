@@ -52,6 +52,8 @@ bool ObjectDependency::Get(const std::string &receiver, bool occupying, int64_t 
   return get_impl_(receiver, occupying, object_size, sender, inband_data, on_fail);
 }
 
+bool ObjectDependency::Available() const { return !inband_data_.empty() || available_keys_.size() > 0; }
+
 bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
                                  std::string *inband_data, std::function<void()> on_fail) {
   LOG(DEBUG) << "[Dependency] Get for " << receiver;
@@ -62,6 +64,7 @@ bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, in
   }
   if (available_keys_.size() <= 0) {
     if (on_fail != nullptr) {
+      LOG(DEBUG) << "[Dependency] Get failed for " << receiver;
       on_fail();
     }
     return false;

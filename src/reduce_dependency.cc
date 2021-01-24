@@ -5,8 +5,6 @@
 #include "common/config.h"
 #include "util/logging.h"
 
-// maximum_chain_length = object_size / (HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY);
-
 ReduceTreeChain::ReduceTreeChain(int64_t object_count, int64_t maximum_chain_length)
     : object_count_(object_count), maximum_chain_length_(maximum_chain_length) {
   int64_t k = maximum_chain_length;
@@ -149,4 +147,99 @@ std::string ReduceTreeChain::DebugString() {
   }
   s << "==============================================================" << std::endl;
   return s.str();
+}
+
+Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip) {
+  if (!rtc_) {
+    // we intialize it now because previously we do not know the object size
+    int64_t maximum_chain_length = round(double(object_size) / double(HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY));
+    // add one for the reduction result receiver
+    rtc_.reset(new ReduceTreeChain(num_reduce_objects_ + 1, maximum_chain_length));
+    // we initialize the root node here, because it could be skipped later
+    Node *root = rtc_->GetRoot();
+    DCHECK(!root->parent);
+    root->object_id = reduction_id_;
+    root->owner_ip = reduce_dst_;
+  }
+  if (num_ready_objects_ >= num_reduce_objects_ + 1) {
+    // We already have enough nodes in the tree. Push more into the backup node.
+    backup_objects_.push({object_id, owner_ip});
+    return NULL;
+  }
+  Node *n = rtc_->GetNode(num_ready_objects_);
+  if (n->is_root()) {
+    // skip the root node
+    ++num_ready_objects_;
+    if (num_ready_objects_ >= num_reduce_objects_ + 1) {
+      // We already have enough nodes in the tree. Push more into the backup node.
+      backup_objects_.push({object_id, owner_ip});
+      return NULL;
+    }
+    n = rtc_->GetNode(num_ready_objects_);
+  }
+  n->object_id = object_id;
+  n->owner_ip = owner_ip;
+  owner_to_node_[owner_ip] = n;
+  num_ready_objects_++;
+  return n;
+}
+
+InbandDataNode *ReduceTask::AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
+  float *data = (float *)inband_data.data();
+  size_t size = inband_data.size() / sizeof(float);
+  if (reduced_inband_dst_.reduced_inband_data.empty()) {
+    reduced_inband_dst_.reduced_inband_data = std::vector<float>(data, data + size);
+    reduced_inband_dst_.object_id = reduction_id_;
+    reduced_inband_dst_.owner_ip = reduce_dst_;
+  } else {
+    // if we have got enough objects, skip reducing
+    if (num_ready_objects_ < num_reduce_objects_) {
+      for (size_t i = 0; i < size; i++) {
+        reduced_inband_dst_.reduced_inband_data[i] += data[i];
+      }
+    }
+  }
+  num_ready_objects_++;
+  if (num_ready_objects_ >= num_reduce_objects_) {
+    reduced_inband_dst_.finished = true;
+  }
+  return &reduced_inband_dst_;
+}
+
+void ReduceTask::CompleteReduce(const std::string &receiver_ip) { owner_to_node_[receiver_ip]->set_finished(); }
+
+Node *ReduceTask::LocateFailure(const std::string &receiver_ip, bool left_child) {
+  if (left_child) {
+    return owner_to_node_[receiver_ip]->left_child;
+  } else {
+    return owner_to_node_[receiver_ip]->right_child;
+  }
+}
+
+std::vector<std::pair<Node *, ObjectID>> ReduceManager::AddObject(const ObjectID &object_id, int64_t object_size,
+                                                                  const std::string &owner_ip) {
+  std::vector<std::pair<Node *, ObjectID>> nodes;
+  if (object_id_to_tasks_.count(object_id)) {
+    for (auto &task : object_id_to_tasks_[object_id]) {
+      Node *n = task->AddObject(object_id, object_size, owner_ip);
+      if (n) {
+        nodes.push_back(std::make_pair(n, task->GetReductionID()));
+      }
+    }
+  }
+  return nodes;
+}
+
+std::vector<std::pair<InbandDataNode *, ObjectID>> ReduceManager::AddInbandObject(const ObjectID &object_id,
+                                                                                  const std::string &inband_data) {
+  std::vector<std::pair<InbandDataNode *, ObjectID>> nodes;
+  if (object_id_to_tasks_.count(object_id)) {
+    for (auto &task : object_id_to_tasks_[object_id]) {
+      InbandDataNode *n = task->AddInbandObject(object_id, inband_data);
+      if (n) {
+        nodes.push_back(std::make_pair(n, task->GetReductionID()));
+      }
+    }
+  }
+  return nodes;
 }
