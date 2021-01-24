@@ -73,7 +73,7 @@ void NotificationListener::Run() {
 
 void NotificationListener::Shutdown() {
   grpc_server_->Shutdown();
-  notification_thread_.join();
+  notification_listener_thread_.join();
 }
 
 void NotificationListener::worker_loop() {

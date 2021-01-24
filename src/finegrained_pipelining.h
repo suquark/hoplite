@@ -118,8 +118,8 @@ template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream,
 #endif
     if (dep_stream_progress > progress) {
       int64_t n_reduce_elements = (receive_progress - std::min(dep_stream_progress, receive_progress)) / element_size;
-      DT *cursor = static_cast<DT *>(data_ptr + progress);
-      const DT *own_data_cursor = static_cast<DT *>(dep_data_ptr + progress);
+      DT *cursor = (DT *)(data_ptr + progress);
+      const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
       for (size_t i = 0; i < n_reduce_elements; i++) {
         cursor[i] += own_data_cursor[i];
       }

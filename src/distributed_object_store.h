@@ -49,10 +49,7 @@ public:
 
   std::unordered_set<ObjectID> GetUnreducedObjects(const ObjectID &reduction_id);
 
-  void join_tasks() {
-    object_sender_thread_.join();
-    object_control_thread_.join();
-  }
+  void join_tasks() { object_control_thread_.join(); }
 
 private:
   void worker_loop();

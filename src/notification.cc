@@ -180,7 +180,7 @@ std::shared_ptr<ObjectDependency> NotificationServiceImpl::get_dependency(const 
   return object_dependencies_[object_id];
 }
 
-void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, int64 object_size,
+void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, int64_t object_size,
                                                     const std::string &owner_ip, const std::string &inband_data) {
   if (inband_data.empty()) {
     auto results = reduce_manager_.AddObject(object_id, object_size, owner_ip);
@@ -245,7 +245,7 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
       receiver.sync_mutex->unlock();
     } break;
     case ReceiverQueueElement::REDUCE: {
-      add_object_for_reduce(object_id, object_size, owner_ip, inband_data);
+      add_object_for_reduce(object_id, object_size, /*owner_ip=*/sender_ip, inband_data);
     } break;
     }
     q.pop();

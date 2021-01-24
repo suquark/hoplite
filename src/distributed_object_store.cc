@@ -72,11 +72,8 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
                                                const std::string &plasma_socket, const std::string &my_address,
                                                int object_writer_port, int grpc_port)
     : my_address_(my_address), gcs_client_{notification_server_address, my_address_, notification_server_port},
-      local_store_client_{false, plasma_socket}, object_writer_{state_, gcs_client_, local_store_client_, my_address_,
-                                                                object_writer_port},
-      object_sender_{state_, gcs_client_, local_store_client_, my_address_}, receiver_{state_, gcs_client_,
-                                                                                       local_store_client_, my_address_,
-                                                                                       object_writer_port},
+      local_store_client_{false, plasma_socket}, object_sender_{state_, gcs_client_, local_store_client_, my_address_},
+      receiver_{state_, gcs_client_, local_store_client_, my_address_, object_writer_port},
       notification_listener_(my_address_, notification_listen_port, receiver_), grpc_port_(grpc_port),
       grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)), pool_(HOPLITE_THREADPOOL_SIZE_FOR_RPC) {
   TIMELINE("DistributedObjectStore construction function");
