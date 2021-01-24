@@ -13,8 +13,9 @@
 #include <unordered_set>
 #include <utility>
 
+#include "common/config.h"
 #include "dependency.h"
-#include "logging.h"
+#include "util/logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 #include "reduce_dependency.h"
@@ -137,7 +138,7 @@ private:
 
 NotificationServiceImpl::NotificationServiceImpl(const int notification_listener_port)
     : objectstore::NotificationServer::Service(), notification_listener_port_(notification_listener_port),
-      thread_pool_(1), barrier_arrive_counter_(0), barrier_leave_counter_(0) {}
+      thread_pool_(HOPLITE_THREADPOOL_SIZE_FOR_RPC), barrier_arrive_counter_(0), barrier_leave_counter_(0) {}
 
 grpc::Status NotificationServiceImpl::Barrier(grpc::ServerContext *context, const BarrierRequest *request,
                                               BarrierReply *reply) {
