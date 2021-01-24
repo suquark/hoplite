@@ -15,11 +15,11 @@
 
 #include "common/config.h"
 #include "dependency.h"
-#include "util/logging.h"
 #include "notification.h"
 #include "object_store.grpc.pb.h"
 #include "reduce_dependency.h"
 #include "util/ctpl_stl.h"
+#include "util/logging.h"
 
 using objectstore::BarrierReply;
 using objectstore::BarrierRequest;
