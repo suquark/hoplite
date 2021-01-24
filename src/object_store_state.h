@@ -13,13 +13,13 @@
 
 class LocalReduceTask {
 public:
-  LocalReduceTask() {}
+  LocalReduceTask(): is_finished_(false) {}
 
   ObjectID local_object;
 
   void Wait() {
     std::unique_lock<std::mutex> l(notification_mutex_);
-    notification_cv_.wait(l, [this]() { return is_finished_; });
+    notification_cv_.wait(l, [this]() { return is_finished_.load(); });
   }
 
   void NotifyFinished() {
@@ -29,7 +29,7 @@ public:
   }
 
 private:
-  std::atomic<bool> is_finished_ = false;
+  std::atomic<bool> is_finished_;
   std::mutex notification_mutex_;
   std::condition_variable notification_cv_;
 };

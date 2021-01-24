@@ -25,7 +25,7 @@ struct SyncReply {
 class GlobalControlStoreClient {
 public:
   GlobalControlStoreClient(const std::string &notification_server_address, const std::string &my_address,
-                           int notification_server_port, int notification_listen_port);
+                           int notification_server_port);
 
   void ConnectNotificationServer();
 

@@ -111,11 +111,11 @@ void GlobalControlStoreClient::CreateReduceTask(const std::vector<ObjectID> &obj
                                                 const ObjectID &reduction_id, int num_reduce_objects) {
   TIMELINE("CreateReduceTask");
   grpc::ClientContext context;
-  CreateReduceTaskeRequest request;
-  CreateReduceTaskeReply reply;
+  CreateReduceTaskRequest request;
+  CreateReduceTaskReply reply;
   request.set_reduce_dst(my_address_);
   request.set_reduction_id(reduction_id.Binary());
-  requset.set_num_reduce_objects(num_reduce_objects);
+  request.set_num_reduce_objects(num_reduce_objects);
   for (auto &object_id : objects_to_reduce) {
     request.add_objects_to_reduce(object_id);
   }
