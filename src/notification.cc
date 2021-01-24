@@ -221,7 +221,10 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
         std::string receiver_ip = n->owner_ip;
         // n->reduced_inband_data
         auto dep = get_dependency(reduction_id);
-        dep->HandleInbandCompletion(n->get_inband_data());
+        if (!dep->Available()) {
+          dep->HandleInbandCompletion(n->get_inband_data());
+        }
+        InvokeReduceInbandObject(reduction_id, n->get_inband_data());
       }
     }
   }
@@ -384,16 +387,18 @@ void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_nod
 
 void NotificationServiceImpl::InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
                                                        const std::string &inband_data) {
-  TIMELINE("notification ReduceInbandObject");
-  auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
-  objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
-  grpc::ClientContext context;
-  ReduceInbandObjectRequest request;
-  request.set_reduction_id(reduction_id.Binary());
-  request.set_inband_data(inband_data);
-  ReduceInbandObjectReply reply;
-  auto status = stub->ReduceInbandObject(&context, request, &reply);
-  DCHECK(status.ok());
+  thread_pool_.push([this, receiver_ip, reduction_id, inband_data](int id) {
+    TIMELINE("notification ReduceInbandObject");
+    auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
+    objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
+    grpc::ClientContext context;
+    ReduceInbandObjectRequest request;
+    request.set_reduction_id(reduction_id.Binary());
+    request.set_inband_data(inband_data);
+    ReduceInbandObjectReply reply;
+    auto status = stub->ReduceInbandObject(&context, request, &reply);
+    DCHECK(status.ok());
+  });
 }
 
 objectstore::NotificationListener::Stub *

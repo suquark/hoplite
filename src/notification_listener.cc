@@ -16,8 +16,9 @@ using objectstore::ReduceInbandObjectRequest;
 
 class NotificationListenerImpl final : public objectstore::NotificationListener::Service {
 public:
-  NotificationListenerImpl(ObjectStoreState &state, Receiver &receiver)
-      : objectstore::NotificationListener::Service(), state_(state), receiver_(receiver) {
+  NotificationListenerImpl(ObjectStoreState &state, Receiver &receiver, LocalStoreClient &local_store_client)
+      : objectstore::NotificationListener::Service(), state_(state), receiver_(receiver),
+        local_store_client_(local_store_client) {
     TIMELINE("NotificationListenerImpl");
   }
 
@@ -48,20 +49,27 @@ public:
   grpc::Status ReduceInbandObject(grpc::ServerContext *context, const ReduceInbandObjectRequest *request,
                                   ReduceInbandObjectReply *reply) {
     TIMELINE("ReduceInbandObject");
-    // TODO(siyuan): Implement this;
-    DCHECK(false) << "NotImplemented";
+    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
+    std::shared_ptr<LocalReduceTask> task = state_.get_local_reduce_task(reduction_id);
+    std::string &inband_data = request->inband_data();
+    std::shared_ptr<Buffer> buffer;
+    local_store_client_->GetBufferOrCreate(reduction_id, inband_data.size(), &buffer);
+    buffer->CopyFrom(inband_data);
+    task->NotifyFinished();
     return grpc::Status::OK;
   }
 
 private:
   ObjectStoreState &state_;
   Receiver &receiver_;
+  LocalStoreClient &local_store_client_;
 };
 
 NotificationListener::NotificationListener(const std::string &my_address, int notification_listener_port,
-                                           ObjectStoreState &state, Receiver &recevier)
-    : my_address_(my_address), state_(state), recevier_(recevier) {
-  service_ = std::make_shared<NotificationListenerImpl>(state, recevier);
+                                           ObjectStoreState &state, Receiver &recevier,
+                                           LocalStoreClient &local_store_client)
+    : my_address_(my_address), state_(state), recevier_(recevier), local_store_client_(local_store_client) {
+  service_ = std::make_shared<NotificationListenerImpl>(state, recevier, local_store_client);
   std::string grpc_address = my_address + ":" + std::to_string(notification_listener_port);
   LOG(DEBUG) << "grpc_address " << grpc_address;
   grpc::ServerBuilder builder;

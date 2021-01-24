@@ -16,7 +16,7 @@ class NotificationListenerImpl;
 class NotificationListener {
 public:
   NotificationListener(const std::string &my_address, int notification_listener_port, ObjectStoreState &state,
-                       Receiver &recevier);
+                       Receiver &recevier, LocalStoreClient &local_store_client);
 
   void Run();
 
@@ -29,6 +29,7 @@ private:
 
   ObjectStoreState &state_;
   Receiver &recevier_;
+  LocalStoreClient &local_store_client_;
 
   std::thread notification_listener_thread_;
   std::unique_ptr<grpc::Server> grpc_server_;
