@@ -18,7 +18,7 @@
 struct ReduceReceiverTask {
   ReduceReceiverTask(const ObjectID &reduction_id, bool is_tree_branch,
                      const std::shared_ptr<LocalReduceTask> &local_task)
-      : reduction_id_(reduction_id), is_tree_branch(is_tree_branch), intended_reset_(false), local_task_(local_task) {}
+      : reduction_id_(reduction_id), is_tree_branch_(is_tree_branch), intended_reset_(false), local_task_(local_task) {}
   volatile int left_recv_conn_fd_;
   volatile int right_recv_conn_fd_;
   int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child);
@@ -26,13 +26,13 @@ struct ReduceReceiverTask {
   std::shared_ptr<Buffer> target_stream;
   std::shared_ptr<Buffer> local_object;
   std::shared_ptr<Buffer> left_stream;
-  bool is_tree_branch = false;
 
   void start_recv(const std::string &sender_ip, bool is_left_child);
   void reset_recv(const std::string &new_sender_ip, bool is_left_child);
 
 private:
   ObjectID reduction_id_;
+  const bool is_tree_branch_;
   std::string left_sender_ip_;
   std::string right_sender_ip_;
   std::thread left_recv_thread_;
@@ -79,4 +79,5 @@ private:
   ctpl::thread_pool pool_;
   // on going reducing tasks
   std::unordered_map<ObjectID, std::shared_ptr<ReduceReceiverTask>> reduce_receiver_tasks_;
+  std::mutex reduce_receiver_tasks_mutex_;
 };

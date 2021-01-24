@@ -104,7 +104,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   Buffer *stream;
   bool work_on_target_stream = true;
   if (is_left_child) {
-    if (!is_tree_branch) {
+    if (!is_tree_branch_) {
       // directly reduced to the target stream
       stream = target_stream.get();
     } else {
@@ -168,7 +168,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
 }
 
 void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_child) {
-  DCHECK(!is_left_child && is_tree_branch);
+  DCHECK(!is_left_child && is_tree_branch_);
   auto func = [&, sender_ip]() {
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
@@ -205,14 +205,14 @@ void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_le
   // target stream is required to reset anyway
   target_stream->progress = 0;
   if (is_left_child) {
-    if (is_tree_branch) {
+    if (is_tree_branch_) {
       // the left sender first reduces it to the left stream, so both stream needs to be reset
       left_stream->progress = 0;
     }
     start_recv(new_sender_ip, /*is_left_child=*/true);
     start_recv(right_sender_ip_, /*is_left_child=*/false);
   } else {
-    DCHECK(is_tree_branch);
+    DCHECK(is_tree_branch_);
     start_recv(left_sender_ip_, /*is_left_child=*/true);
     start_recv(new_sender_ip, /*is_left_child=*/false);
   }
@@ -224,20 +224,23 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
                                          const std::shared_ptr<LocalReduceTask> &local_task) {
   TIMELINE("Receiver::receive_and_reduce_object() ");
   std::shared_ptr<ReduceReceiverTask> task;
-  if (!reduce_receiver_tasks_.count(reduction_id)) {
-    task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task);
-    reduce_receiver_tasks_[reduction_id] = task;
-  } else {
-    task = reduce_receiver_tasks_[reduction_id];
+  {
+    std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
+    if (!reduce_receiver_tasks_.count(reduction_id)) {
+      task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task);
+      reduce_receiver_tasks_[reduction_id] = task;
+    } else {
+      task = reduce_receiver_tasks_[reduction_id];
+    }
   }
   if (!task->local_object && !object_id_to_reduce.IsNil()) {
     Status s = local_store_client_.GetBufferOrCreate(object_id_to_reduce, object_size, &task->local_object);
     DCHECK(s.ok());
   }
   if (!task->target_stream) {
-    if (local_store_client_.ObjectExists(reduction_id, false)) {
-      // This is the endpoint. The local object should have been created.
-      task->target_stream = local_store_client_.GetBufferNoExcept(reduction_id);
+    if (local_task) {
+      Status s = local_store_client_.GetBufferOrCreate(reduction_id, object_size, &task->target_stream);
+      DCHECK(s.ok());
     } else {
       task->target_stream = state_.get_or_create_reduction_stream(reduction_id, object_size);
     }
