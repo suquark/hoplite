@@ -132,6 +132,7 @@ private:
 
   // for reduce tasks
   ReduceManager reduce_manager_;
+  std::mutex reduce_manager_mutex_;
 };
 
 NotificationServiceImpl::NotificationServiceImpl(const int notification_listener_port)
@@ -184,6 +185,7 @@ std::shared_ptr<ObjectDependency> NotificationServiceImpl::get_dependency(const 
 void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, int64_t object_size,
                                                     const std::string &owner_ip, const std::string &inband_data) {
   TIMELINE("[add_object_for_reduce]");
+  std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
   if (inband_data.empty()) {
     auto results = reduce_manager_.AddObject(object_id, object_size, owner_ip);
     for (auto &r : results) {
@@ -329,8 +331,12 @@ grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *cont
   for (auto &object_id_it : request->objects_to_reduce()) {
     objects_to_reduce.push_back(ObjectID::FromBinary(object_id_it));
   }
-  reduce_manager_.CreateReduceTask(request->reduce_dst(), objects_to_reduce, reduction_id,
-                                   request->num_reduce_objects());
+  {
+    std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
+    reduce_manager_.CreateReduceTask(request->reduce_dst(), objects_to_reduce, reduction_id,
+                                     request->num_reduce_objects());
+  }
+
   for (auto &object_id : objects_to_reduce) {
     auto dep = get_dependency(object_id);
     int64_t object_size;
