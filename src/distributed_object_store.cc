@@ -75,7 +75,7 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
       local_store_client_{false, plasma_socket}, object_sender_{state_, gcs_client_, local_store_client_, my_address_},
       receiver_{state_, gcs_client_, local_store_client_, my_address_, object_writer_port},
       notification_listener_(my_address_, notification_listen_port, state_, receiver_, local_store_client_),
-      grpc_port_(grpc_port), grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)), pool_(1) {
+      grpc_port_(grpc_port), grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
   TIMELINE("DistributedObjectStore construction function");
   // Creating the first random ObjectID will initialize the random number
   // generator, which is pretty slow. So we generate one first, and it
