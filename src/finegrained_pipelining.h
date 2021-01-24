@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <thread>
+
 #include "common/config.h"
 #include "logging.h"
 #include "socket_utils.h"
@@ -94,9 +96,10 @@ template <typename T> inline int stream_send(int conn_fd, T *stream, int64_t off
 }
 
 /// reduce(conn, dep_stream) -> stream
-template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
-  TIMELINE("stream_reduce_add");
-  LOG(DEBUG) << "stream_reduce_add(), offset=" << offset;
+template <typename T, typename DT>
+int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add_single_thread");
+  LOG(DEBUG) << "stream_reduce_add_single_thread(), offset=" << offset;
   int64_t receive_progress = offset;
   const size_t element_size = sizeof(DT);
   uint8_t *data_ptr = stream->MutableData();
@@ -143,4 +146,56 @@ template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream,
     stream->progress += n_reduce_elements * element_size;
   }
   return 0;
+}
+
+/// reduce(conn, dep_stream) -> stream
+template <typename T, typename DT>
+int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add_multi_thread");
+  LOG(DEBUG) << "stream_reduce_add_multi_thread(), offset=" << offset;
+  int64_t receive_progress = offset;
+  const size_t element_size = sizeof(DT);
+  uint8_t *data_ptr = stream->MutableData();
+  uint8_t *dep_data_ptr = dep_stream.MutableData();
+
+  std::thread t([&]() {
+    while (!stream->IsFinished()) {
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+      auto progress = stream->progress.load();
+      auto dep_stream_progress = dep_stream.progress.load();
+#else
+      auto progress = stream->progress;
+      auto dep_stream_progress = dep_stream.progress;
+#endif
+      int64_t n_reduce_elements = (std::min(dep_stream_progress, receive_progress) - progress) / element_size;
+      DT *cursor = (DT *)(data_ptr + progress);
+      const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
+      for (size_t i = 0; i < n_reduce_elements; i++) {
+        cursor[i] += own_data_cursor[i];
+      }
+      stream->progress += n_reduce_elements * element_size;
+    }
+  });
+
+  const int64_t object_size = stream->Size();
+  while (receive_progress < object_size) {
+    int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
+    if (status) {
+      // return the error
+      return status;
+    }
+  }
+  t.join();
+  return 0;
+}
+
+/// reduce(conn, dep_stream) -> stream
+template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add");
+  int64_t left = stream->Size() - stream->progress;
+  if (left >= 2 * *20) {
+    return stream_reduce_add_multi_thread<T, DT>(conn_fd, stream, dep_stream, offset);
+  } else {
+    return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
+  }
 }

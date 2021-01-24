@@ -19,7 +19,7 @@ using objectstore::ReceiveReducedObjectRequest;
 ObjectSender::ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
                            LocalStoreClient &local_store_client, const std::string &my_address)
     : state_(state), gcs_client_(gcs_client), local_store_client_(local_store_client), my_address_(my_address),
-      pool_(1) {
+      pool_(HOPLITE_MAX_OUTLOW_CONCURRENCY) {
   TIMELINE(std::string("ObjectSender construction function ") + my_address + ":" + std::to_string(HOPLITE_SENDER_PORT));
   tcp_bind_and_listen(HOPLITE_SENDER_PORT, &address_, &server_fd_);
   LOG(DEBUG) << "[ObjectSender] object sender is ready.";
