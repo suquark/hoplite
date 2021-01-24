@@ -27,6 +27,8 @@
 // RPCs like `InvokeReduceTo` and `InvokeRedirectReduce`.
 #define HOPLITE_THREADPOOL_SIZE_FOR_RPC 10
 
+#define HOPLITE_MULTITHREAD_REDUCE_SIZE (1 << 28)
+
 // Make the Put() call blocking on 'WriteLocation'
 #ifndef HOPLITE_PUT_BLOCKING
 #define HOPLITE_PUT_BLOCKING false
