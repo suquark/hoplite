@@ -193,7 +193,7 @@ int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_
 template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
   TIMELINE("stream_reduce_add");
   int64_t left = stream->Size() - stream->progress;
-  if (left >= 2 * *20) {
+  if (left >= (1 << 20)) {
     return stream_reduce_add_multi_thread<T, DT>(conn_fd, stream, dep_stream, offset);
   } else {
     return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
