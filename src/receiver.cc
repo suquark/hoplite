@@ -100,7 +100,7 @@ void Receiver::pull_object(const ObjectID &object_id) {
 }
 
 int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child) {
-  TIMELINE(std::string("Receiver::receive_object() ") + reduction_id_.ToString());
+  TIMELINE(std::string("Receiver::receive_reduced_object() ") + reduction_id_.ToString());
   Buffer *stream;
   bool work_on_target_stream = true;
   bool is_sender_leaf;
