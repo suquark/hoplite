@@ -117,7 +117,7 @@ void GlobalControlStoreClient::CreateReduceTask(const std::vector<ObjectID> &obj
   request.set_reduction_id(reduction_id.Binary());
   request.set_num_reduce_objects(num_reduce_objects);
   for (auto &object_id : objects_to_reduce) {
-    request.add_objects_to_reduce(object_id);
+    request.add_objects_to_reduce(object_id.Binary());
   }
   auto status = notification_stub_->CreateReduceTask(&context, request, &reply);
   DCHECK(status.ok()) << status.error_message();
