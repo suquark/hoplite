@@ -224,7 +224,7 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
         if (!dep->Available()) {
           dep->HandleInbandCompletion(n->get_inband_data());
         }
-        InvokeReduceInbandObject(reduction_id, n->get_inband_data());
+        InvokeReduceInbandObject(receiver_ip, reduction_id, n->get_inband_data());
       }
     }
   }
