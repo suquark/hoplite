@@ -173,6 +173,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   LOG(DEBUG) << "receive " << reduction_id_.ToString() << " from " << sender_ip << " done, error_code=" << ec;
   close(conn_fd);
   if (!ec && work_on_target_stream && target_stream->IsFinished() && local_task_) {
+    LOG(DEBUG) << "Notify " << reduction_id_.ToString() << " is finished.";
     local_task_->NotifyFinished();
   }
   return ec;
