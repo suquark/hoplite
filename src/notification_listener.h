@@ -18,8 +18,6 @@ public:
   NotificationListener(const std::string &my_address, int notification_listener_port, ObjectStoreState &state,
                        Receiver &recevier);
 
-  ~NotificationListener();
-
   void Run();
 
   void Shutdown();
