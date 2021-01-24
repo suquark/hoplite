@@ -43,6 +43,9 @@ public:
   bool Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
            std::string *inband_data, std::function<void()> on_fail = nullptr);
 
+  /// A shortcut check of the availability.
+  bool Available() const;
+
   /// The receiver declares it has got a complete object. This receiver can become the sender for later
   /// receivers.
   /// \param[in] receiver The receiver that has the complete object.

@@ -202,6 +202,13 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       // check if we have a parent dependency
       if (n->parent && n->parent->location_known()) {
         InvokePullAndReduceObject(n->parent, n, reduction_id, object_size);
+        // now we can publish the reduction id
+        if (!n->parent->is_root()) {
+          auto dep = get_dependency(reduction_id);
+          if (!dep.Available(reduction_id)) {
+            dep->HandleCompletion(n->parent->owner_ip, request->object_size());
+          }
+        }
       }
     }
   } else {
