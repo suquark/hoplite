@@ -27,7 +27,7 @@ private:
 
   int send_object(int conn_fd, const ObjectID &object_id, int64_t object_size, int64_t offset);
 
-  int send_reduced_object(int conn_fd, const ObjectID &object_id, int64_t object_size);
+  int send_reduced_object(int conn_fd, const ObjectID &object_id, int64_t object_size, int64_t offset);
 
   GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;

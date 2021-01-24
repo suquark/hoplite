@@ -74,7 +74,7 @@ private:
 
   std::shared_ptr<ObjectDependency> get_dependency(const ObjectID &object_id);
 
-  void add_object_for_reduce(const ObjectID &reduction_id, const ObjectID &object_id, int64 object_size,
+  void add_object_for_reduce(const ObjectID &reduction_id, const ObjectID &object_id, int64_t object_size,
                              const std::string &owner_ip, const std::string &inband_data);
 
   std::mutex barrier_mutex_;

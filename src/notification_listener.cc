@@ -1,7 +1,10 @@
 #include "notification_listener.h"
 
-#include "object_store.grpc.pb.h"
+#include <grpcpp/server.h>
+#include <grpcpp/server_builder.h>
+#include <grpcpp/server_context.h>
 
+#include "object_store.grpc.pb.h"
 #include "object_store_state.h"
 
 using objectstore::ConnectListenerReply;
@@ -59,7 +62,7 @@ NotificationListener::NotificationListener(const std::string &my_address, int no
                                            ObjectStoreState &state, Receiver &recevier)
     : my_address_(my_address), state_(state), recevier_(recevier) {
   service_ = std::make_shared<NotificationListenerImpl>(state, recevier);
-  std::string grpc_address = my_address + ":" + std::to_string(notification_listener_port_);
+  std::string grpc_address = my_address + ":" + std::to_string(notification_listener_port);
   LOG(DEBUG) << "grpc_address " << grpc_address;
   grpc::ServerBuilder builder;
   builder.AddListeningPort(grpc_address, grpc::InsecureServerCredentials());

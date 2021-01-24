@@ -243,7 +243,7 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
     }
   }
   if (is_tree_branch && !task->left_stream) {
-    task->left_stream = std::make_shared<Buffer>(target_stream->Size());
+    task->left_stream = std::make_shared<Buffer>(task->target_stream->Size());
   }
   task->start_recv(sender_ip, from_left_child);
 }

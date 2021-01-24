@@ -101,7 +101,6 @@ DistributedObjectStore::~DistributedObjectStore() {
   object_sender_.Shutdown();
   Shutdown();
   notification_listener_.Shutdown();
-  gcs_client_.Shutdown();
   LOG(DEBUG) << "Object store has been shutdown.";
 }
 

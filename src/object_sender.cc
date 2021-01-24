@@ -71,7 +71,7 @@ void ObjectSender::listener_loop() {
           },
           std::move(request));
     } break;
-    case ObjectWriterRequest::kReceiveReducedObjectRequest: {
+    case ObjectWriterRequest::kReceiveReducedObject: {
       auto request = message.receive_reduced_object();
       pool_.push(
           [this, conn_fd](int tid, ReceiveReducedObjectRequest request) {
@@ -106,8 +106,8 @@ int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t ob
   return ec;
 }
 
-int ObjectSender::send_reduced_object(int conn_fd, const ObjectID &reduction_id, int64_t object_size) {
-  TIMELINE("ObjectSender::send_reduced_object")
+int ObjectSender::send_reduced_object(int conn_fd, const ObjectID &reduction_id, int64_t object_size, int64_t offset) {
+  TIMELINE("ObjectSender::send_reduced_object");
   // fetch object from object_store_state
   std::shared_ptr<Buffer> stream = state_.get_or_create_reduction_stream(reduction_id, size);
   if (stream->IsFinished()) {
@@ -115,8 +115,8 @@ int ObjectSender::send_reduced_object(int conn_fd, const ObjectID &reduction_id,
   } else {
     LOG(DEBUG) << "[Sender] fetched a partial object from reduction_stream: " << reduction_id.ToString();
   }
-  int ec = stream_send<Buffer>(conn_fd, stream.get(), 0);
-  LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
+  int ec = stream_send<Buffer>(conn_fd, stream.get(), offset);
+  LOG(DEBUG) << "send " << reduction_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
   return ec;
 }
