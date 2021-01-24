@@ -13,7 +13,7 @@
 
 class LocalReduceTask {
 public:
-  LocalReduceTask(): is_finished_(false) {}
+  LocalReduceTask() : is_finished_(false) {}
 
   ObjectID local_object;
 

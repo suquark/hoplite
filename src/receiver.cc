@@ -132,7 +132,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   // send request
   ObjectWriterRequest req;
   auto ro_request = new ReceiveReducedObjectRequest();
-  ro_request->reduction_id(reduction_id_.Binary());
+  ro_request->set_reduction_id(reduction_id_.Binary());
   ro_request->set_object_size(stream->Size());
   ro_request->set_offset(stream->progress);
   req.set_allocated_receive_reduced_object(ro_request);
@@ -159,7 +159,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   } else {
     ec = stream_reduce_add<Buffer, float>(conn_fd, stream, *left_stream, stream->progress);
   }
-  LOG(DEBUG) << "receive " << object_id.ToString() << " done, error_code=" << ec;
+  LOG(DEBUG) << "receive " << reduction_id_.ToString() << " from " << sender_ip << " done, error_code=" << ec;
   close(conn_fd);
   if (!ec && work_on_target_stream && target_stream->IsFinished() && local_task_) {
     local_task_->NotifyFinished();
@@ -173,10 +173,10 @@ void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_c
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
       if (!intended_reset_) {
-        LOG(FATAL) << "Failed to receive " << object_id.ToString() << " from sender " << sender_ip;
+        LOG(FATAL) << "Failed to receive object for reduce from sender " << sender_ip;
         // TODO(siyuan): handle failure.
       } else {
-        LOG(INFO) << "Intended reset receiving " << object_id.ToString() << " from sender " << sender_ip;
+        LOG(INFO) << "Intended reset receiving object for reduce from sender " << sender_ip;
       }
     }
   };
@@ -205,11 +205,14 @@ void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_le
   // target stream is required to reset anyway
   target_stream->progress = 0;
   if (is_left_child) {
+    if (is_tree_branch) {
+      // the left sender first reduces it to the left stream, so both stream needs to be reset
+      left_stream->progress = 0;
+    }
     start_recv(new_sender_ip, /*is_left_child=*/true);
     start_recv(right_sender_ip_, /*is_left_child=*/false);
   } else {
     DCHECK(is_tree_branch);
-    right_stream->progress = 0;
     start_recv(left_sender_ip_, /*is_left_child=*/true);
     start_recv(new_sender_ip, /*is_left_child=*/false);
   }

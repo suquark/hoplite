@@ -85,7 +85,7 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
   // will not surprise us later.
   (void)ObjectID::FromRandom();
   // create a thread to send object
-  object_sender_thread_ = object_sender_.Run();
+  object_sender_.Run();
 
   // initialize the object store
   service_.reset(new ObjectStoreServiceImpl(object_sender_, *this));
@@ -102,7 +102,6 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
 DistributedObjectStore::~DistributedObjectStore() {
   TIMELINE("~DistributedObjectStore");
   object_sender_.Shutdown();
-  object_sender_thread_.join();
   Shutdown();
   notification_listener_.Shutdown();
   gcs_client_.Shutdown();

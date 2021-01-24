@@ -132,7 +132,6 @@ private:
   std::condition_variable reduced_objects_cv_;
   std::unordered_map<ObjectID, std::unordered_set<ObjectID>> reduced_objects_;
   std::unordered_map<ObjectID, std::unordered_set<ObjectID>> unreduced_objects_;
-  std::thread object_sender_thread_;
 };
 
 #endif // DISTRIBUTED_OBJECT_STORE_H

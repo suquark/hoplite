@@ -18,32 +18,21 @@ public:
   ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
                const std::string &my_address);
 
-  void AppendTask(const objectstore::ReduceToRequest *request);
-
-  std::thread Run();
+  void Run();
 
   void Shutdown();
 
 private:
-  void worker_loop();
-
   void listener_loop();
 
   int send_object(int conn_fd, const ObjectID &object_id, int64_t object_size, int64_t offset);
 
   int send_reduced_object(int conn_fd, const ObjectID &object_id, int64_t object_size);
 
-  void send_object_for_reduce(const objectstore::ReduceToRequest *request);
-
-  std::queue<objectstore::ReduceToRequest *> pending_tasks_;
-  std::mutex queue_mutex_;
-  std::condition_variable queue_cv_;
   GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;
   ObjectStoreState &state_;
   std::string my_address_;
-
-  std::atomic<bool> exit_;
 
   // for the TCP listener
   int server_fd_;

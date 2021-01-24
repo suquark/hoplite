@@ -13,7 +13,6 @@
 #include "util/protobuf_utils.h"
 
 using objectstore::ObjectWriterRequest;
-using objectstore::ReceiveAndReduceObjectRequest;
 using objectstore::ReceiveObjectRequest;
 using objectstore::ReduceToRequest;
 
@@ -31,16 +30,9 @@ void sender_handle_signal(int sig) {
   pthread_exit(NULL);
 }
 
-std::thread ObjectSender::Run() {
-  server_thread_ = std::thread(&ObjectSender::listener_loop, this);
-
-  std::thread sender_thread(&ObjectSender::worker_loop, this);
-  return sender_thread;
-}
+void ObjectSender::Run() { server_thread_ = std::thread(&ObjectSender::listener_loop, this); }
 
 void ObjectSender::Shutdown() {
-  exit_ = true;
-
   close(server_fd_);
   server_fd_ = -1;
   // we still send a signal here because the thread may be
@@ -127,74 +119,4 @@ int ObjectSender::send_reduced_object(int conn_fd, const ObjectID &reduction_id,
   LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
   return ec;
-}
-
-void ObjectSender::worker_loop() {
-  while (true) {
-    objectstore::ReduceToRequest *request;
-    {
-      std::unique_lock<std::mutex> l(queue_mutex_);
-      queue_cv_.wait_for(l, std::chrono::seconds(1), [this]() { return !pending_tasks_.empty(); });
-      {
-        if (exit_) {
-          return;
-        }
-      }
-      if (pending_tasks_.empty()) {
-        continue;
-      }
-      request = pending_tasks_.front();
-      pending_tasks_.pop();
-    }
-    send_object_for_reduce(request);
-
-    delete request;
-  }
-}
-
-void ObjectSender::AppendTask(const ReduceToRequest *request) {
-  auto new_request = new ReduceToRequest(*request);
-  std::unique_lock<std::mutex> l(queue_mutex_);
-  pending_tasks_.push(new_request);
-  l.unlock();
-  queue_cv_.notify_one();
-}
-
-void ObjectSender::send_object_for_reduce(const ReduceToRequest *request) {
-  TIMELINE("ObjectSender::send_object_for_reduce(), dst_address = " + request->dst_address());
-  int conn_fd;
-  auto status = tcp_connect(request->dst_address(), 6666, &conn_fd);
-  DCHECK(!status) << "socket connect error";
-
-  ObjectWriterRequest ow_request;
-  auto ro_request = new ReceiveAndReduceObjectRequest();
-  ro_request->set_reduction_id(request->reduction_id());
-  for (auto &oid_str : request->dst_object_ids()) {
-    ro_request->add_object_ids(oid_str);
-  }
-  ro_request->set_is_endpoint(request->is_endpoint());
-  ow_request.set_allocated_receive_and_reduce_object(ro_request);
-  SendProtobufMessage(conn_fd, ow_request);
-
-  if (request->reduction_source_case() == ReduceToRequest::kSrcObjectId) {
-    LOG(DEBUG) << "[GrpcServer] fetching a complete object from local store";
-    // TODO: there could be multiple source objects.
-    ObjectID src_object_id = ObjectID::FromBinary(request->src_object_id());
-    std::vector<ObjectBuffer> object_buffers;
-    local_store_client_.Get({src_object_id}, &object_buffers);
-    auto &stream = object_buffers[0].data;
-    stream_send<Buffer>(conn_fd, stream.get());
-  } else {
-    LOG(DEBUG) << "[GrpcServer] fetching an incomplete object from reduction stream";
-    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
-    auto stream = state_.get_reduction_stream(reduction_id);
-    DCHECK(stream != nullptr) << "Stream should not be nullptr";
-    stream_send<Buffer>(conn_fd, stream.get());
-    state_.release_reduction_stream(reduction_id);
-  }
-
-#ifdef HOPLITE_ENABLE_ACK
-  recv_ack(conn_fd);
-#endif
-  close(conn_fd);
 }
