@@ -175,7 +175,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
       backup_objects_.push({object_id, owner_ip});
       return NULL;
     }
-    n = rtc_->GetNode(++num_ready_objects_);
+    n = rtc_->GetNode(num_ready_objects_);
   }
   n->object_id = object_id;
   n->owner_ip = owner_ip;
