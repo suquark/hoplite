@@ -26,12 +26,10 @@ using objectstore::ConnectListenerReply;
 using objectstore::ConnectListenerRequest;
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;
+using objectstore::CreateReduceTaskReply;
+using objectstore::CreateReduceTaskRequest;
 using objectstore::ExitReply;
 using objectstore::ExitRequest;
-using objectstore::GetLocationAsyncAnswerReply;
-using objectstore::GetLocationAsyncAnswerRequest;
-using objectstore::GetLocationAsyncReply;
-using objectstore::GetLocationAsyncRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
 using objectstore::HandlePullObjectFailureReply;
@@ -57,11 +55,11 @@ public:
   grpc::Status GetLocationSync(grpc::ServerContext *context, const GetLocationSyncRequest *request,
                                GetLocationSyncReply *reply);
 
-  grpc::Status GetLocationAsync(grpc::ServerContext *context, const GetLocationAsyncRequest *request,
-                                GetLocationAsyncReply *reply);
-
   grpc::Status HandlePullObjectFailure(grpc::ServerContext *context, const HandlePullObjectFailureRequest *request,
                                        HandlePullObjectFailureReply *reply);
+
+  grpc::Status CreateReduceTask(grpc::ServerContext *context, const CreateReduceTaskRequest *request,
+                                CreateReduceTaskReply *reply);
 
   void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
                                  int64_t object_size);
@@ -69,14 +67,15 @@ public:
   void InvokeReduceInbandObject(const std::string &receiver_ip, const std::string &inband_data);
 
 private:
-  bool send_notification(const std::string &receiver_ip, const GetLocationAsyncAnswerRequest &request);
-
   objectstore::NotificationListener::Stub *
   create_or_get_notification_listener_stub(const std::string &remote_grpc_address);
 
   void handle_object_ready(const ObjectID &object_id);
 
   std::shared_ptr<ObjectDependency> get_dependency(const ObjectID &object_id);
+
+  void add_object_for_reduce(const ObjectID &reduction_id, const ObjectID &object_id, int64 object_size,
+                             const std::string &owner_ip, const std::string &inband_data);
 
   std::mutex barrier_mutex_;
   std::atomic<int> barrier_arrive_counter_;
@@ -102,12 +101,6 @@ private:
       std::lock_guard<std::mutex> lock(mutex_);
       pending_objects_[object_id].emplace(
           ReceiverQueueElement{ReceiverQueueElement::SYNC, sync_mutex, reply, receiver_ip, {}, occupying});
-    }
-    void EnqueueGetLocationAsync(const ObjectID &object_id, const std::string &receiver_ip, const std::string &query_id,
-                                 bool occupying) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      pending_objects_[object_id].emplace(
-          ReceiverQueueElement{ReceiverQueueElement::ASYNC, {}, NULL, receiver_ip, query_id, occupying});
     }
     void EnqueueGetLocationForReduce(const ObjectID &object_id) {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -187,6 +180,44 @@ std::shared_ptr<ObjectDependency> NotificationServiceImpl::get_dependency(const 
   return object_dependencies_[object_id];
 }
 
+void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, int64 object_size,
+                                                    const std::string &owner_ip, const std::string &inband_data) {
+  if (inband_data.empty()) {
+    auto results = reduce_manager_.AddObject(object_id, object_size, owner_ip);
+    for (auto &r : results) {
+      Node *n = r.first;
+      ObjectID &reduction_id = r.second;
+      // check if we have a child dependency
+      if (n->left_child && n->left_child->location_known()) {
+        InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size);
+      }
+      if (n->right_child && n->right_child->location_known()) {
+        LOG(FATAL) << "This case should not exist";
+      }
+      // check if we have a parent dependency
+      if (n->parent && n->parent->location_known()) {
+        InvokePullAndReduceObject(n->parent, n, reduction_id, object_size);
+      }
+    }
+  } else {
+    auto results = reduce_manager_.AddInbandObject(object_id, std::move(inband_data));
+    for (auto &r : results) {
+      InbandDataNode *n = r.first;
+      if (n->finished) {
+        ObjectID reduction_id = r.second;
+        std::string receiver_ip = n->owner_ip;
+        // n->reduced_inband_data
+        std::string reduced_inband_data = n->get_inband_data();
+        thread_pool_.push(
+            [this, reduction_id, receiver_ip](int id, std::string reduced_inband_data) {
+              InvokeReduceInbandObject(reduction_id, receiver_ip, reduced_inband_data);
+            },
+            std::move(reduced_inband_data));
+      }
+    }
+  }
+}
+
 void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
   TIMELINE("[object directory server] handle_object_ready");
   std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
@@ -213,54 +244,8 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
       DCHECK(!receiver.sync_mutex->try_lock()) << "sync_mutex should be locked";
       receiver.sync_mutex->unlock();
     } break;
-    case ReceiverQueueElement::ASYNC: {
-      GetLocationAsyncAnswerRequest req;
-      // Batching replies to asynchronous get_location call
-      GetLocationAsyncAnswerRequest::ObjectInfo *object = req.add_objects();
-      object->set_object_id(object_id.Binary());
-      object->set_sender_ip(std::move(sender_ip));
-      object->set_query_id(receiver.query_id);
-      object->set_object_size(object_size);
-      object->set_inband_data(std::move(inband_data));
-      thread_pool_.push(
-          [this, receiver_ip](int id, GetLocationAsyncAnswerRequest r) { send_notification(receiver_ip, r); },
-          std::move(req));
-    } break;
     case ReceiverQueueElement::REDUCE: {
-      if (inband_data.empty()) {
-        auto results = reduce_manager_.AddObject(object_id, object_size, owner_ip);
-        for (auto &r : results) {
-          Node *n = r.first;
-          ObjectID &reduction_id = r.second;
-          // check if we have a child dependency
-          if (n->left_child && n->left_child->location_known()) {
-            InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size);
-          }
-          if (n->right_child && n->right_child->location_known()) {
-            LOG(FATAL) << "This case should not exist";
-          }
-          // check if we have a parent dependency
-          if (n->parent && n->parent->location_known()) {
-            InvokePullAndReduceObject(n->parent, n, reduction_id, object_size);
-          }
-        }
-      } else {
-        auto results = reduce_manager_.AddInbandObject(object_id, std::move(inband_data));
-        for (auto &r : results) {
-          InbandDataNode *n = r.first;
-          if (n->finished) {
-            ObjectID reduction_id = r.second;
-            std::string receiver_ip = n->owner_ip;
-            // n->reduced_inband_data
-            std::string reduced_inband_data = n->get_inband_data();
-            thread_pool_.push(
-                [this, reduction_id, receiver_ip](int id, std::string reduced_inband_data) {
-                  InvokeReduceInbandObject(reduction_id, receiver_ip, reduced_inband_data);
-                },
-                std::move(reduced_inband_data));
-          }
-        }
-      }
+      add_object_for_reduce(object_id, object_size, owner_ip, inband_data);
     } break;
     }
     q.pop();
@@ -322,43 +307,6 @@ grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *conte
   return grpc::Status::OK;
 }
 
-grpc::Status NotificationServiceImpl::GetLocationAsync(grpc::ServerContext *context,
-                                                       const GetLocationAsyncRequest *request,
-                                                       GetLocationAsyncReply *reply) {
-  TIMELINE("notification GetLocationAsync");
-  std::string receiver_ip = request->receiver_ip();
-  GetLocationAsyncAnswerRequest req;
-
-  // TODO: pass in repeated object ids will send twice.
-  for (auto object_id_it : request->object_ids()) {
-    ObjectID object_id = ObjectID::FromBinary(object_id_it);
-    int64_t object_size;
-    std::string sender_ip;
-    std::string inband_data;
-    std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
-    bool success = dep->Get(receiver_ip, request->occupying(), &object_size, &sender_ip, &inband_data, [&]() {
-      // this makes sure that no on completion event will happen before we queued our request
-      pending_queue_.EnqueueGetLocationAsync(object_id, receiver_ip, request->query_id(), request->occupying());
-    });
-    if (success) {
-      // Batching replies to asynchronous get_location call
-      GetLocationAsyncAnswerRequest::ObjectInfo *object = req.add_objects();
-      object->set_object_id(object_id.Binary());
-      object->set_sender_ip(std::move(sender_ip));
-      object->set_query_id(request->query_id());
-      object->set_object_size(object_size);
-      object->set_inband_data(std::move(inband_data));
-    }
-  }
-  if (req.objects_size() > 0) {
-    thread_pool_.push(
-        [this, receiver_ip, req](int id, GetLocationAsyncAnswerRequest r) { send_notification(receiver_ip, r); },
-        std::move(req));
-  }
-  reply->set_ok(true);
-  return grpc::Status::OK;
-}
-
 grpc::Status NotificationServiceImpl::HandlePullObjectFailure(grpc::ServerContext *context,
                                                               const HandlePullObjectFailureRequest *request,
                                                               HandlePullObjectFailureReply *reply) {
@@ -370,15 +318,33 @@ grpc::Status NotificationServiceImpl::HandlePullObjectFailure(grpc::ServerContex
   return grpc::Status::OK;
 }
 
-bool NotificationServiceImpl::send_notification(const std::string &receiver_ip,
-                                                const GetLocationAsyncAnswerRequest &request) {
-  TIMELINE("notification send_notification");
-  auto remote_address = receiver_ip + ":" + std::to_string(notification_listener_port_);
-  objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
-  grpc::ClientContext context;
-  GetLocationAsyncAnswerReply reply;
-  stub->GetLocationAsyncAnswer(&context, request, &reply);
-  return reply.ok();
+grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *context,
+                                                       const CreateReduceTaskRequest *request,
+                                                       CreateReduceTaskReply *reply) {
+  TIMELINE("notification CreateReduceTask");
+  ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
+  std::vector<ObjectID> objects_to_reduce;
+  for (auto &object_id_it : request->objects_to_reduce()) {
+    objects_to_reduce.push_back(ObjectID::FromBinary(object_id_it));
+  }
+  reduce_manager_.CreateReduceTask(request->reduce_dst(), objects_to_reduce, reduction_id,
+                                   request->num_reduce_objects());
+  for (auto &object_id : objects_to_reduce) {
+    auto dep = get_dependency(object_id);
+    int64_t object_size;
+    std::string owner_ip;
+    std::string inband_data;
+    bool success = dep->Get("", /*occupying=*/false, &object_size, &owner_ip, &inband_data, [&]() {
+      // this makes sure that no on completion event will happen before we queued our request
+      pending_queue_.EnqueueGetLocationForReduce(object_id);
+    });
+    // FIXME: there could be some extreme race condition that the object is taking away by someone
+    // else after "dep->Get". Not sure if this could be an issue.
+    if (success) {
+      add_object_for_reduce(object_id, object_size, std::move(owner_ip), std::move(inband_data));
+    }
+  }
+  return grpc::Status::OK;
 }
 
 void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,

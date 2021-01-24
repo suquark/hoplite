@@ -14,43 +14,13 @@
 #include <utility>
 #include <vector>
 
-struct NotificationListenerImpl;
-
 constexpr int64_t inband_data_size_limit = 65536;
 
-struct NotificationMessage {
-  ObjectID object_id;
-  std::string sender_ip;
-  size_t object_size;
-  std::string inband_data;
-};
 struct SyncReply {
   std::string sender_ip;
   size_t object_size;
   std::string inband_data;
 };
-
-class ObjectNotifications {
-public:
-  std::vector<NotificationMessage> GetNotifications(bool delete_after_get, bool no_wait = false);
-
-  void ReceiveObjectNotification(const ObjectID &object_id, const std::string &sender_ip, size_t object_size,
-                                 const std::string &inband_data);
-
-  void Rewind();
-
-  size_t EraseRecords(const std::unordered_set<ObjectID> &records);
-
-private:
-  std::mutex notification_mutex_;
-  std::condition_variable notification_cv_;
-  std::vector<NotificationMessage> ready_;
-  size_t cursor_ = 0;
-};
-
-class ReduceTaskRoot {};
-
-class ClientReduceManager {};
 
 class GlobalControlStoreClient {
 public:
@@ -66,33 +36,21 @@ public:
   // Get object location from the notification server.
   SyncReply GetLocationSync(const ObjectID &object_id, bool occupying, const std::string &receiver_ip);
 
-  std::shared_ptr<ObjectNotifications> GetLocationAsync(const std::vector<ObjectID> &object_ids,
-                                                        const std::string &query_id, bool occupying);
   bool HandlePullObjectFailure(const ObjectID &object_id, const std::string &receiver_ip,
                                std::string *alternative_sender_ip);
 
-  inline std::thread Run() {
-    std::thread notification_thread(&GlobalControlStoreClient::worker_loop, this);
-    return notification_thread;
-  }
-
-  inline void Shutdown() { grpc_server_->Shutdown(); }
+  /// Create reduce task
+  /// \param reduce_dst The IP address of the node that holds the final reduced object.
+  void CreateReduceTask(const std::vector<ObjectID> &objects_to_reduce, const ObjectID &reduction_id,
+                        int num_reduce_objects);
 
 private:
-  void worker_loop();
-
   const std::string &notification_server_address_;
   const std::string &my_address_;
   const int notification_server_port_;
   const int notification_listener_port_;
   std::shared_ptr<grpc::Channel> notification_channel_;
   std::unique_ptr<objectstore::NotificationServer::Stub> notification_stub_;
-
-  std::shared_ptr<std::mutex> notifications_pool_mutex_;
-  std::unordered_map<std::string, std::shared_ptr<ObjectNotifications>> notifications_pool_;
-
-  std::unique_ptr<grpc::Server> grpc_server_;
-  std::shared_ptr<NotificationListenerImpl> service_;
   ctpl::thread_pool pool_;
 };
 

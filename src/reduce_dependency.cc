@@ -162,6 +162,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
   }
   Node *n = rtc_->GetNode(num_ready_objects_);
   if (!n->parent) {
+    // the root node
     n->object_id = reduction_id_;
     n->owner_ip = reduce_dst_;
     owner_to_node_[n->owner_ip] = n;

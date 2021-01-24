@@ -169,13 +169,13 @@ void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_c
         LOG(INFO) << "Intended reset receiving " << object_id.ToString() << " from sender " << sender_ip;
       }
     }
-  } if (is_left_child) {
-    DCHECK(!left_recv_thread.joinable());
+  };
+  if (is_left_child) {
+    DCHECK(!left_recv_thread_.joinable());
     left_sender_ip_ = sender_ip;
     left_recv_thread_ = std::thread(func);
-  }
-  else {
-    DCHECK(!left_recv_thread.joinable());
+  } else {
+    DCHECK(!right_recv_thread_.joinable());
     right_recv_thread_ = std::thread(func);
     right_sender_ip_ = sender_ip;
   }
