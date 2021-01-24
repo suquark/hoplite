@@ -176,6 +176,28 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
   return n;
 }
 
+InbandDataNode *ReduceTask::AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
+  float *data = (float *)inband_data.data();
+  size_t size = inband_data.size() / sizeof(float);
+  if (reduced_inband_dst_.reduced_inband_data.empty()) {
+    reduced_inband_dst_.reduced_inband_data = std::vector<float>(data, data + size);
+    reduced_inband_dst_.object_id = reduction_id_;
+    reduced_inband_dst_.owner_ip = reduce_dst_;
+  } else {
+    // if we have got enough objects, skip reducing
+    if (num_ready_objects_ < num_reduce_objects_) {
+      for (size_t i = 0; i < size; i++) {
+        reduced_inband_dst_.reduced_inband_data[i] += data[i];
+      }
+    }
+  }
+  num_ready_objects_++;
+  if (num_ready_objects_ >= num_reduce_objects_) {
+    reduced_inband_dst_.finished = true;
+  }
+  return &reduced_inband_dst_;
+}
+
 void ReduceTask::CompleteReduce(const std::string &receiver_ip) { owner_to_node_[receiver_ip]->set_finished(); }
 
 Node *ReduceTask::LocateFailure(const std::string &receiver_ip, bool left_child) {
@@ -184,4 +206,32 @@ Node *ReduceTask::LocateFailure(const std::string &receiver_ip, bool left_child)
   } else {
     return owner_to_node_[receiver_ip]->right_child;
   }
+}
+
+std::vector<std::pair<Node *, ObjectID>> ReduceManager::AddObject(const ObjectID &object_id, int64_t object_size,
+                                                                  const std::string &owner_ip) {
+  std::vector<std::pair<Node *, ObjectID>> nodes;
+  if (object_id_to_tasks_.count(object_id)) {
+    for (auto &task : object_id_to_tasks_[object_id]) {
+      Node *n = task->AddObject(object_id, object_size, owner_ip);
+      if (n) {
+        nodes.push_back(std::make_pair(n, task->GetReductionID()));
+      }
+    }
+  }
+  return nodes;
+}
+
+std::vector<std::pair<InbandDataNode *, ObjectID>> ReduceManager::AddInbandObject(const ObjectID &object_id,
+                                                                                  const std::string &inband_data) {
+  std::vector<std::pair<InbandDataNode *, ObjectID>> nodes;
+  if (object_id_to_tasks_.count(object_id)) {
+    for (auto &task : object_id_to_tasks_[object_id]) {
+      InbandDataNode *n = task->AddInbandObject(object_id, inband_data);
+      if (n) {
+        nodes.push_back(std::make_pair(n, task->GetReductionID()));
+      }
+    }
+  }
+  return nodes;
 }
