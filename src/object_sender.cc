@@ -81,7 +81,10 @@ void ObjectSender::listener_loop() {
   }
 }
 
+int global_count = 0;
+
 int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t object_size, int64_t offset) {
+  TIMELINE("send_object");
   // fetch object from local store
   std::shared_ptr<Buffer> stream;
   local_store_client_.GetBufferOrCreate(object_id, object_size, &stream);
@@ -90,6 +93,14 @@ int ObjectSender::send_object(int conn_fd, const ObjectID &object_id, int64_t ob
     LOG(DEBUG) << "[Sender] fetched a completed object from local store: " << object_id.ToString();
   } else {
     LOG(DEBUG) << "[Sender] fetching a partial object: " << object_id.ToString();
+  }
+
+  if (++global_count >= 3) {
+     int rank = std::stoi(getenv("OMPI_COMM_WORLD_RANK"));
+     if (rank == 4) {
+        usleep(1000);
+        LOG(FATAL) << my_address_ << " failed intentionally";
+     }
   }
   int ec = stream_send<Buffer>(conn_fd, stream.get(), offset);
   LOG(DEBUG) << "send " << object_id.ToString() << " done, error_code=" << ec;
