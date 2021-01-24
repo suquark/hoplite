@@ -77,6 +77,15 @@ public:
   /// Get the node by the index in the tree.
   Node *GetNode(int index) { return map_[index]; }
 
+  /// Get the root node.
+  Node *GetRoot() {
+    if (tree_.size()) {
+      return &tree_[0];
+    } else {
+      return &chains_[0][0];
+    }
+  }
+
   /// Return a debug string.
   /// \return A string helpful for debugging.
   std::string DebugString();

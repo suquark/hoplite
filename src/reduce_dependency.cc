@@ -151,9 +151,14 @@ std::string ReduceTreeChain::DebugString() {
 
 Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip) {
   if (!rtc_) {
+    // we intialize it now because previously we do not know the object size
     int64_t maximum_chain_length = round(double(object_size) / double(HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY));
     // add one for the reduction result receiver
     rtc_.reset(new ReduceTreeChain(num_reduce_objects_ + 1, maximum_chain_length));
+    // we initialize the root node here, because it could be skipped later
+    Node *root = rtc_->GetRoot();
+    root->object_id = reduction_id_;
+    root->owner_ip = reduce_dst_;
   }
   if (num_ready_objects_ >= num_ready_objects_ + 1) {
     // We already have enough nodes in the tree. Push more into the backup node.
@@ -162,10 +167,6 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
   }
   Node *n = rtc_->GetNode(num_ready_objects_);
   if (!n->parent) {
-    // the root node
-    n->object_id = reduction_id_;
-    n->owner_ip = reduce_dst_;
-    owner_to_node_[n->owner_ip] = n;
     // skip the root node
     n = rtc_->GetNode(++num_ready_objects_);
   }
