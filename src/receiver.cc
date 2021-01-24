@@ -168,8 +168,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
 }
 
 void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_child) {
-  DCHECK(!is_left_child && is_tree_branch_);
-  auto func = [&, sender_ip]() {
+  auto func = [&, sender_ip, is_left_child]() {
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
       if (!intended_reset_) {
