@@ -21,7 +21,7 @@ struct ReduceReceiverTask {
       : reduction_id_(reduction_id), is_tree_branch_(is_tree_branch), intended_reset_(false), local_task_(local_task) {}
   volatile int left_recv_conn_fd_;
   volatile int right_recv_conn_fd_;
-  int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child, bool is_sender_leaf);
+  int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child);
 
   std::shared_ptr<Buffer> target_stream;
   std::shared_ptr<Buffer> local_object;
