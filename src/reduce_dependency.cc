@@ -167,8 +167,14 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     return NULL;
   }
   Node *n = rtc_->GetNode(num_ready_objects_);
-  if (!n->parent) {
+  if (n->is_root()) {
     // skip the root node
+    ++num_ready_objects_;
+    if (num_ready_objects_ >= num_reduce_objects_ + 1) {
+      // We already have enough nodes in the tree. Push more into the backup node.
+      backup_objects_.push({object_id, owner_ip});
+      return NULL;
+    }
     n = rtc_->GetNode(++num_ready_objects_);
   }
   n->object_id = object_id;
