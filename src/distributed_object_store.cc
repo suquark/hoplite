@@ -182,7 +182,8 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
   if (local_objects.size() > 0) {
     int64_t size = local_store_client_.GetBufferNoExcept(local_objects[0])->Size();
     std::shared_ptr<Buffer> r;
-    auto status = local_store_client_.Create(reduction_id, size, &r);
+    // NOTE: DO NOT USE CREATE() HERE! Otherwise it will override old results.
+    auto status = local_store_client_.GetBufferOrCreate(reduction_id, size, &r);
     DCHECK(status.ok());
   }
 }
