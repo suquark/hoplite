@@ -53,6 +53,12 @@ public:
   /// \param object_id The object to pull.
   void pull_object(const ObjectID &object_id);
 
+  /// \param object_id_to_reduce If IsNil, then we skip reducing the local object. This would happen on
+  /// the reduce caller, where the receiver has no object to reduce.
+  void receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch, const std::string &sender_ip,
+                                 bool from_left_child, int64_t object_size, const ObjectID &object_id_to_reduce,
+                                 const ObjectID &object_id_to_pull, const std::shared_ptr<LocalReduceTask> &local_task);
+
 private:
   /// Receive object from the sender. This is a low-level function. The object receiving
   /// starts from the initial progress of the stream.
@@ -62,12 +68,6 @@ private:
   /// \param stream The buffer for receiving the object.
   /// \return The error code. 0 means success.
   int receive_object(const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream);
-
-  /// \param object_id_to_reduce If IsNil, then we skip reducing the local object. This would happen on
-  /// the reduce caller, where the receiver has no object to reduce.
-  void receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch, const std::string &sender_ip,
-                                 bool from_left_child, int64_t object_size, const ObjectID &object_id_to_reduce,
-                                 const ObjectID &object_id_to_pull, const std::shared_ptr<LocalReduceTask> &local_task);
 
   GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;

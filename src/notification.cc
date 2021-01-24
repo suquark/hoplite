@@ -64,7 +64,8 @@ public:
   void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
                                  int64_t object_size);
 
-  void InvokeReduceInbandObject(const std::string &receiver_ip, const std::string &inband_data);
+  void InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
+                                const std::string &inband_data);
 
 private:
   objectstore::NotificationListener::Stub *
@@ -209,8 +210,8 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
         // n->reduced_inband_data
         std::string reduced_inband_data = n->get_inband_data();
         thread_pool_.push(
-            [this, reduction_id, receiver_ip](int id, std::string reduced_inband_data) {
-              InvokeReduceInbandObject(reduction_id, receiver_ip, reduced_inband_data);
+            [this, receiver_ip, reduction_id](int id, std::string reduced_inband_data) {
+              InvokeReduceInbandObject(receiver_ip, reduction_id, reduced_inband_data);
             },
             std::move(reduced_inband_data));
       }
