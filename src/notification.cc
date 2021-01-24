@@ -183,6 +183,7 @@ std::shared_ptr<ObjectDependency> NotificationServiceImpl::get_dependency(const 
 
 void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, int64_t object_size,
                                                     const std::string &owner_ip, const std::string &inband_data) {
+  TIMELINE("[add_object_for_reduce]");
   if (inband_data.empty()) {
     auto results = reduce_manager_.AddObject(object_id, object_size, owner_ip);
     for (auto &r : results) {
@@ -335,7 +336,7 @@ grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *cont
     int64_t object_size;
     std::string owner_ip;
     std::string inband_data;
-    bool success = dep->Get("", /*occupying=*/false, &object_size, &owner_ip, &inband_data, [&]() {
+    bool success = dep->Get(request->reduce_dst(), /*occupying=*/false, &object_size, &owner_ip, &inband_data, [&]() {
       // this makes sure that no on completion event will happen before we queued our request
       pending_queue_.EnqueueGetLocationForReduce(object_id);
     });

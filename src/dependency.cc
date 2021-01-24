@@ -62,6 +62,7 @@ bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, in
   }
   if (available_keys_.size() <= 0) {
     if (on_fail != nullptr) {
+      LOG(DEBUG) << "[Dependency] Get failed for " << receiver;
       on_fail();
     }
     return false;
