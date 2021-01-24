@@ -1,17 +1,22 @@
 #pragma once
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 #include <grpcpp/channel.h>
 #include <grpcpp/server.h>
 
+#include "common/id.h"
+#include "object_store_state.h"
 #include "receiver.h"
 
 class NotificationListenerImpl;
 
 class NotificationListener {
 
-  NotificationListener(const std::string &my_address, int notification_listener_port, Receiver &recevier);
+  NotificationListener(const std::string &my_address, int notification_listener_port, ObjectStoreState &state,
+                       Receiver &recevier);
 
   ~NotificationListener();
 
@@ -24,6 +29,7 @@ private:
 
   std::string my_address_;
 
+  ObjectStoreState &state_;
   Receiver &recevier_;
 
   std::thread notification_listener_thread_;

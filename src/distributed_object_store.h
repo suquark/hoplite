@@ -20,17 +20,10 @@
 #include "notification_listener.h"
 #include "object_sender.h"
 #include "object_store_state.h"
-#include "object_writer.h"
 #include "receiver.h"
 #include "util/ctpl_stl.h"
 
 class ObjectStoreServiceImpl;
-
-struct LocalReduceTask {
-public:
-  LocalReduceTask() {}
-  ObjectID local_object;
-}
 
 class DistributedObjectStore {
 public:
@@ -97,7 +90,6 @@ private:
   ObjectStoreState state_;
   GlobalControlStoreClient gcs_client_;
   LocalStoreClient local_store_client_;
-  TCPServer object_writer_;
   ObjectSender object_sender_;
   Receiver receiver_;
   NotificationListener notification_listener_;
@@ -136,13 +128,10 @@ private:
   ////////////////////////////////////////////////////////////////////////////////
 
   // A map for currently working reduction tasks.
-  std::mutex reduction_tasks_mutex_;
-  std::unordered_map<ObjectID, std::shared_ptr<LocalReduceTask>> reduction_tasks_;
   std::mutex reduced_objects_mutex_;
   std::condition_variable reduced_objects_cv_;
   std::unordered_map<ObjectID, std::unordered_set<ObjectID>> reduced_objects_;
   std::unordered_map<ObjectID, std::unordered_set<ObjectID>> unreduced_objects_;
-  std::thread object_writer_thread_;
   std::thread object_sender_thread_;
 };
 

@@ -84,8 +84,6 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
   // generator, which is pretty slow. So we generate one first, and it
   // will not surprise us later.
   (void)ObjectID::FromRandom();
-  // create a thread to receive remote object
-  object_writer_.Run();
   // create a thread to send object
   object_sender_thread_ = object_sender_.Run();
 
@@ -103,7 +101,6 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
 
 DistributedObjectStore::~DistributedObjectStore() {
   TIMELINE("~DistributedObjectStore");
-  object_writer_.Shutdown();
   object_sender_.Shutdown();
   object_sender_thread_.join();
   Shutdown();
@@ -178,44 +175,39 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
       objects_to_reduce.push_back(object_id);
     }
   }
-  gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
   DCHECK(local_objects.size() <= 1);
-  auto t = std::make_shared<LocalReduceTask>();
+
+  auto status = gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
+  DCHECK(status.ok());
+
+  state_.create_local_reduce_task(reduction_id, local_objects);
+  // this is not necessary, but we can create the reduction object ahead of time
   if (local_objects.size() > 0) {
-    t->local_object = local_objects[0];
-  }
-  {
-    std::lock_guard<std::mutex> lock(reduction_tasks_mutex_);
-    reduction_tasks_[reduction_id] = t;
+    int64_t size = local_store_client_.GetBufferNoExcept(local_objects[0])->Size();
+    std::shared_ptr<Buffer> r;
+    auto status = local_store_client_.Create(reduction_id, size, &r);
+    DCHECK(status.ok());
   }
 }
 
 void DistributedObjectStore::Get(const ObjectID &object_id, std::shared_ptr<Buffer> *result) {
   TIMELINE(std::string("DistributedObjectStore Get single object ") + object_id.ToString());
-
   // FIXME: currently the object store will assume that the object
   // exists even before 'Seal' is called. This will cause the problem
   // that an on-going reduction task could be skipped. Here we just
   // reorder the checking process as a workaround.
-  std::unique_lock<std::mutex> l(reduction_tasks_mutex_);
-  auto search = reduction_tasks_.find(object_id);
-  if (search != reduction_tasks_.end()) {
-    l.unlock();
-    LOG(DEBUG) << "Reduction task " << object_id.ToString() << " found.";
+  if (state_.local_reduce_task_exists(object_id)) {
     // ==> This ObjectID belongs to a reduction task.
-    // we must join the thread first, because the stream
-    // pointer could still be nullptr at creation.
-    search->second.join();
-    local_store_client_.Wait(object_id);
+    LOG(DEBUG) << "Reduction task " << object_id.ToString() << " found.";
+    auto task = state_.get_local_reduce_task(object_id);
     // wait until the object is fully reduced
+    task->Wait();
+    state_.remove_local_reduce_task(object_id);
+    // seal the object
     local_store_client_.Seal(object_id);
     // Location is written in 'object_writer.cc'. So we skip writing the
     // location here.
-    l.lock();
-    reduction_tasks_.erase(object_id);
-    l.unlock();
   } else {
-    l.unlock();
     LOG(DEBUG) << "Try to fetch " << object_id.ToString() << " from local store.";
     if (!local_store_client_.ObjectExists(object_id)) {
       LOG(DEBUG) << "Cannot find " << object_id.ToString() << " in local store. Try to pull it from remote";

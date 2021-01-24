@@ -102,6 +102,7 @@ void Receiver::pull_object(const ObjectID &object_id) {
 int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child) {
   TIMELINE(std::string("Receiver::receive_object() ") + reduction_id_.ToString());
   Buffer *stream;
+  bool work_on_target_stream = true;
   if (is_left_child) {
     if (!is_tree_branch) {
       // directly reduced to the target stream
@@ -109,6 +110,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
     } else {
       // reduced to the left stream temporarily, and the right child thread will reduce it to the target stream
       stream = left_stream.get();
+      work_on_target_stream = false;
     }
   } else {
     // directly reduced to the target stream
@@ -137,7 +139,7 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   SendProtobufMessage(conn_fd, req);
 
   if (intended_reset_) {
-    // when the outside code close the fd, the fd may not have been closed. double check and handle it here
+    // when the outside code close the fd, the fd may not have been updated. double check and handle it here
     close(conn_fd);
     return -1;
   }
@@ -148,12 +150,20 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
       << "Cannot enable non-blocking for the socket (errno = " << errno << ").";
 #endif
   if (is_left_child) {
-    ec = stream_reduce_add<Buffer, float>(conn_fd, stream, *local_object, stream->progress);
+    if (!local_object) {
+      // no local object, so we only need to receive from the sender
+      ec = stream_receive<Buffer>(conn_fd, stream, stream->progress);
+    } else {
+      ec = stream_reduce_add<Buffer, float>(conn_fd, stream, *local_object, stream->progress);
+    }
   } else {
     ec = stream_reduce_add<Buffer, float>(conn_fd, stream, *left_stream, stream->progress);
   }
   LOG(DEBUG) << "receive " << object_id.ToString() << " done, error_code=" << ec;
   close(conn_fd);
+  if (!ec && work_on_target_stream && target_stream->IsFinished() && local_task_) {
+    local_task_->NotifyFinished();
+  }
   return ec;
 }
 
@@ -207,17 +217,18 @@ void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_le
 
 void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch,
                                          const std::string &sender_ip, bool from_left_child, int64_t object_size,
-                                         const ObjectID &object_id_to_reduce, const ObjectID &object_id_to_pull) {
+                                         const ObjectID &object_id_to_reduce, const ObjectID &object_id_to_pull,
+                                         const std::shared_ptr<LocalReduceTask> &local_task) {
   TIMELINE("Receiver::receive_and_reduce_object() ");
   std::shared_ptr<ReduceReceiverTask> task;
   if (!reduce_receiver_tasks_.count(reduction_id)) {
-    task = std::make_shared<ReduceReceiverTask>(is_tree_branch);
+    task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task);
     reduce_receiver_tasks_[reduction_id] = task;
   } else {
     task = reduce_receiver_tasks_[reduction_id];
   }
-  if (!task->local_object) {
-    Status s = local_store_client_.GetBufferOrCreate(object_id, object_size, &task->local_object);
+  if (!task->local_object && !object_id_to_reduce.IsNil()) {
+    Status s = local_store_client_.GetBufferOrCreate(object_id_to_reduce, object_size, &task->local_object);
     DCHECK(s.ok());
   }
   if (!task->target_stream) {
@@ -231,5 +242,5 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
   if (is_tree_branch && !task->left_stream) {
     task->left_stream = std::make_shared<Buffer>(target_stream->Size());
   }
-  start_recv(sender_ip, from_left_child);
+  task->start_recv(sender_ip, from_left_child);
 }

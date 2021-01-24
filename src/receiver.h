@@ -16,8 +16,9 @@
 #include "util/ctpl_stl.h"
 
 struct ReduceReceiverTask {
-  ReduceReceiverTask(const ObjectID &reduction_id, bool is_tree_branch)
-      : reduction_id_(reduction_id), is_tree_branch(is_tree_branch) {}
+  ReduceReceiverTask(const ObjectID &reduction_id, bool is_tree_branch,
+                     const std::shared_ptr<LocalReduceTask> &local_task)
+      : reduction_id_(reduction_id), is_tree_branch(is_tree_branch), local_task_(local_task) {}
   volatile int left_recv_conn_fd_;
   volatile int right_recv_conn_fd_;
   int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child);
@@ -37,6 +38,7 @@ private:
   std::thread left_recv_thread_;
   std::thread right_recv_thread_;
   std::atomic<bool> intended_reset_ = false;
+  std::shared_ptr<LocalReduceTask> local_task_;
 };
 
 class Receiver {
@@ -61,9 +63,11 @@ private:
   /// \return The error code. 0 means success.
   int receive_object(const std::string &sender_ip, int sender_port, const ObjectID &object_id, Buffer *stream);
 
+  /// \param object_id_to_reduce If IsNil, then we skip reducing the local object. This would happen on
+  /// the reduce caller, where the receiver has no object to reduce.
   void receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch, const std::string &sender_ip,
                                  bool from_left_child, int64_t object_size, const ObjectID &object_id_to_reduce,
-                                 const ObjectID &object_id_to_pull);
+                                 const ObjectID &object_id_to_pull, const std::shared_ptr<LocalReduceTask> &local_task);
 
   GlobalControlStoreClient &gcs_client_;
   LocalStoreClient &local_store_client_;
