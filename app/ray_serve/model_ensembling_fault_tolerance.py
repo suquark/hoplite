@@ -108,6 +108,7 @@ class InferenceHost:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ray serve with hoplite')
     parser.add_argument("scale", type=int, default=1)
+    parser.add_argument("--num-requests", "-n", type=int, default=200)
     args = parser.parse_args()
 
     ray.init(address='auto')
@@ -130,7 +131,7 @@ if __name__ == "__main__":
 
     import json
     log = []
-    for _ in range(200):
+    for _ in range(args.num_requests):
         start = time.time()
         reply = requests.get("http://127.0.0.1:8000/inference").json()
         duration = time.time() - start
