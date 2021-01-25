@@ -35,6 +35,19 @@ class ModelWorker:
         else:
             self.model = getattr(models, model_name)().cuda().eval()
         self.store = utils.create_store_using_dict(args_dict)
+        if model_name == 'alexnet':
+            import threading
+            def kill():
+                for i in reversed(range(5)):
+                    print(f"failing in {i} second(s)...")
+                    time.sleep(1)
+                import os
+                os._exit(1)
+            self.t = threading.Thread(target=kill)
+            self.t.start()
+
+    def poll(self):
+        pass
 
     def inference(self, x_id):
         buffer = self.store.get(x_id)
@@ -49,7 +62,7 @@ class ModelWorker:
 class InferenceHost:
     def __init__(self, args_dict, scale=1):
         self.store = utils.create_store_using_dict(args_dict)
-
+        self.args_dict = args_dict
         # Imagine this is a data labeling task, and the user have loaded a bunch of images,
         # cached in memory. Because it is interactive,
         # 1) The user can choose any set of images.
@@ -66,6 +79,7 @@ class InferenceHost:
                 self.models.append(ModelWorker.remote(model_name, args_dict))
 
         self.request_id = 0
+        self.rebooting_tasks = {}
 
     def __call__(self, request):
         # convert torch tensor to numpy speeds up Ray.
@@ -76,10 +90,37 @@ class InferenceHost:
         buffer = store_lib.Buffer.from_buffer(x)
         self.store.put(buffer, object_id)
         self.request_id += 1
+        results = []
+        refs = [m.inference.remote(object_id) for m in self.models]
+        event = "ok"
+        for i,f in enumerate(refs):
+            try:
+                r = ray.get(f)
+                results.append(r)
+            except:
+                if i not in self.rebooting_tasks:
+                    print(f"task {i} failed, restarting...")
+                    event = "fail"
+                    handle = ModelWorker.remote('alexnet', self.args_dict)
+                    self.rebooting_tasks[i] = (handle, handle.poll.remote())
+                else:
+                    print(f"waiting failed task {i} to restart...")
 
-        results = ray.get([m.inference.remote(object_id) for m in self.models])
+        ready_ones = set()
+        for i, v in self.rebooting_tasks.items():
+            rd, _ = ray.wait([v[1]], timeout=0)
+            if rd:
+                ready_ones.add(i)
+                self.models[i] = v[0]
+                print(f"failed task {i} recovered!")
+                event = "rejoin"
+            else:
+                print(f"failed task {i} still initializing!")
+        for i in ready_ones:
+            del self.rebooting_tasks[i]
+
         cls = np.argmax(sum(results), 1)
-        return str(cls.tolist())
+        return {'id': self.request_id, 'data': cls.tolist(), 'event': event}
 
 
 if __name__ == "__main__":
@@ -109,9 +150,13 @@ if __name__ == "__main__":
     for _ in range(10):
         requests.get("http://127.0.0.1:8000/inference")
 
-    intervals = []
-    for _ in range(100):
+    import json
+    log = []
+    for _ in range(200):
         start = time.time()
-        requests.get("http://127.0.0.1:8000/inference")
-        intervals.append(time.time() - start)
-        print(intervals[-1])
+        reply = requests.get("http://127.0.0.1:8000/inference").json()
+        duration = time.time() - start
+        log.append({'id':reply['id'], 'duration': duration, 'event':reply['event']})
+        print(f"request #{reply['id']} uses {duration}s")
+    with open('ray_serve_log.json', 'w') as f:
+        json.dump(log, f)
