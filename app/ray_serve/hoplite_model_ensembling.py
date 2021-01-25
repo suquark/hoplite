@@ -29,7 +29,7 @@ served_models = (
 class ModelWorker:
     def __init__(self, model_name, args_dict):
         if model_name.startswith('efficientnet'):
-            self.model = EfficientNet.from_name(model_name)
+            self.model = EfficientNet.from_name(model_name).cuda().eval()
         else:
             self.model = getattr(models, model_name)().cuda().eval()
         self.store = utils.create_store_using_dict(args_dict)
