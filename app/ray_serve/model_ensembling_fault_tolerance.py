@@ -83,7 +83,7 @@ class InferenceHost:
                 if i not in self.rebooting_tasks:
                     print(f"task {i} failed, restarting...")
                     event = "fail"
-                    handle = ModelWorker.remote('alexnet', self.args_dict)
+                    handle = ModelWorker.remote('alexnet')
                     self.rebooting_tasks[i] = (handle, handle.poll.remote())
                 else:
                     print(f"waiting failed task {i} to restart...")
