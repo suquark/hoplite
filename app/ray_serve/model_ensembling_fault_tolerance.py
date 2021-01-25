@@ -29,7 +29,7 @@ class ModelWorker:
         if model_name == 'alexnet':
             import threading
             def kill():
-                for i in reversed(range(10)):
+                for i in reversed(range(20)):
                     print(f"failing in {i+1} second(s)...")
                     time.sleep(1)
                 import os
