@@ -1,6 +1,4 @@
 import argparse
-import os
-import sys
 import time
 
 import ray
@@ -11,12 +9,6 @@ import requests
 
 import torch
 import torchvision.models as models
-
-os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'  # suppress log printing
-sys.path.insert(0, "../../python")
-import py_distributed_object_store as store_lib
-import utils
-
 from efficientnet_pytorch import EfficientNet
 
 input_shape = (64, 3, 256, 256)
@@ -29,12 +21,11 @@ served_models = (
 
 @ray.remote(num_gpus=1)
 class ModelWorker:
-    def __init__(self, model_name, args_dict):
+    def __init__(self, model_name):
         if model_name.startswith('efficientnet'):
             self.model = EfficientNet.from_name(model_name).cuda().eval()
         else:
             self.model = getattr(models, model_name)().cuda().eval()
-        self.store = utils.create_store_using_dict(args_dict)
         if model_name == 'alexnet':
             import threading
             def kill():
@@ -49,10 +40,7 @@ class ModelWorker:
     def poll(self):
         pass
 
-    def inference(self, x_id):
-        buffer = self.store.get(x_id)
-        x = np.frombuffer(buffer, dtype=np.float32).reshape(input_shape)
-
+    def inference(self, x):
         x = torch.from_numpy(x).cuda()
         with torch.no_grad():
             # with torch.cuda.amp.autocast():
@@ -60,9 +48,7 @@ class ModelWorker:
 
 
 class InferenceHost:
-    def __init__(self, args_dict, scale=1):
-        self.store = utils.create_store_using_dict(args_dict)
-        self.args_dict = args_dict
+    def __init__(self, scale=1):
         # Imagine this is a data labeling task, and the user have loaded a bunch of images,
         # cached in memory. Because it is interactive,
         # 1) The user can choose any set of images.
@@ -76,7 +62,7 @@ class InferenceHost:
         # VGG16 is super slow compared to other models.
         for _ in range(scale):
             for model_name in served_models:
-                self.models.append(ModelWorker.remote(model_name, args_dict))
+                self.models.append(ModelWorker.remote(model_name))
 
         self.request_id = 0
         self.rebooting_tasks = {}
@@ -85,13 +71,9 @@ class InferenceHost:
         # convert torch tensor to numpy speeds up Ray.
         # The original serialization of pytorch tensor would be way too slow.
         x = self.images.numpy()
-
-        object_id = utils.object_id_from_int(self.request_id)
-        buffer = store_lib.Buffer.from_buffer(x)
-        self.store.put(buffer, object_id)
         self.request_id += 1
         results = []
-        refs = [m.inference.remote(object_id) for m in self.models]
+        refs = [m.inference.remote(x) for m in self.models]
         event = "ok"
         for i,f in enumerate(refs):
             try:
@@ -126,11 +108,7 @@ class InferenceHost:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ray serve with hoplite')
     parser.add_argument("scale", type=int, default=1)
-    # We just use this to extract default configurations
-    utils.add_arguments(parser)
     args = parser.parse_args()
-    args_dict = utils.extract_dict_from_args(args)
-    utils.start_location_server()
 
     ray.init(address='auto')
     client = serve.start()
@@ -140,8 +118,8 @@ if __name__ == "__main__":
         client.delete_backend(backend)
 
     # Form a backend from our class and connect it to an endpoint.
-    client.create_backend("h_backend", InferenceHost, args_dict, args.scale, ray_actor_options={"num_gpus":1})
-    client.create_endpoint("h_endpoint", backend="h_backend", route="/inference")
+    client.create_backend("ray_backend", InferenceHost, args.scale, ray_actor_options={"num_gpus":1})
+    client.create_endpoint("ray_endpoint", backend="ray_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
     print(requests.get("http://127.0.0.1:8000/inference").json())
@@ -158,5 +136,5 @@ if __name__ == "__main__":
         duration = time.time() - start
         log.append({'id':reply['id'], 'duration': duration, 'event':reply['event']})
         print(f"request #{reply['id']} uses {duration}s")
-    with open('hoplite_ray_serve_log.json', 'w') as f:
+    with open('ray_serve_log.json', 'w') as f:
         json.dump(log, f)
