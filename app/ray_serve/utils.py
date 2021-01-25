@@ -1,3 +1,8 @@
+def get_my_address():
+    import socket
+    return socket.gethostbyname(socket.gethostname())
+
+
 def create_store_using_dict(args_dict):
     import py_distributed_object_store as store_lib
     store = store_lib.DistributedObjectStore(
