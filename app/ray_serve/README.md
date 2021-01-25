@@ -16,4 +16,6 @@ Baseline: `python model_ensembling.py ${scale}`
 
 With Hoplite: `python hoplite_model_ensembling.py ${scale}`
 
+Baseline + fault tolerance test: `python model_ensembling_fault_tolerance.py 1`
+
 With Hoplite + fault tolerance test: `python hoplite_model_ensembling_fault_tolerance.py.py ${scale}`
