@@ -10,7 +10,8 @@ pip install -r requirements.txt
 
 ## Run
 
-Baseline: `python model_ensembling.py`
+`${scale}*8+1` nodes are required for experiments
 
-With Hoplite: `python hoplite_model_ensembling.py`
+Baseline: `python model_ensembling.py ${scale}`
 
+With Hoplite: `python hoplite_model_ensembling.py ${scale}`
