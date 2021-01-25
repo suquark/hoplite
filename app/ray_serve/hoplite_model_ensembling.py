@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import time
 
@@ -11,22 +12,28 @@ import requests
 import torch
 import torchvision.models as models
 
+os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'  # suppress log printing
 sys.path.insert(0, "../../python")
 import py_distributed_object_store as store_lib
 import utils
 
-input_shape = (128, 3, 256, 256)
+from efficientnet_pytorch import EfficientNet
+
+input_shape = (64, 3, 256, 256)
 served_models = (
-    'resnet18', 'resnet34',
+    'efficientnet-b2', 'resnet34',
     'mobilenet_v2', 'alexnet',
     'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0',
-    'squeezenet1_0', 'squeezenet1_1')
+    'efficientnet-b1', 'squeezenet1_1')
 
 
 @ray.remote(num_gpus=1)
 class ModelWorker:
     def __init__(self, model_name, args_dict):
-        self.model = getattr(models, model_name)().cuda().eval()
+        if model_name.startswith('efficientnet'):
+            self.model = EfficientNet.from_name(model_name).cuda().eval()
+        else:
+            self.model = getattr(models, model_name)().cuda().eval()
         self.store = utils.create_store_using_dict(args_dict)
 
     def inference(self, x_id):
@@ -40,7 +47,7 @@ class ModelWorker:
 
 
 class InferenceHost:
-    def __init__(self, args_dict):
+    def __init__(self, args_dict, scale=1):
         self.store = utils.create_store_using_dict(args_dict)
 
         # Imagine this is a data labeling task, and the user have loaded a bunch of images,
@@ -54,9 +61,10 @@ class InferenceHost:
 
         # torchvision has an issue of too much loading time of 'inception_v3'
         # VGG16 is super slow compared to other models.
-        for model_name in served_models:
-            # TODO: distribute workers to different nodes.
-            self.models.append(ModelWorker.remote(model_name, args_dict))
+        for _ in range(scale):
+            for model_name in served_models:
+                self.models.append(ModelWorker.remote(model_name, args_dict))
+
         self.request_id = 0
 
     def __call__(self, request):
@@ -76,6 +84,7 @@ class InferenceHost:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ray serve with hoplite')
+    parser.add_argument("scale", type=int, default=1)
     # We just use this to extract default configurations
     utils.add_arguments(parser)
     args = parser.parse_args()
@@ -90,7 +99,7 @@ if __name__ == "__main__":
         client.delete_backend(backend)
 
     # Form a backend from our class and connect it to an endpoint.
-    client.create_backend("h_backend", InferenceHost, args_dict, ray_actor_options={"num_gpus":1})
+    client.create_backend("h_backend", InferenceHost, args_dict, args.scale, ray_actor_options={"num_gpus":1})
     client.create_endpoint("h_endpoint", backend="h_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
