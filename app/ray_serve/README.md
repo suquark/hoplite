@@ -15,3 +15,5 @@ pip install -r requirements.txt
 Baseline: `python model_ensembling.py ${scale}`
 
 With Hoplite: `python hoplite_model_ensembling.py ${scale}`
+
+With Hoplite + fault tolerance test: `python hoplite_model_ensembling_fault_tolerance.py.py ${scale}`
