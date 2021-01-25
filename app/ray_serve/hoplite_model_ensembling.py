@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import time
 
@@ -11,13 +12,14 @@ import requests
 import torch
 import torchvision.models as models
 
+os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'  # suppress log printing
 sys.path.insert(0, "../../python")
 import py_distributed_object_store as store_lib
 import utils
 
 from efficientnet_pytorch import EfficientNet
 
-input_shape = (128, 3, 256, 256)
+input_shape = (64, 3, 256, 256)
 served_models = (
     'efficientnet-b2', 'resnet34',
     'mobilenet_v2', 'alexnet',

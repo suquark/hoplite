@@ -11,7 +11,7 @@ import torch
 import torchvision.models as models
 from efficientnet_pytorch import EfficientNet
 
-input_shape = (128, 3, 256, 256)
+input_shape = (64, 3, 256, 256)
 served_models = (
     'efficientnet-b2', 'resnet34',
     'mobilenet_v2', 'alexnet',
