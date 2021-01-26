@@ -204,7 +204,7 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       ObjectID &reduction_id = r.second;
       // check if the node was failed
       if (n->failed) {
-        RecoverReduceTaskFromFailure(&reduction_id, n);
+        RecoverReduceTaskFromFailure(reduction_id, n);
         continue;
       }
       // check if we have a child dependency
@@ -391,9 +391,9 @@ NotificationServiceImpl::HandleReceiveReducedObjectFailure(grpc::ServerContext *
   {
     std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
     std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
-    Node *sender_node = task->GetNodeByIPAddress(reduction_id, sender_ip);
+    Node *sender_node = task->GetNodeByIPAddress(sender_ip);
     // we must operate Node* under the lock
-    bool reassign_ok = ReassignFailedNode(sender_node);
+    bool reassign_ok = task->ReassignFailedNode(sender_node);
     if (reassign_ok) {
       // block "add_object_for_reduce" to avoid some nodes from start reducing before
       // we invalidating some buffers.
@@ -414,7 +414,7 @@ void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduc
   if (failed_node->left_child && failed_node->left_child->location_known()) {
     InvokePullAndReduceObject(failed_node, failed_node->left_child, reduction_id, object_size);
   }
-  if (n->right_child && n->right_child->location_known()) {
+  if (failed_node->right_child && failed_node->right_child->location_known()) {
     InvokePullAndReduceObject(failed_node, failed_node->right_child, reduction_id, object_size);
   }
   Node *prev_node = failed_node;

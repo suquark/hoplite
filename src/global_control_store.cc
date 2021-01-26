@@ -118,7 +118,7 @@ void GlobalControlStoreClient::HandleReceiveReducedObjectFailure(const ObjectID 
   HandleReceiveReducedObjectFailureReply reply;
   request.set_reduction_id(reduction_id.Binary());
   request.set_receiver_ip(receiver_ip);
-  request.set_sender_id(sender_ip);
+  request.set_sender_ip(sender_ip);
   auto status = notification_stub_->HandleReceiveReducedObjectFailure(&context, request, &reply);
   DCHECK(status.ok()) << status.error_message();
 }
