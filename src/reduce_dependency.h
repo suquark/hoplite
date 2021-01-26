@@ -132,8 +132,8 @@ public:
       for (auto &p : backup_objects_) {
         s << "[Backup] " << p.first.ToString() << " @ " << p.second << std::endl;
       }
-      s << std::endl;
-      return rtc_->DebugString();
+      s << std::endl << "==============================================================" << std::endl;
+      return s.str();
     } else {
       return "Debug string is not available";
     }
