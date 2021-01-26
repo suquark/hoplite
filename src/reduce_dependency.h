@@ -23,6 +23,8 @@ struct Node {
 
   int subtree_size = -1;
   int order = -1;
+  // If True, the node is currently in failed state
+  bool failed = false;
 
   bool is_root() const { return parent == NULL; }
   bool is_tree_branch() const { return left_child != NULL && right_child != NULL; }
@@ -120,19 +122,38 @@ public:
 
   ObjectID GetReductionID() const { return reduction_id_; }
 
-  void CompleteReduce(const std::string &receiver_ip);
+  int64_t GetObjectSize() const { return object_size_; }
 
-  Node *LocateFailure(const std::string &receiver_ip, bool left_child);
+  /// Mark the associated node as complete.
+  /// \param[in] receiver_ip The address of the receiver reporting this completion.
+  void CompleteReduce(const std::string &receiver_ip) { owner_to_node_[receiver_ip]->set_finished(); }
+
+  /// Return the node by IP address.
+  /// \param[in] ip_address The address associated to the node.
+  /// \return The pointer of the node. If the IP of the node is unknown, return NULL.
+  Node *GetNodeByIPAddress(const std::string &ip_address) {
+    auto search = owner_to_node_.find(ip_address);
+    if (search != owner_to_node_.end()) {
+      return search->second;
+    }
+    return NULL;
+  }
+
+  /// \param[out] failed_node
+  /// \return True if the node is reassigned.
+  bool ReassignFailedNode(Node *failed_node);
 
 private:
   std::string reduce_dst_;
   std::vector<ObjectID> remote_objects_for_reduce_;
   ObjectID reduction_id_;
+  int64_t object_size_ = -1;
   int num_reduce_objects_;
   int num_ready_objects_ = 0;
   std::unique_ptr<ReduceTreeChain> rtc_;
   std::unordered_map<std::string, Node *> owner_to_node_;
   std::queue<std::pair<ObjectID, std::string>> backup_objects_;
+  std::queue<Node *> suspended_nodes_;
   // for inband data
   std::vector<float> reduced_inband_data_;
   InbandDataNode reduced_inband_dst_;
@@ -160,22 +181,8 @@ public:
   std::vector<std::pair<InbandDataNode *, ObjectID>> AddInbandObject(const ObjectID &object_id,
                                                                      const std::string &inband_data);
 
-  /// Mark the associated node as complete.
-  /// \param[in] reduction_id The reduction id that represents the reduce task.
-  /// \param[in] receiver_ip The address of the receiver reporting this completion.
-  void CompleteReduce(const ObjectID &reduction_id, const std::string &receiver_ip) {
-    tasks_[reduction_id]->CompleteReduce(receiver_ip);
-  }
-
-  /// Locate which node failed. Failure detection is receiver-driven.
-  /// \param[in] reduction_id The reduction id that represents the reduce task.
-  /// \param[in] receiver_ip The address of the receiver reporting this failure.
-  /// \param[in] left_child If True, it indicate the left child failed to send object; otherwise
-  /// it is the right child in the tree. In the chain it is always the left child.
-  /// \return The node associated with the failed sender.
-  Node *LocateFailure(const ObjectID &reduction_id, const std::string &receiver_ip, bool left_child) {
-    return tasks_[reduction_id]->LocateFailure(receiver_ip, left_child);
-  }
+  /// Return the task by reduction ID.
+  std::shared_ptr<ReduceTask> GetReduceTask(const ObjectID &reduction_id) { return tasks_[reduction_id]; }
 
 private:
   // reduction_id -> task

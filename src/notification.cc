@@ -35,10 +35,14 @@ using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
 using objectstore::HandlePullObjectFailureReply;
 using objectstore::HandlePullObjectFailureRequest;
+using objectstore::HandleReceiveReducedObjectFailureReply;
+using objectstore::HandleReceiveReducedObjectFailureRequest;
 using objectstore::PullAndReduceObjectReply;
 using objectstore::PullAndReduceObjectRequest;
 using objectstore::ReduceInbandObjectReply;
 using objectstore::ReduceInbandObjectRequest;
+using objectstore::ResetReducedObjectReply;
+using objectstore::ResetReducedObjectRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -67,6 +71,12 @@ public:
 
   void InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
                                 const std::string &inband_data);
+
+  grpc::Status HandleReceiveReducedObjectFailure(grpc::ServerContext *context,
+                                                 const HandleReceiveReducedObjectFailureRequest *request,
+                                                 HandleReceiveReducedObjectFailureReply *reply);
+
+  void RecoverReduceTaskFromFailure(const ObjectID &reduction_id, Node *failed_node);
 
 private:
   objectstore::NotificationListener::Stub *
@@ -192,6 +202,11 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
     for (auto &r : results) {
       Node *n = r.first;
       ObjectID &reduction_id = r.second;
+      // check if the node was failed
+      if (n->failed) {
+        RecoverReduceTaskFromFailure(&reduction_id, n);
+        continue;
+      }
       // check if we have a child dependency
       if (n->left_child && n->left_child->location_known()) {
         InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size);
@@ -200,6 +215,7 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
         LOG(FATAL) << "This case should not exist";
       }
       // check if we have a parent dependency
+      // FIXME: should we consider this code path in `RecoverReduceTaskFromFailure`?
       if (n->parent && n->parent->location_known()) {
         InvokePullAndReduceObject(n->parent, n, reduction_id, object_size);
         // now we can publish the reduction id
@@ -362,6 +378,61 @@ grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *cont
     }
   }
   return grpc::Status::OK;
+}
+
+grpc::Status
+NotificationServiceImpl::HandleReceiveReducedObjectFailure(grpc::ServerContext *context,
+                                                           const HandleReceiveReducedObjectFailureRequest *request,
+                                                           HandleReceiveReducedObjectFailureReply *reply) {
+  TIMELINE("notification CreateReduceTask");
+  ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
+  // request->receiver_ip() is unused now. keep it in case we would use it in the future.
+  std::string sender_ip = request->sender_ip();
+  {
+    std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
+    std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
+    Node *sender_node = task->GetNodeByIPAddress(reduction_id, sender_ip);
+    // we must operate Node* under the lock
+    bool reassign_ok = ReassignFailedNode(sender_node);
+    if (reassign_ok) {
+      // block "add_object_for_reduce" to avoid some nodes from start reducing before
+      // we invalidating some buffers.
+      RecoverReduceTaskFromFailure(reduction_id, sender_node);
+    }
+  }
+  return grpc::Status::OK;
+}
+
+void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduction_id, Node *failed_node) {
+  TIMELINE("notification RecoverReduceTaskFromFailure");
+  // NOTE: this function must be protected by `reduce_manager_mutex_`! The lock would block "add_object_for_reduce"
+  // to avoid some nodes from start reducing before we resetting some node.
+  DCHECK(failed_node->failed);
+  std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
+  const int64_t object_size = task->GetObjectSize();
+  // check if we have a child dependency
+  if (failed_node->left_child && failed_node->left_child->location_known()) {
+    InvokePullAndReduceObject(failed_node, failed_node->left_child, reduction_id, object_size);
+  }
+  if (n->right_child && n->right_child->location_known()) {
+    InvokePullAndReduceObject(failed_node, failed_node->right_child, reduction_id, object_size);
+  }
+  Node *prev_node = failed_node;
+  for (Node *cursor = failed_node->parent; cursor && cursor->location_known(); cursor = cursor->parent) {
+    LOG(DEBUG) << "Resetting node " << cursor->owner_ip;
+    auto remote_address = cursor->owner_ip + ":" + std::to_string(notification_listener_port_);
+    objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
+    grpc::ClientContext context;
+    ResetReducedObjectRequest request;
+    request.set_reduction_id(reduction_id.Binary());
+    request.set_new_sender_ip(prev_node->owner_ip);
+    request.set_from_left_child(cursor->left_child == prev_node);
+    ResetReducedObjectReply reply;
+    auto status = stub->ResetReducedObject(&context, request, &reply);
+    DCHECK(status.ok());
+    prev_node = cursor;
+  }
+  failed_node->failed = false;
 }
 
 void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,

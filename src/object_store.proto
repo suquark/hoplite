@@ -118,6 +118,24 @@ message CreateReduceTaskRequest {
 message CreateReduceTaskReply {
 }
 
+message HandleReceiveReducedObjectFailureRequest {
+  bytes reduction_id = 1;
+  bytes receiver_ip = 2;
+  bytes sender_ip = 3;
+}
+
+message HandleReceiveReducedObjectFailureReply {
+}
+
+message ResetReducedObjectRequest {
+  bytes reduction_id = 1;
+  bytes new_sender_ip = 2;
+  bool from_left_child = 3;
+}
+
+message ResetReducedObjectReply {
+}
+
 // other API
 
 message ConnectRequest {
@@ -145,6 +163,7 @@ service NotificationServer {
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
   rpc HandlePullObjectFailure(HandlePullObjectFailureRequest) returns (HandlePullObjectFailureReply);
+  rpc HandleReceiveReducedObjectFailure(HandleReceiveReducedObjectFailureRequest) returns (HandleReceiveReducedObjectFailureReply);
   rpc CreateReduceTask(CreateReduceTaskRequest) returns (CreateReduceTaskReply);
 }
 
@@ -152,4 +171,5 @@ service NotificationListener {
   rpc ConnectListener(ConnectListenerRequest) returns (ConnectListenerReply);
   rpc PullAndReduceObject(PullAndReduceObjectRequest) returns (PullAndReduceObjectReply);
   rpc ReduceInbandObject(ReduceInbandObjectRequest) returns (ReduceInbandObjectReply);
+  rpc ResetReducedObject(ResetReducedObjectRequest) returns (ResetReducedObjectReply);
 }

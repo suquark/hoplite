@@ -184,8 +184,9 @@ void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_c
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
       if (!intended_reset_) {
-        LOG(FATAL) << "Failed to receive object for reduce from sender " << sender_ip;
-        // TODO(siyuan): handle failure.
+        LOG(ERROR) << "Failed to receive object for reduce from sender " << sender_ip;
+        gcs_client_.HandleReceiveReducedObjectFailure(reduction_id_, my_address_, sender_ip);
+        // later this receiver would be reset
       } else {
         LOG(INFO) << "Intended reset receiving object for reduce from sender " << sender_ip;
       }
@@ -203,6 +204,9 @@ void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_c
 }
 
 void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_left_child) {
+  TIMELINE("ReduceReceiverTask::reset_recv");
+  LOG(INFO) << "Resetting reduced object for " << my_address_ << ", new_sender_ip=" << new_sender_ip
+            << ", is_left_child=" << is_left_child;
   intended_reset_ = true;
   close(left_recv_conn_fd_);
   close(right_recv_conn_fd_);
@@ -238,7 +242,7 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
   {
     std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
     if (!reduce_receiver_tasks_.count(reduction_id)) {
-      task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task);
+      task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task, gcs_client_, my_address_);
       reduce_receiver_tasks_[reduction_id] = task;
     } else {
       task = reduce_receiver_tasks_[reduction_id];
@@ -267,4 +271,13 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
     task->right_sender_object = object_id_to_pull;
   }
   task->start_recv(sender_ip, from_left_child);
+}
+
+void Receiver::reset_reduced_object(const ObjectID &reduction_id, const std::string &new_sender_ip,
+                                    bool from_left_child) {
+  std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
+  if (reduce_receiver_tasks_.count(reduction_id)) {
+    std::shared_ptr<ReduceReceiverTask> task = reduce_receiver_tasks_[reduction_id];
+    task->reset_recv(new_sender_ip, from_left_child);
+  }
 }

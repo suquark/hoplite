@@ -15,6 +15,8 @@ using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
 using objectstore::HandlePullObjectFailureReply;
 using objectstore::HandlePullObjectFailureRequest;
+using objectstore::HandleReceiveReducedObjectFailureReply;
+using objectstore::HandleReceiveReducedObjectFailureRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -105,6 +107,20 @@ bool GlobalControlStoreClient::HandlePullObjectFailure(const ObjectID &object_id
   DCHECK(status.ok()) << status.error_message();
   *alternative_sender_ip = reply.alternative_sender_ip();
   return reply.success();
+}
+
+void GlobalControlStoreClient::HandleReceiveReducedObjectFailure(const ObjectID &reduction_id,
+                                                                 const std::string &receiver_ip,
+                                                                 const std::string &sender_ip) {
+  TIMELINE("HandleReceiveReducedObjectFailure");
+  grpc::ClientContext context;
+  HandleReceiveReducedObjectFailureRequest request;
+  HandleReceiveReducedObjectFailureReply reply;
+  request.set_reduction_id(reduction_id.Binary());
+  request.set_receiver_ip(receiver_ip);
+  request.set_sender_id(sender_ip);
+  auto status = notification_stub_->HandleReceiveReducedObjectFailure(&context, request, &reply);
+  DCHECK(status.ok()) << status.error_message();
 }
 
 void GlobalControlStoreClient::CreateReduceTask(const std::vector<ObjectID> &objects_to_reduce,
