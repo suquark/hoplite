@@ -124,6 +124,14 @@ public:
 
   int64_t GetObjectSize() const { return object_size_; }
 
+  std::string DebugString() {
+    if (rtc_) {
+      return rtc_->DebugString();
+    } else {
+      return "Debug string is not available";
+    }
+  }
+
   /// Mark the associated node as complete.
   /// \param[in] receiver_ip The address of the receiver reporting this completion.
   void CompleteReduce(const std::string &receiver_ip) { owner_to_node_[receiver_ip]->set_finished(); }

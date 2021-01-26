@@ -410,6 +410,7 @@ void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduc
   DCHECK(failed_node->failed);
   std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
   const int64_t object_size = task->GetObjectSize();
+  LOG(DEBUG) << "RecoverReduceTaskFromFailure: " << task->DebugString();
   // check if we have a child dependency
   if (failed_node->left_child && failed_node->left_child->location_known()) {
     InvokePullAndReduceObject(failed_node, failed_node->left_child, reduction_id, object_size);
