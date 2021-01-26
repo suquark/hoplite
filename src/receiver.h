@@ -19,9 +19,8 @@ struct ReduceReceiverTask {
   ReduceReceiverTask(const ObjectID &reduction_id, bool is_tree_branch,
                      const std::shared_ptr<LocalReduceTask> &local_task, GlobalControlStoreClient &gcs_client,
                      const std::string &my_address)
-      : left_thread_start(false).right_thread_start(false),
-  reduction_id_(reduction_id), is_tree_branch_(is_tree_branch), local_task_(local_task), gcs_client_(gcs_client),
-  my_address_(my_address) {}
+      : reduction_id_(reduction_id), is_tree_branch_(is_tree_branch), local_task_(local_task), gcs_client_(gcs_client),
+        my_address_(my_address) {}
 
   int receive_reduced_object(const std::string &sender_ip, int sender_port, bool is_left_child);
 
