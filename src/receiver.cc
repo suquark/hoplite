@@ -3,6 +3,7 @@
 #include <fcntl.h> // for non-blocking socket
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "common/config.h"
 
