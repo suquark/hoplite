@@ -274,10 +274,10 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
     task->reset_progress();
     // restart all tasks
     if (!task->left_sender_ip.empty()) {
-      start_recv(/*is_left_child=*/true);
+      task->start_recv(/*is_left_child=*/true);
     }
     if (!task->right_sender_ip.empty()) {
-      start_recv(/*is_left_child=*/false);
+      task->start_recv(/*is_left_child=*/false);
     }
   }
 }

@@ -430,8 +430,8 @@ void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduc
 }
 
 void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,
-                                                        const ObjectID &reduction_id,
-                                                        int64_t object_size bool reset_progress) {
+                                                        const ObjectID &reduction_id, int64_t object_size,
+                                                        bool reset_progress) {
   TIMELINE("notification InvokePullAndReduceObject");
   auto remote_address = receiver_node->owner_ip + ":" + std::to_string(notification_listener_port_);
   objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
