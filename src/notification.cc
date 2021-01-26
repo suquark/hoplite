@@ -209,7 +209,7 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       if (n->left_child && n->left_child->location_known()) {
         thread_pool_.push([this, n, reduction_id, object_size](int id) {
           InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size, false);
-        }
+        });
       }
       if (n->right_child && n->right_child->location_known()) {
         LOG(FATAL) << "This case should not exist";
@@ -219,7 +219,7 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       if (n->parent && n->parent->location_known()) {
         thread_pool_.push([this, n, reduction_id, object_size](int id) {
           InvokePullAndReduceObject(n->parent, n, reduction_id, object_size, false);
-        }
+        });
         // now we can publish the reduction id
         if (n->parent->is_root()) {
           auto dep = get_dependency(reduction_id);

@@ -267,7 +267,7 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
     task->start_recv(from_left_child);
   } else {
     // clean up previous threads
-    task->reset_progress();
+    task->reset_progress(from_left_child);
     // restart all tasks
     if (!task->left_sender_ip.empty()) {
       task->start_recv(/*is_left_child=*/true);
