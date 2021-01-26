@@ -64,7 +64,7 @@ public:
                                   ResetReducedObjectReply *reply) {
     TIMELINE("ResetReducedObject");
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
-    receiver_.reset_reduced_object(reduction_id, request->new_sender_ip, request->from_left_child());
+    receiver_.reset_reduced_object(reduction_id, request->new_sender_ip(), request->from_left_child());
     return grpc::Status::OK;
   }
 
