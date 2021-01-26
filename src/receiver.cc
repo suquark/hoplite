@@ -1,4 +1,8 @@
 #include "receiver.h"
+
+#include <pthread.h>
+#include <signal.h>
+
 #include "common/config.h"
 #include "finegrained_pipelining.h"
 
@@ -148,13 +152,6 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
     req.set_allocated_receive_reduced_object(ro_request);
   }
   SendProtobufMessage(conn_fd, req);
-
-  if (intended_reset_) {
-    // when the outside code close the fd, the fd may not have been updated. double check and handle it here
-    close(conn_fd);
-    return -1;
-  }
-
   // start receiving object
 #ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
   DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
@@ -179,17 +176,19 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   return ec;
 }
 
+void receiver_handle_signal(int sig) {
+  LOG(DEBUG) << "Signal received on object receiver";
+  pthread_exit(NULL);
+}
+
 void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_child) {
   auto func = [&, sender_ip, is_left_child]() {
+    signal(SIGUSR1, receiver_handle_signal);
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
-      if (!intended_reset_) {
-        LOG(ERROR) << "Failed to receive object for reduce from sender " << sender_ip;
-        gcs_client_.HandleReceiveReducedObjectFailure(reduction_id_, my_address_, sender_ip);
-        // later this receiver would be reset
-      } else {
-        LOG(INFO) << "Intended reset receiving object for reduce from sender " << sender_ip;
-      }
+      LOG(ERROR) << "Failed to receive object for reduce from sender " << sender_ip;
+      gcs_client_.HandleReceiveReducedObjectFailure(reduction_id_, my_address_, sender_ip);
+      // later this receiver would be reset
     }
   };
   if (is_left_child) {
@@ -207,16 +206,14 @@ void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_le
   TIMELINE("ReduceReceiverTask::reset_recv");
   LOG(INFO) << "Resetting reduced object for " << my_address_ << ", new_sender_ip=" << new_sender_ip
             << ", is_left_child=" << is_left_child;
-  intended_reset_ = true;
-  close(left_recv_conn_fd_);
-  close(right_recv_conn_fd_);
-  if (left_recv_thread_.joinable()) {
-    left_recv_thread_.join();
-  }
   if (right_recv_thread_.joinable()) {
+    pthread_kill(right_recv_thread_.native_handle(), SIGUSR1);
     right_recv_thread_.join();
   }
-  intended_reset_ = false;
+  if (left_recv_thread_.joinable()) {
+    pthread_kill(left_recv_thread_.native_handle(), SIGUSR1);
+    left_recv_thread_.join();
+  }
   // target stream is required to reset anyway
   target_stream->progress = 0;
   if (is_left_child) {
