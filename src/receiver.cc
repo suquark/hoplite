@@ -1,8 +1,6 @@
 #include "receiver.h"
 
 #include <fcntl.h> // for non-blocking socket
-#include <pthread.h>
-#include <signal.h>
 #include <unistd.h>
 
 #include "common/config.h"
@@ -42,6 +40,9 @@ template <typename T> inline int stream_receive(int conn_fd, T *stream, int64_t 
   TIMELINE("stream_receive");
   int64_t receive_progress = offset;
   while (receive_progress < stream->Size()) {
+    if (stream->reset) {
+      return 0;
+    }
     int ec = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (ec) {
       // return the error
@@ -70,6 +71,9 @@ int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64
   uint8_t *dep_data_ptr = dep_stream.MutableData();
   const int64_t object_size = stream->Size();
   while (receive_progress < object_size) {
+    if (stream->reset) {
+      return 0;
+    }
     int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (status) {
       // return the error
@@ -94,6 +98,9 @@ int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64
     }
   }
   while (!stream->IsFinished()) {
+    if (stream->reset) {
+      return 0;
+    }
 #ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     auto progress = stream->progress.load();
     auto dep_stream_progress = dep_stream.progress.load();
@@ -326,13 +333,8 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   return ec;
 }
 
-void receiver_handle_signal(int sig) {
-  pthread_exit(NULL);
-}
-
 void ReduceReceiverTask::start_recv(bool is_left_child) {
   auto func = [this, is_left_child](std::string sender_ip) {
-    signal(SIGUSR1, receiver_handle_signal);
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
       LOG(ERROR) << "Failed to receive object for reduce from sender " << sender_ip;
@@ -350,13 +352,16 @@ void ReduceReceiverTask::start_recv(bool is_left_child) {
 }
 
 void ReduceReceiverTask::reset_progress(bool is_left_child) {
+  // target stream is required to reset anyway
+  target_stream->reset = true;
+  if (left_stream) {
+    left_stream->reset = true;
+  }
   // clean up previous threads
   if (right_recv_thread_.joinable()) {
-    pthread_kill(right_recv_thread_.native_handle(), SIGUSR1);
     right_recv_thread_.join();
   }
   if (left_recv_thread_.joinable()) {
-    pthread_kill(left_recv_thread_.native_handle(), SIGUSR1);
     left_recv_thread_.join();
   }
   // target stream is required to reset anyway
@@ -364,6 +369,10 @@ void ReduceReceiverTask::reset_progress(bool is_left_child) {
   if (is_left_child && is_tree_branch_) {
     // the left sender first reduces it to the left stream, so both stream needs to be reset
     left_stream->progress = 0;
+  }
+  target_stream->reset = false;
+  if (left_stream) {
+    left_stream->reset = false;
   }
 }
 
