@@ -1,5 +1,6 @@
 #include "receiver.h"
 
+#include <fcntl.h> // for non-blocking socket
 #include <pthread.h>
 #include <signal.h>
 
