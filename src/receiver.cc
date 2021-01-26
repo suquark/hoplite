@@ -23,6 +23,9 @@ template <typename T> inline int stream_receive_next(int conn_fd, T *stream, int
 #ifndef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
         LOG(WARNING) << "[stream_receive_next] socket recv error (EAGAIN). Ignored.";
 #endif
+        if (stream->reset) {
+          return 0;
+        }
         continue;
       }
       LOG(ERROR) << "[stream_receive_next] socket recv error (" << strerror(errno) << ", code=" << errno << ")";
