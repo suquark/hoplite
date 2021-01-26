@@ -393,6 +393,7 @@ NotificationServiceImpl::HandleReceiveReducedObjectFailure(grpc::ServerContext *
   {
     std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
     std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
+    LOG(DEBUG) << "HandleReceiveReducedObjectFailure: " << task->DebugString();
     Node *sender_node = task->GetNodeByIPAddress(sender_ip);
     // we must operate Node* under the lock
     bool reassign_ok = task->ReassignFailedNode(sender_node);
