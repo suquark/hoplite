@@ -111,6 +111,12 @@ std::string ReduceTreeChain::DebugString() {
   std::stringstream s;
   s << std::endl << "==============================================================" << std::endl;
   s << "object_count: " << object_count_ << ", maximum_chain_length: " << maximum_chain_length_ << std::endl;
+  for (size_t i = 0; i < map_.size(); i++) {
+    Node *n = map_[i];
+    if (n->location_known()) {
+      s << i << ": " << n->object_id.ToString() << " @ " << n->owner_ip << std::endl;
+    }
+  }
   s << std::endl;
   if (chains_.size() == 0) {
     s << "Chain: NULL";
@@ -173,7 +179,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
   }
   if (num_ready_objects_ >= num_reduce_objects_ + 1) {
     // We already have enough nodes in the tree. Push more into the backup node.
-    backup_objects_.push({object_id, owner_ip});
+    backup_objects_.push_back({object_id, owner_ip});
     return NULL;
   }
   Node *n = rtc_->GetNode(num_ready_objects_);
@@ -182,7 +188,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     ++num_ready_objects_;
     if (num_ready_objects_ >= num_reduce_objects_ + 1) {
       // We already have enough nodes in the tree. Push more into the backup node.
-      backup_objects_.push({object_id, owner_ip});
+      backup_objects_.push_back({object_id, owner_ip});
       return NULL;
     }
     n = rtc_->GetNode(num_ready_objects_);
@@ -223,7 +229,7 @@ bool ReduceTask::ReassignFailedNode(Node *failed_node) {
     failed_node->object_id = pair.first;
     failed_node->owner_ip = pair.second;
     owner_to_node_[failed_node->owner_ip] = failed_node;
-    backup_objects_.pop();
+    backup_objects_.pop_front();
     return true;
   }
   // reset the node. reassign it later.

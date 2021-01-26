@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 
+#include <deque>
 #include <memory>
 #include <queue>
 #include <string>
@@ -126,6 +127,12 @@ public:
 
   std::string DebugString() {
     if (rtc_) {
+      std::stringstream s;
+      s << rtc_->DebugString();
+      for (auto &p : backup_objects_) {
+        s << "[Backup] " << p.first.ToString() << " @ " << p.second << std::endl;
+      }
+      s << std::endl;
       return rtc_->DebugString();
     } else {
       return "Debug string is not available";
@@ -160,7 +167,7 @@ private:
   int num_ready_objects_ = 0;
   std::unique_ptr<ReduceTreeChain> rtc_;
   std::unordered_map<std::string, Node *> owner_to_node_;
-  std::queue<std::pair<ObjectID, std::string>> backup_objects_;
+  std::deque<std::pair<ObjectID, std::string>> backup_objects_;
   std::queue<Node *> suspended_nodes_;
   // for inband data
   std::vector<float> reduced_inband_data_;
