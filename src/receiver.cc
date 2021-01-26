@@ -327,7 +327,6 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
 }
 
 void receiver_handle_signal(int sig) {
-  LOG(DEBUG) << "Signal received on object receiver";
   pthread_exit(NULL);
 }
 
