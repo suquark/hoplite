@@ -131,11 +131,6 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
     LOG(ERROR) << "Failed to connect to sender (ip=" << sender_ip << ", port=" << sender_port << ").";
     return ec;
   }
-  if (is_left_child) {
-    left_recv_conn_fd_ = conn_fd;
-  } else {
-    right_recv_conn_fd_ = conn_fd;
-  }
   // send request
   ObjectWriterRequest req;
   if (is_sender_leaf) {
@@ -181,8 +176,8 @@ void receiver_handle_signal(int sig) {
   pthread_exit(NULL);
 }
 
-void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_child) {
-  auto func = [&, sender_ip, is_left_child]() {
+void ReduceReceiverTask::start_recv(bool is_left_child) {
+  auto func = [this, is_left_child](std::string sender_ip) {
     signal(SIGUSR1, receiver_handle_signal);
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
@@ -193,57 +188,48 @@ void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_c
   };
   if (is_left_child) {
     DCHECK(!left_recv_thread_.joinable());
-    left_sender_ip_ = sender_ip;
-    left_recv_thread_ = std::thread(func);
+    left_recv_thread_ = std::thread(func, left_sender_ip);
   } else {
     DCHECK(!right_recv_thread_.joinable());
-    right_recv_thread_ = std::thread(func);
-    right_sender_ip_ = sender_ip;
+    right_recv_thread_ = std::thread(func, right_sender_ip);
   }
 }
 
-void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_left_child) {
-  TIMELINE("ReduceReceiverTask::reset_recv");
-  LOG(INFO) << "Resetting reduced object for " << my_address_ << ", new_sender_ip=" << new_sender_ip
-            << ", is_left_child=" << is_left_child;
+void ReduceReceiverTask::reset_progress(bool is_left_child) {
+  // clean up previous threads
   if (right_recv_thread_.joinable()) {
-    pthread_kill(right_recv_thread_.native_handle(), SIGUSR1);
+    if (right_thread_start) {
+      pthread_kill(right_recv_thread_.native_handle(), SIGUSR1);
+    }
     right_recv_thread_.join();
   }
   if (left_recv_thread_.joinable()) {
-    pthread_kill(left_recv_thread_.native_handle(), SIGUSR1);
+    if (left_thread_start) {
+      pthread_kill(left_recv_thread_.native_handle(), SIGUSR1);
+    }
     left_recv_thread_.join();
   }
   // target stream is required to reset anyway
   target_stream->progress = 0;
-  if (is_left_child) {
-    if (is_tree_branch_) {
-      // the left sender first reduces it to the left stream, so both stream needs to be reset
-      left_stream->progress = 0;
-    }
-    start_recv(new_sender_ip, /*is_left_child=*/true);
-    start_recv(right_sender_ip_, /*is_left_child=*/false);
-  } else {
-    DCHECK(is_tree_branch_);
-    start_recv(left_sender_ip_, /*is_left_child=*/true);
-    start_recv(new_sender_ip, /*is_left_child=*/false);
+  if (is_left_child && is_tree_branch_) {
+    // the left sender first reduces it to the left stream, so both stream needs to be reset
+    left_stream->progress = 0;
   }
 }
 
 void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch,
                                          const std::string &sender_ip, bool from_left_child, int64_t object_size,
                                          const ObjectID &object_id_to_reduce, const ObjectID &object_id_to_pull,
-                                         bool is_sender_leaf, const std::shared_ptr<LocalReduceTask> &local_task) {
+                                         bool is_sender_leaf, bool reset_progress,
+                                         const std::shared_ptr<LocalReduceTask> &local_task) {
   TIMELINE("Receiver::receive_and_reduce_object() ");
+  std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
   std::shared_ptr<ReduceReceiverTask> task;
-  {
-    std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
-    if (!reduce_receiver_tasks_.count(reduction_id)) {
-      task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task, gcs_client_, my_address_);
-      reduce_receiver_tasks_[reduction_id] = task;
-    } else {
-      task = reduce_receiver_tasks_[reduction_id];
-    }
+  if (!reduce_receiver_tasks_.count(reduction_id)) {
+    task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task, gcs_client_, my_address_);
+    reduce_receiver_tasks_[reduction_id] = task;
+  } else {
+    task = reduce_receiver_tasks_[reduction_id];
   }
   if (!task->local_object && !object_id_to_reduce.IsNil()) {
     Status s = local_store_client_.GetBufferOrCreate(object_id_to_reduce, object_size, &task->local_object);
@@ -267,14 +253,31 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
     task->is_right_sender_leaf = is_sender_leaf;
     task->right_sender_object = object_id_to_pull;
   }
-  task->start_recv(sender_ip, from_left_child);
-}
 
-void Receiver::reset_reduced_object(const ObjectID &reduction_id, const std::string &new_sender_ip,
-                                    bool from_left_child) {
-  std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
-  if (reduce_receiver_tasks_.count(reduction_id)) {
-    std::shared_ptr<ReduceReceiverTask> task = reduce_receiver_tasks_[reduction_id];
-    task->reset_recv(new_sender_ip, from_left_child);
+  if (!reset_progress) {
+    if ((from_left_child && !task->left_sender_ip.empty()) || (!from_left_child && !task->right_sender_ip.empty())) {
+      return; // the task is running. prevent overriding.
+    }
+  }
+
+  // override ip address
+  if (from_left_child) {
+    task->left_sender_ip = sender_ip;
+  } else {
+    task->right_sender_ip = sender_ip;
+  }
+
+  if (!reset_progress) {
+    task->start_recv(from_left_child);
+  } else {
+    // clean up previous threads
+    task->reset_progress();
+    // restart all tasks
+    if (!task->left_sender_ip.empty()) {
+      start_recv(/*is_left_child=*/true);
+    }
+    if (!task->right_sender_ip.empty()) {
+      start_recv(/*is_left_child=*/false);
+    }
   }
 }

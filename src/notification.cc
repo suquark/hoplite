@@ -41,8 +41,6 @@ using objectstore::PullAndReduceObjectReply;
 using objectstore::PullAndReduceObjectRequest;
 using objectstore::ReduceInbandObjectReply;
 using objectstore::ReduceInbandObjectRequest;
-using objectstore::ResetReducedObjectReply;
-using objectstore::ResetReducedObjectRequest;
 using objectstore::WriteLocationReply;
 using objectstore::WriteLocationRequest;
 
@@ -67,7 +65,7 @@ public:
                                 CreateReduceTaskReply *reply);
 
   void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
-                                 int64_t object_size);
+                                 int64_t object_size, bool reset_progress);
 
   void InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
                                 const std::string &inband_data);
@@ -209,7 +207,9 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       }
       // check if we have a child dependency
       if (n->left_child && n->left_child->location_known()) {
-        InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size);
+        thread_pool_.push([this, n, reduction_id, object_size](int id) {
+          InvokePullAndReduceObject(n, n->left_child, reduction_id, object_size, false);
+        }
       }
       if (n->right_child && n->right_child->location_known()) {
         LOG(FATAL) << "This case should not exist";
@@ -217,7 +217,9 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       // check if we have a parent dependency
       // FIXME: should we consider this code path in `RecoverReduceTaskFromFailure`?
       if (n->parent && n->parent->location_known()) {
-        InvokePullAndReduceObject(n->parent, n, reduction_id, object_size);
+        thread_pool_.push([this, n, reduction_id, object_size](int id) {
+          InvokePullAndReduceObject(n->parent, n, reduction_id, object_size, false);
+        }
         // now we can publish the reduction id
         if (n->parent->is_root()) {
           auto dep = get_dependency(reduction_id);
@@ -413,49 +415,40 @@ void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduc
   LOG(DEBUG) << "RecoverReduceTaskFromFailure: " << task->DebugString();
   // check if we have a child dependency
   if (failed_node->left_child && failed_node->left_child->location_known()) {
-    InvokePullAndReduceObject(failed_node, failed_node->left_child, reduction_id, object_size);
+    InvokePullAndReduceObject(failed_node, failed_node->left_child, reduction_id, object_size, false);
   }
   if (failed_node->right_child && failed_node->right_child->location_known()) {
-    InvokePullAndReduceObject(failed_node, failed_node->right_child, reduction_id, object_size);
+    InvokePullAndReduceObject(failed_node, failed_node->right_child, reduction_id, object_size, false);
   }
   Node *prev_node = failed_node;
   for (Node *cursor = failed_node->parent; cursor && cursor->location_known(); cursor = cursor->parent) {
     LOG(DEBUG) << "Resetting node " << cursor->owner_ip;
-    auto remote_address = cursor->owner_ip + ":" + std::to_string(notification_listener_port_);
-    objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
-    grpc::ClientContext context;
-    ResetReducedObjectRequest request;
-    request.set_reduction_id(reduction_id.Binary());
-    request.set_new_sender_ip(prev_node->owner_ip);
-    request.set_from_left_child(cursor->left_child == prev_node);
-    ResetReducedObjectReply reply;
-    auto status = stub->ResetReducedObject(&context, request, &reply);
-    DCHECK(status.ok());
+    InvokePullAndReduceObject(cursor, prev_node, reduction_id, object_size, true);
     prev_node = cursor;
   }
   failed_node->failed = false;
 }
 
 void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,
-                                                        const ObjectID &reduction_id, int64_t object_size) {
-  thread_pool_.push([this, receiver_node, sender_node, reduction_id, object_size](int id) {
-    TIMELINE("notification InvokePullAndReduceObject");
-    auto remote_address = receiver_node->owner_ip + ":" + std::to_string(notification_listener_port_);
-    objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
-    grpc::ClientContext context;
-    PullAndReduceObjectRequest request;
-    request.set_reduction_id(reduction_id.Binary());
-    request.set_is_tree_branch(receiver_node->is_tree_branch());
-    request.set_sender_ip(sender_node->owner_ip);
-    request.set_from_left_child(receiver_node->left_child == sender_node);
-    request.set_object_size(object_size);
-    request.set_object_id_to_reduce(receiver_node->object_id.Binary());
-    request.set_object_id_to_pull(sender_node->object_id.Binary());
-    request.set_is_sender_leaf(sender_node->is_leaf());
-    PullAndReduceObjectReply reply;
-    auto status = stub->PullAndReduceObject(&context, request, &reply);
-    DCHECK(status.ok());
-  });
+                                                        const ObjectID &reduction_id,
+                                                        int64_t object_size bool reset_progress) {
+  TIMELINE("notification InvokePullAndReduceObject");
+  auto remote_address = receiver_node->owner_ip + ":" + std::to_string(notification_listener_port_);
+  objectstore::NotificationListener::Stub *stub = create_or_get_notification_listener_stub(remote_address);
+  grpc::ClientContext context;
+  PullAndReduceObjectRequest request;
+  request.set_reduction_id(reduction_id.Binary());
+  request.set_is_tree_branch(receiver_node->is_tree_branch());
+  request.set_sender_ip(sender_node->owner_ip);
+  request.set_from_left_child(receiver_node->left_child == sender_node);
+  request.set_object_size(object_size);
+  request.set_object_id_to_reduce(receiver_node->object_id.Binary());
+  request.set_object_id_to_pull(sender_node->object_id.Binary());
+  request.set_is_sender_leaf(sender_node->is_leaf());
+  request.set_reset_progress(reset_progress);
+  PullAndReduceObjectReply reply;
+  auto status = stub->PullAndReduceObject(&context, request, &reply);
+  DCHECK(status.ok());
 }
 
 void NotificationServiceImpl::InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,

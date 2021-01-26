@@ -95,6 +95,7 @@ message PullAndReduceObjectRequest {
   bytes object_id_to_pull = 6;  // The ObjectID of the sender.
   int64 object_size = 7;
   bool is_sender_leaf = 8;  // Is the sender a leaf node?
+  bool reset_progress = 9;  // reset the progress (for error handling)
 }
 
 message PullAndReduceObjectReply {
@@ -125,15 +126,6 @@ message HandleReceiveReducedObjectFailureRequest {
 }
 
 message HandleReceiveReducedObjectFailureReply {
-}
-
-message ResetReducedObjectRequest {
-  bytes reduction_id = 1;
-  bytes new_sender_ip = 2;
-  bool from_left_child = 3;
-}
-
-message ResetReducedObjectReply {
 }
 
 // other API
@@ -171,5 +163,4 @@ service NotificationListener {
   rpc ConnectListener(ConnectListenerRequest) returns (ConnectListenerReply);
   rpc PullAndReduceObject(PullAndReduceObjectRequest) returns (PullAndReduceObjectReply);
   rpc ReduceInbandObject(ReduceInbandObjectRequest) returns (ReduceInbandObjectReply);
-  rpc ResetReducedObject(ResetReducedObjectRequest) returns (ResetReducedObjectReply);
 }

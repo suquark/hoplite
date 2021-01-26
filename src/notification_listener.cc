@@ -13,8 +13,6 @@ using objectstore::PullAndReduceObjectReply;
 using objectstore::PullAndReduceObjectRequest;
 using objectstore::ReduceInbandObjectReply;
 using objectstore::ReduceInbandObjectRequest;
-using objectstore::ResetReducedObjectReply;
-using objectstore::ResetReducedObjectRequest;
 
 class NotificationListenerImpl final : public objectstore::NotificationListener::Service {
 public:
@@ -44,7 +42,7 @@ public:
     }
     receiver_.receive_and_reduce_object(reduction_id, request->is_tree_branch(), request->sender_ip(),
                                         request->from_left_child(), request->object_size(), object_id_to_reduce,
-                                        object_id_to_pull, request->is_sender_leaf(), task);
+                                        object_id_to_pull, request->is_sender_leaf(), request->reset_progress(), task);
     return grpc::Status::OK;
   }
 
@@ -57,14 +55,6 @@ public:
     local_store_client_.GetBufferOrCreate(reduction_id, request->inband_data().size(), &buffer);
     buffer->CopyFrom(request->inband_data());
     task->NotifyFinished();
-    return grpc::Status::OK;
-  }
-
-  grpc::Status ResetReducedObject(grpc::ServerContext *context, const ResetReducedObjectRequest *request,
-                                  ResetReducedObjectReply *reply) {
-    TIMELINE("ResetReducedObject");
-    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
-    receiver_.reset_reduced_object(reduction_id, request->new_sender_ip(), request->from_left_child());
     return grpc::Status::OK;
   }
 
