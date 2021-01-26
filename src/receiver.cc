@@ -42,10 +42,7 @@ template <typename T> inline int stream_receive_next(int conn_fd, T *stream, int
 template <typename T> inline int stream_receive(int conn_fd, T *stream, int64_t offset = 0) {
   TIMELINE("stream_receive");
   int64_t receive_progress = offset;
-  while (receive_progress < stream->Size()) {
-    if (stream->reset) {
-      return 0;
-    }
+  while (receive_progress < stream->Size() && !stream->reset) {
     int ec = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (ec) {
       // return the error
@@ -73,10 +70,7 @@ int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64
   uint8_t *data_ptr = stream->MutableData();
   uint8_t *dep_data_ptr = dep_stream.MutableData();
   const int64_t object_size = stream->Size();
-  while (receive_progress < object_size) {
-    if (stream->reset) {
-      return 0;
-    }
+  while (receive_progress < object_size && !stream->reset) {
     int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (status) {
       // return the error
@@ -100,10 +94,7 @@ int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64
       stream->progress += n_reduce_elements * element_size;
     }
   }
-  while (!stream->IsFinished()) {
-    if (stream->reset) {
-      return 0;
-    }
+  while (!stream->IsFinished() && !stream->reset) {
 #ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
     auto progress = stream->progress.load();
     auto dep_stream_progress = dep_stream.progress.load();
@@ -125,16 +116,16 @@ int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64
 /// reduce(conn, dep_stream) -> stream
 template <typename T, typename DT>
 int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
-  // FIXME: these debug print causes memory leak and fail fault tolerance test
-  // TIMELINE("stream_reduce_add_multi_thread");
-  // LOG(DEBUG) << "stream_reduce_add_multi_thread(), offset=" << offset;
+  TIMELINE("stream_reduce_add_multi_thread");
+  LOG(DEBUG) << "stream_reduce_add_multi_thread(), offset=" << offset;
   int64_t receive_progress = offset;
   const size_t element_size = sizeof(DT);
   uint8_t *data_ptr = stream->MutableData();
   uint8_t *dep_data_ptr = dep_stream.MutableData();
+  volatile bool reset = false;
 
   std::thread t([&]() {
-    while (!stream->IsFinished()) {
+    while (!stream->IsFinished() && !stream->reset && !reset) {
 #ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
       auto progress = stream->progress.load();
       auto dep_stream_progress = dep_stream.progress.load();
@@ -153,9 +144,11 @@ int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_
   });
 
   const int64_t object_size = stream->Size();
-  while (receive_progress < object_size) {
+  while (receive_progress < object_size && !stream->reset) {
     int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
     if (status) {
+      reset = true;
+      t.join();
       // return the error
       return status;
     }
@@ -166,16 +159,13 @@ int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_
 
 /// reduce(conn, dep_stream) -> stream
 template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
-  // TIMELINE("stream_reduce_add");
-  return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
-  // FIXME: "stream_reduce_add_multi_thread" is buggy because the thread would not be joined if we have an error.
-
-  // int64_t left = stream->Size() - stream->progress;
-  // if (left >= HOPLITE_MULTITHREAD_REDUCE_SIZE) {
-  //   return stream_reduce_add_multi_thread<T, DT>(conn_fd, stream, dep_stream, offset);
-  // } else {
-  //   return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
-  // }
+  TIMELINE("stream_reduce_add");
+  int64_t left = stream->Size() - stream->progress;
+  if (left >= HOPLITE_MULTITHREAD_REDUCE_SIZE) {
+    return stream_reduce_add_multi_thread<T, DT>(conn_fd, stream, dep_stream, offset);
+  } else {
+    return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
+  }
 }
 
 Receiver::Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
