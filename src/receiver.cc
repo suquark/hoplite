@@ -345,6 +345,7 @@ void ReduceReceiverTask::start_recv(bool is_left_child) {
 }
 
 void ReduceReceiverTask::reset_progress(bool is_left_child) {
+  TIMELINE("ReduceReceiverTask::reset_progress");
   // target stream is required to reset anyway
   target_stream->reset = true;
   if (left_stream) {
