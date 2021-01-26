@@ -115,8 +115,9 @@ int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64
 /// reduce(conn, dep_stream) -> stream
 template <typename T, typename DT>
 int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
-  TIMELINE("stream_reduce_add_multi_thread");
-  LOG(DEBUG) << "stream_reduce_add_multi_thread(), offset=" << offset;
+  // FIXME: these debug print causes memory leak and fail fault tolerance test
+  // TIMELINE("stream_reduce_add_multi_thread");
+  // LOG(DEBUG) << "stream_reduce_add_multi_thread(), offset=" << offset;
   int64_t receive_progress = offset;
   const size_t element_size = sizeof(DT);
   uint8_t *data_ptr = stream->MutableData();
@@ -155,7 +156,7 @@ int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_
 
 /// reduce(conn, dep_stream) -> stream
 template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
-  TIMELINE("stream_reduce_add");
+  // TIMELINE("stream_reduce_add");
   return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
   // FIXME: "stream_reduce_add_multi_thread" is buggy because the thread would not be joined if we have an error.
 
