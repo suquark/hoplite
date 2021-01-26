@@ -421,6 +421,7 @@ void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduc
   if (failed_node->right_child && failed_node->right_child->location_known()) {
     InvokePullAndReduceObject(failed_node, failed_node->right_child, reduction_id, object_size, false);
   }
+  // FIXME: should we invoke it in reversed order?
   Node *prev_node = failed_node;
   for (Node *cursor = failed_node->parent; cursor && cursor->location_known(); cursor = cursor->parent) {
     LOG(DEBUG) << "Resetting node " << cursor->owner_ip;
