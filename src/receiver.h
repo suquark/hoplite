@@ -35,7 +35,7 @@ struct ReduceReceiverTask {
   std::string left_sender_ip;
   std::string right_sender_ip;
 
-  void start_recv(const std::string &sender_ip, bool is_left_child);
+  void start_recv(bool is_left_child);
   void reset_progress(bool is_left_child);
 
 private:

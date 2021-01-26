@@ -198,15 +198,11 @@ void ReduceReceiverTask::start_recv(bool is_left_child) {
 void ReduceReceiverTask::reset_progress(bool is_left_child) {
   // clean up previous threads
   if (right_recv_thread_.joinable()) {
-    if (right_thread_start) {
-      pthread_kill(right_recv_thread_.native_handle(), SIGUSR1);
-    }
+    pthread_kill(right_recv_thread_.native_handle(), SIGUSR1);
     right_recv_thread_.join();
   }
   if (left_recv_thread_.joinable()) {
-    if (left_thread_start) {
-      pthread_kill(left_recv_thread_.native_handle(), SIGUSR1);
-    }
+    pthread_kill(left_recv_thread_.native_handle(), SIGUSR1);
     left_recv_thread_.join();
   }
   // target stream is required to reset anyway
