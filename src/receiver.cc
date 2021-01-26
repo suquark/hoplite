@@ -341,8 +341,8 @@ void ReduceReceiverTask::start_recv(bool is_left_child) {
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
       LOG(ERROR) << "Failed to receive object for reduce from sender " << sender_ip;
+      // this gRPC call must be non-blocking and executed by another thread
       gcs_client_.HandleReceiveReducedObjectFailure(reduction_id_, my_address_, sender_ip);
-      // later this receiver would be reset
     }
   };
   if (is_left_child) {

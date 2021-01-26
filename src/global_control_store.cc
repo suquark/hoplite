@@ -113,14 +113,16 @@ void GlobalControlStoreClient::HandleReceiveReducedObjectFailure(const ObjectID 
                                                                  const std::string &receiver_ip,
                                                                  const std::string &sender_ip) {
   TIMELINE("HandleReceiveReducedObjectFailure");
-  grpc::ClientContext context;
-  HandleReceiveReducedObjectFailureRequest request;
-  HandleReceiveReducedObjectFailureReply reply;
-  request.set_reduction_id(reduction_id.Binary());
-  request.set_receiver_ip(receiver_ip);
-  request.set_sender_ip(sender_ip);
-  auto status = notification_stub_->HandleReceiveReducedObjectFailure(&context, request, &reply);
-  DCHECK(status.ok()) << status.error_message();
+  pool_.push([this, reduction_id, receiver_ip, sender_ip](int id) {
+    grpc::ClientContext context;
+    HandleReceiveReducedObjectFailureRequest request;
+    HandleReceiveReducedObjectFailureReply reply;
+    request.set_reduction_id(reduction_id.Binary());
+    request.set_receiver_ip(receiver_ip);
+    request.set_sender_ip(sender_ip);
+    auto status = notification_stub_->HandleReceiveReducedObjectFailure(&context, request, &reply);
+    DCHECK(status.ok()) << status.error_message();
+  });
 }
 
 void GlobalControlStoreClient::CreateReduceTask(const std::vector<ObjectID> &objects_to_reduce,
