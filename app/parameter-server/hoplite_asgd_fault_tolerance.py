@@ -173,7 +173,7 @@ for i in range(args.iterations):
         del backup_workers[worker_index]
 
     # check failure
-    ready_poll_tasks, _ = ray.wait(list(aliveness_map), num_returns=len(aliveness_map), timeout=0)
+    ready_poll_tasks, _ = ray.wait(list(aliveness_map.keys()), num_returns=len(aliveness_map), timeout=0)
     for t in ready_poll_tasks:
         try:
             ray.get(t)
