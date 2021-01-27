@@ -156,12 +156,16 @@ for worker in workers:
 
 backup_workers = {}
 
+record = []
+
 for i in range(args.iterations):
+    event = ""
     # check recovery
     rejoined = []
     for worker_index, (w, p) in backup_workers.items():
         q, _ = ray.wait([p], num_returns=1, timeout=0)
         if q:
+            event = "rejoin"
             print(f"worker {worker_index} rejoined!")
             workers[worker_index] = w
             gradient_id = hoplite.object_id_from_int(index)
@@ -178,6 +182,7 @@ for i in range(args.iterations):
         try:
             ray.get(t)
         except ray.exceptions.RayActorError:
+            event = "fail"
             _inv_aliveness_map = {v:k for k,v in aliveness_map.items()}
             gradient_id = _inv_aliveness_map[t]
             del aliveness_map[gradient_id]
@@ -199,7 +204,12 @@ for i in range(args.iterations):
         aliveness_map[gradient_id] = worker.poll.remote()
     now = time.time()
     print("step time:", now - step_start, flush=True)
+    record.append({'duration': now - step_start, 'event': event})
     step_start = now
+
+import json
+with open("hoplite_ft.json", "w") as f:
+    json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()

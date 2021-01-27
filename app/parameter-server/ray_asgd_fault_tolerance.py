@@ -163,12 +163,16 @@ for worker in workers:
 
 backup_workers = {}
 
+record = []
+
 for i in range(args.iterations):
+    event = ""
     # recovery check
     rejoined = []
     for index, (w, p) in backup_workers.items():
         q, _ = ray.wait([p], num_returns=1, timeout=0)
         if q:
+            event = "rejoin"
             print(f"worker {index} rejoined!")
             workers[index] = w
             grad_ref = w.compute_gradients.remote(current_weights)
@@ -186,6 +190,7 @@ for i in range(args.iterations):
             try:
                 ray.get(aliveness_map[grad_ref])
             except ray.exceptions.RayActorError:
+                event = "fail"
                 no_except = False
                 worker = gradients.pop(grad_ref)
                 worker_index = workers.index(worker)
@@ -207,7 +212,12 @@ for i in range(args.iterations):
 
     now = time.time()
     print("step time:", now - step_start, flush=True)
+    record.append({'duration': now - step_start, 'event': event})
     step_start = now
+
+import json
+with open("ray_ft.json", "w") as f:
+    json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
