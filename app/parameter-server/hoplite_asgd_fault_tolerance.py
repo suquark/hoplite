@@ -32,12 +32,22 @@ from ps_helper import ConvNet
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class ParameterServer(object):
-    def __init__(self, args_dict, lr, workers, model_type="custom"):
+    def __init__(self, index, args_dict, lr, workers, model_type="custom"):
         os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
         self.store = hoplite.create_store_using_dict(args_dict)
         self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
         self.workers = workers
+        if index == 4:
+            import threading
+            def kill():
+                for i in reversed(range(10)):
+                    print(f"failing in {i+1} second(s)...")
+                    time.sleep(1)
+                import os
+                os._exit(1)
+            self.t = threading.Thread(target=kill)
+            self.t.start()
 
     def apply_gradients(self, gradients, num_reduce_objects):
         reduced_gradient_id = self.store.reduce_async(
@@ -117,7 +127,10 @@ args = parser.parse_args()
 args_dict = hoplite.extract_dict_from_args(args)
 
 ray.init(address='auto', ignore_reinit_error=True)
-workers = [DataWorker.remote(args_dict, model_type=args.model, device='cuda') for _ in range(args.num_workers)]
+
+workers = []
+for i in range(args.num_workers):
+    workers.append(DataWorker.remote(i, args_dict, model_type=args.model, device='cuda'))
 
 ps = ParameterServer.remote(args_dict, 1e-2, workers=workers, model_type=args.model)
 
