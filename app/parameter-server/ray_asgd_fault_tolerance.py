@@ -162,9 +162,26 @@ for worker in workers:
     gradients[grad_ref] = worker
 
 for i in range(args.iterations):
-    ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
-    for grad_ref in ready_gradient_list:
-        ray.get(aliveness_map[grad_ref])
+    while True:
+        ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
+        no_except = True
+        for grad_ref in ready_gradient_list:
+            try:
+                ray.get(aliveness_map[grad_ref])
+            except ray.exceptions.RayActorError:
+                no_except = False
+                worker = gradients.pop(grad_ref)
+                worker_index = workers.index(worker)
+                print(f"worker {worker_index} failed. starting a new one...")
+                # start a new one
+                new_worker = DataWorker.remote(worker_index, model_type=args.model, device='cuda')
+                workers[worker_index] = new_worker
+                grad_ref = new_worker.compute_gradients.remote(current_weights)
+                aliveness_map[grad_ref] = new_worker.poll.remote()
+                gradients[grad_ref] = new_worker
+        if no_except:
+            break
+
     current_weights = ps.apply_gradients.remote(*ready_gradient_list)
     for ready_gradient_id in ready_gradient_list:
         worker = gradients.pop(ready_gradient_id)
