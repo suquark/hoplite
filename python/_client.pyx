@@ -8,6 +8,7 @@ from libcpp.string cimport string as c_string
 
 from libc.stdint cimport uint8_t, int32_t, uint64_t, int64_t
 from libcpp.unordered_map cimport unordered_map
+from libcpp.unordered_set cimport unordered_set
 from libcpp.vector cimport vector as c_vector
 
 from _client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG, CRayLogINFO, CRayLogERROR
@@ -114,7 +115,7 @@ cdef class ObjectID:
         return hash(self.data.Binary())
 
     def __eq__(self, other):
-        return self.data.Binary() == other.data.Binary()
+        return self.data.Binary() == (<ObjectID>other).data.Binary()
 
 
 class ReduceOp(Enum):
@@ -174,7 +175,7 @@ cdef class DistributedObjectStore:
         cdef:
             unordered_set[CObjectID] object_ids_
             CObjectID oid
-        object_ids_ = GetReducedObjects((<ObjectID>reduction_id).data)
+        object_ids_ = self.store.get().GetReducedObjects((<ObjectID>reduction_id).data)
         cdef unordered_set[CObjectID].iterator it = object_ids_.begin()
         object_ids = set()
         while it != object_ids_.end():
