@@ -86,11 +86,11 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, index, model_type="custom", device="cpu"):
+    def __init__(self, index, model_type="custom", device="cpu", enable_fail=True):
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-        if index == 2:
+        if index == 2 and enable_fail:
             import threading
             def kill():
                 for i in reversed(range(20)):
@@ -197,7 +197,7 @@ for i in range(args.iterations):
                 del aliveness_map[grad_ref]
                 print(f"worker {worker_index} failed. starting a new one...")
                 # start a new one
-                new_worker = DataWorker.remote(worker_index, model_type=args.model, device='cuda')
+                new_worker = DataWorker.remote(worker_index, model_type=args.model, device='cuda', enable_fail=False)
                 backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
         if no_except:
             break

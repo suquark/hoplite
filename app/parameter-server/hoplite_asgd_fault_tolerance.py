@@ -79,13 +79,13 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, index, args_dict, model_type="custom", device="cpu"):
+    def __init__(self, index, args_dict, model_type="custom", device="cpu", enable_fail=True):
         os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
         self.store = hoplite.create_store_using_dict(args_dict)
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-        if index == 2:
+        if index == 2 and enable_fail:
             import threading
             def kill():
                 for i in reversed(range(20)):
@@ -189,7 +189,7 @@ for i in range(args.iterations):
             failed_worker, _ = gradients.pop(gradient_id)
             worker_index = workers.index(failed_worker)
             print(f"worker {worker_index} failed. starting a new one...")
-            new_worker = DataWorker.remote(worker_index, args_dict, model_type=args.model, device='cuda')
+            new_worker = DataWorker.remote(worker_index, args_dict, model_type=args.model, device='cuda', enable_fail=False)
             backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
 
     # actual iteration
