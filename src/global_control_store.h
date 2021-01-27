@@ -47,6 +47,11 @@ public:
   void CreateReduceTask(const std::vector<ObjectID> &objects_to_reduce, const ObjectID &reduction_id,
                         int num_reduce_objects);
 
+  /// Get the IDs of objects reduced for a reduction ID.
+  /// \param[in] reduction_id The reduction ID represents the reduce event.
+  /// \return A set of reduced object IDs
+  std::unordered_set<ObjectID> GetReducedObjects(const ObjectID &reduction_id);
+
 private:
   const std::string &notification_server_address_;
   const std::string &my_address_;

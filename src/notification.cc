@@ -33,6 +33,8 @@ using objectstore::ExitReply;
 using objectstore::ExitRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
+using objectstore::GetReducedObjectsReply;
+using objectstore::GetReducedObjectsRequest;
 using objectstore::HandlePullObjectFailureReply;
 using objectstore::HandlePullObjectFailureRequest;
 using objectstore::HandleReceiveReducedObjectFailureReply;
@@ -75,6 +77,9 @@ public:
                                                  HandleReceiveReducedObjectFailureReply *reply);
 
   void RecoverReduceTaskFromFailure(const ObjectID &reduction_id, Node *failed_node);
+
+  grpc::Status GetReducedObjects(grpc::ServerContext *context, const GetReducedObjectsRequest *request,
+                                 GetReducedObjectsReply *reply);
 
 private:
   objectstore::NotificationListener::Stub *
@@ -285,7 +290,7 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
 
 grpc::Status NotificationServiceImpl::WriteLocation(grpc::ServerContext *context, const WriteLocationRequest *request,
                                                     WriteLocationReply *reply) {
-  TIMELINE("notification WriteLocation");
+  TIMELINE("NotificationServiceImpl::WriteLocation");
   ObjectID object_id = ObjectID::FromBinary(request->object_id());
   std::string sender_ip = request->sender_ip();
   bool finished = request->finished();
@@ -303,7 +308,7 @@ grpc::Status NotificationServiceImpl::WriteLocation(grpc::ServerContext *context
 grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *context,
                                                       const GetLocationSyncRequest *request,
                                                       GetLocationSyncReply *reply) {
-  TIMELINE("notification GetLocationSync");
+  TIMELINE("NotificationServiceImpl::GetLocationSync");
   ObjectID object_id = ObjectID::FromBinary(request->object_id());
   std::string receiver_ip = request->receiver_ip();
   // TODO: change this sync_mutex to a condition variable
@@ -341,6 +346,7 @@ grpc::Status NotificationServiceImpl::GetLocationSync(grpc::ServerContext *conte
 grpc::Status NotificationServiceImpl::HandlePullObjectFailure(grpc::ServerContext *context,
                                                               const HandlePullObjectFailureRequest *request,
                                                               HandlePullObjectFailureReply *reply) {
+  TIMELINE("NotificationServiceImpl::HandlePullObjectFailure");
   auto dep = get_dependency(ObjectID::FromBinary(request->object_id()));
   std::string alternative_sender;
   bool success = dep->HandleFailure(request->receiver_ip(), &alternative_sender);
@@ -352,7 +358,7 @@ grpc::Status NotificationServiceImpl::HandlePullObjectFailure(grpc::ServerContex
 grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *context,
                                                        const CreateReduceTaskRequest *request,
                                                        CreateReduceTaskReply *reply) {
-  TIMELINE("notification CreateReduceTask");
+  TIMELINE("NotificationServiceImpl::CreateReduceTask");
   ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
   std::vector<ObjectID> objects_to_reduce;
   for (auto &object_id_it : request->objects_to_reduce()) {
@@ -382,11 +388,25 @@ grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *cont
   return grpc::Status::OK;
 }
 
+grpc::Status NotificationServiceImpl::GetReducedObjects(grpc::ServerContext *context,
+                                                        const GetReducedObjectsRequest *request,
+                                                        GetReducedObjectsReply *reply) {
+  TIMELINE("NotificationServiceImpl::GetReducedObjects");
+  ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
+  std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
+  std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
+  std::vector<ObjectID> object_ids = task->GetReducedObjects();
+  for (auto &object_id : object_ids) {
+    reply->add_object_ids(object_id.Binary());
+  }
+  return grpc::Status::OK;
+}
+
 grpc::Status
 NotificationServiceImpl::HandleReceiveReducedObjectFailure(grpc::ServerContext *context,
                                                            const HandleReceiveReducedObjectFailureRequest *request,
                                                            HandleReceiveReducedObjectFailureReply *reply) {
-  TIMELINE("notification CreateReduceTask");
+  TIMELINE("NotificationServiceImpl::CreateReduceTask");
   ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
   // request->receiver_ip() is unused now. keep it in case we would use it in the future.
   std::string sender_ip = request->sender_ip();

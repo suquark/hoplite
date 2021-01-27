@@ -12,57 +12,6 @@
 #include "distributed_object_store.h"
 #include "logging.h"
 
-using objectstore::ObjectStore;
-using objectstore::RemoteGetReducedObjectsReply;
-using objectstore::RemoteGetReducedObjectsRequest;
-
-////////////////////////////////////////////////////////////////
-// The gRPC server side of the object store
-////////////////////////////////////////////////////////////////
-
-class ObjectStoreServiceImpl final : public ObjectStore::Service {
-public:
-  ObjectStoreServiceImpl(ObjectSender &object_sender, DistributedObjectStore &store)
-      : ObjectStore::Service(), object_sender_(object_sender), store_(store) {}
-  grpc::Status RemoteGetReducedObjects(grpc::ServerContext *context, const RemoteGetReducedObjectsRequest *request,
-                                       RemoteGetReducedObjectsReply *reply) {
-    TIMELINE("ObjectStoreServiceImpl::RemoteGetReducedObjects()");
-    ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
-    std::unordered_set<ObjectID> reduced_objects = store_.GetReducedObjects(reduction_id);
-    for (const auto &object_id : reduced_objects) {
-      reply->add_object_ids(object_id.Binary());
-    }
-    return grpc::Status::OK;
-  }
-
-private:
-  ObjectSender &object_sender_;
-  DistributedObjectStore &store_;
-};
-
-////////////////////////////////////////////////////////////////
-// The gRPC client side of the object store
-////////////////////////////////////////////////////////////////
-
-std::unordered_set<ObjectID> DistributedObjectStore::RemoteGetReducedObjects(const std::string &remote_address,
-                                                                             const ObjectID &reduction_id) {
-  TIMELINE("GrpcServer::RemoteGetReducedObjects");
-  auto remote_grpc_address = remote_address + ":" + std::to_string(grpc_port_);
-  create_stub(remote_grpc_address);
-  grpc::ClientContext context;
-  RemoteGetReducedObjectsRequest request;
-  RemoteGetReducedObjectsReply reply;
-  request.set_reduction_id(reduction_id.Binary());
-  auto stub = get_stub(remote_grpc_address);
-  auto status = stub->RemoteGetReducedObjects(&context, request, &reply);
-  std::unordered_set<ObjectID> reduced_objects;
-  for (const auto &object_id_str : reply.object_ids()) {
-    ObjectID object_id = ObjectID::FromBinary(object_id_str);
-    reduced_objects.insert(object_id);
-  }
-  return reduced_objects;
-}
-
 ////////////////////////////////////////////////////////////////
 // The object store API
 ////////////////////////////////////////////////////////////////
@@ -83,23 +32,13 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
   (void)ObjectID::FromRandom();
   // create a thread to send object
   object_sender_.Run();
-
-  // initialize the object store
-  service_.reset(new ObjectStoreServiceImpl(object_sender_, *this));
-  grpc::ServerBuilder builder;
-  builder.AddListeningPort(grpc_address_, grpc::InsecureServerCredentials());
-  builder.RegisterService(service_.get());
-  grpc_server_ = builder.BuildAndStart();
-  object_control_thread_ = std::thread(&DistributedObjectStore::worker_loop, this);
   notification_listener_.Run();
-
   gcs_client_.ConnectNotificationServer();
 }
 
 DistributedObjectStore::~DistributedObjectStore() {
   TIMELINE("~DistributedObjectStore");
   object_sender_.Shutdown();
-  Shutdown();
   notification_listener_.Shutdown();
   LOG(DEBUG) << "Object store has been shutdown.";
 }
@@ -186,9 +125,10 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
   if (num_reduce_objects < 0) {
     // negative means all included
     num_reduce_objects = objects_to_reduce.size();
+  } else {
+    // we does not take local objects into account
+    num_reduce_objects -= local_objects.size();
   }
-  // we does not take local objects into account
-  num_reduce_objects -= local_objects.size();
   DCHECK(num_reduce_objects > 0);
   gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
   // this is not necessary, but we can create the reduction object ahead of time
@@ -233,39 +173,5 @@ void DistributedObjectStore::Get(const ObjectID &object_id, std::shared_ptr<Buff
 }
 
 std::unordered_set<ObjectID> DistributedObjectStore::GetReducedObjects(const ObjectID &reduction_id) {
-  std::unique_lock<std::mutex> l(reduced_objects_mutex_);
-  reduced_objects_cv_.wait(
-      l, [this, &reduction_id] { return reduced_objects_.find(reduction_id) != reduced_objects_.end(); });
-  return reduced_objects_[reduction_id];
-}
-
-std::unordered_set<ObjectID> DistributedObjectStore::GetUnreducedObjects(const ObjectID &reduction_id) {
-  std::unique_lock<std::mutex> l(reduced_objects_mutex_);
-  reduced_objects_cv_.wait(
-      l, [this, &reduction_id] { return unreduced_objects_.find(reduction_id) != unreduced_objects_.end(); });
-  return unreduced_objects_[reduction_id];
-}
-
-////////////////////////////////////////////////////////////////
-// The object store internal functions
-////////////////////////////////////////////////////////////////
-
-void DistributedObjectStore::worker_loop() {
-  LOG(DEBUG) << "[GprcServer] grpc server " << my_address_ << " started";
-  grpc_server_->Wait();
-}
-
-objectstore::ObjectStore::Stub *DistributedObjectStore::get_stub(const std::string &remote_grpc_address) {
-  std::lock_guard<std::mutex> lock(grpc_stub_map_mutex_);
-  return object_store_stub_pool_[remote_grpc_address].get();
-}
-
-void DistributedObjectStore::create_stub(const std::string &remote_grpc_address) {
-  std::lock_guard<std::mutex> lock(grpc_stub_map_mutex_);
-  if (channel_pool_.find(remote_grpc_address) == channel_pool_.end()) {
-    channel_pool_[remote_grpc_address] = grpc::CreateChannel(remote_grpc_address, grpc::InsecureChannelCredentials());
-  }
-  if (object_store_stub_pool_.find(remote_grpc_address) == object_store_stub_pool_.end()) {
-    object_store_stub_pool_[remote_grpc_address] = ObjectStore::NewStub(channel_pool_[remote_grpc_address]);
-  }
+  return gcs_client_.GetReducedObjects(reduction_id);
 }
