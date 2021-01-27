@@ -120,7 +120,7 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
-parser.add_argument('--iterations', type=str, default=50, help='number of iterations')
+parser.add_argument('--iterations', type=int, default=50, help='number of iterations')
 hoplite.add_arguments(parser)
 
 hoplite.start_location_server()
