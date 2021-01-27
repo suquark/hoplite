@@ -152,7 +152,7 @@ for worker in workers:
     gradient_id = hoplite.object_id_from_int(index)
     index += 1
     gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
-    aliveness_map[worker.poll.remote()] = gradient_id
+    aliveness_map[gradient_id] = worker.poll.remote()
 
 backup_workers = {}
 
@@ -173,13 +173,14 @@ for i in range(args.iterations):
         del backup_workers[worker_index]
 
     # check failure
-    ready_poll_tasks, _ = ray.wait(list(aliveness_map.keys()), num_returns=len(aliveness_map), timeout=0)
+    ready_poll_tasks, _ = ray.wait(list(aliveness_map.values()), num_returns=len(aliveness_map), timeout=0)
     for t in ready_poll_tasks:
         try:
             ray.get(t)
         except ray.exceptions.RayActorError:
-            gradient_id = aliveness_map[t]
-            del aliveness_map[t]
+            _inv_aliveness_map = {v:k for k,v in aliveness_map.items()}
+            gradient_id = _inv_aliveness_map[t]
+            del aliveness_map[gradient_id]
             failed_worker, _ = gradients.pop(gradient_id)
             worker_index = workers.index(failed_worker)
             print(f"worker {worker_index} failed. starting a new one...")
