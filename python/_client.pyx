@@ -17,6 +17,8 @@ from cpython.buffer cimport PyBUF_SIMPLE, PyObject_CheckBuffer, PyBuffer_Release
 from enum import Enum
 import socket
 
+from cython.operator cimport dereference, preincrement
+
 
 cdef class Buffer:
     cdef:
@@ -108,6 +110,12 @@ cdef class ObjectID:
     def __reduce__(self):
         return type(self), (self.data.Binary(),)
 
+    def __hash__(self):
+        return hash(self.data.Binary())
+
+    def __eq__(self, other):
+        return self.data.Binary() == other.data.Binary()
+
 
 class ReduceOp(Enum):
      MAX = 1
@@ -161,6 +169,19 @@ cdef class DistributedObjectStore:
                 return _created_reduction_id
         else:
             raise NotImplementedError("Unsupported reduce_op")
+
+    def get_reduced_objects(reduction_id):
+        cdef:
+            unordered_set[CObjectID] object_ids_
+            CObjectID oid
+        object_ids_ = GetReducedObjects((<ObjectID>reduction_id).data)
+        cdef unordered_set[CObjectID].iterator it = object_ids_.begin()
+        object_ids = set()
+        while it != object_ids_.end():
+            oid = dereference(it)
+            object_ids.add(ObjectID(oid.Binary()))
+            preincrement(it)
+        return object_ids
 
     def put(self, Buffer buf, object_id=None):
         cdef CObjectID created_object_id
