@@ -119,7 +119,7 @@ private:
     }
     void EnqueueGetLocationForReduce(const ObjectID &object_id) {
       std::lock_guard<std::mutex> lock(mutex_);
-      pending_objects_[object_id].emplace(ReceiverQueueElement{ReceiverQueueElement::REDUCE, {}, NULL, {}, {}, true});
+      pending_objects_[object_id].emplace(ReceiverQueueElement{ReceiverQueueElement::REDUCE, {}, NULL, {}, {}, false});
     }
     std::queue<ReceiverQueueElement> PopQueue(const ObjectID &object_id) {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -382,6 +382,8 @@ grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *cont
     // FIXME: there could be some extreme race condition that the object is taking away by someone
     // else after "dep->Get". Not sure if this could be an issue.
     if (success) {
+      // NOTE: this would affect all on-going reducing tasks, so some tasks would receive duplicated
+      // objects. we need to de-duplicate them
       add_object_for_reduce(object_id, object_size, std::move(owner_ip), std::move(inband_data));
     }
   }
@@ -524,7 +526,7 @@ int main(int argc, char **argv) {
 
   std::unique_ptr<NotificationServer> notification_server;
   std::thread notification_server_thread;
-  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
+  ::hoplite::RayLog::StartRayLog(my_address, ::hoplite::RayLogLevel::DEBUG);
 
   notification_server.reset(new NotificationServer(my_address, 7777, 8888));
   notification_server_thread = notification_server->Run();

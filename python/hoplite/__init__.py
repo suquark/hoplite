@@ -59,7 +59,7 @@ def create_store_using_dict(args_dict):
 
 
 def object_id_from_int(n):
-    return _hoplite_store.ObjectID(str(n).encode().rjust(20, b'\0'))
+    return _hoplite_store.ObjectID(int(str(n), 16).to_bytes(20, byteorder='big'))
 
 
 def random_object_id():

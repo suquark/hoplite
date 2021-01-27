@@ -5,31 +5,31 @@
 #include <sstream>
 #include <string>
 
-namespace ray {
+namespace hoplite {
 
 enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3 };
 
-#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, __func__, level)
+#define RAY_LOG_INTERNAL(level) ::hoplite::RayLog(__FILE__, __LINE__, __func__, level)
 
-#define RAY_LOG_ENABLED(level) ray::RayLog::IsLevelEnabled(ray::RayLogLevel::level)
+#define RAY_LOG_ENABLED(level) hoplite::RayLog::IsLevelEnabled(hoplite::RayLogLevel::level)
 
 #define RAY_LOG(level)                                                                                                 \
   if (RAY_LOG_ENABLED(level))                                                                                          \
-  RAY_LOG_INTERNAL(ray::RayLogLevel::level)
+  RAY_LOG_INTERNAL(hoplite::RayLogLevel::level)
 
 #define RAY_IGNORE_EXPR(expr) ((void)(expr))
 
 #define RAY_CHECK(condition)                                                                                           \
   (condition) ? RAY_IGNORE_EXPR(0)                                                                                     \
-              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::FATAL)                \
-                                       << " Check failed: " #condition " "
+              : ::hoplite::Voidify() & ::hoplite::RayLog(__FILE__, __LINE__, __func__, hoplite::RayLogLevel::FATAL)    \
+                                           << " Check failed: " #condition " "
 
 #ifdef NDEBUG
 
 #define RAY_DCHECK(condition)                                                                                          \
   (condition) ? RAY_IGNORE_EXPR(0)                                                                                     \
-              : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __func__, ray::RayLogLevel::ERROR)                \
-                                       << " Debug check failed: " #condition " "
+              : ::hoplite::Voidify() & ::hoplite::RayLog(__FILE__, __LINE__, __func__, hoplite::RayLogLevel::ERROR)    \
+                                           << " Debug check failed: " #condition " "
 #else
 
 #define RAY_DCHECK(condition) RAY_CHECK(condition)
@@ -39,7 +39,7 @@ enum class RayLogLevel { DEBUG = -1, INFO = 0, WARNING = 1, ERROR = 2, FATAL = 3
 // Alias
 #define LOG RAY_LOG
 #define DCHECK RAY_DCHECK
-#define TIMELINE(message) ::ray::LogFunc _logme(__FILE__, __LINE__, __func__, message)
+#define TIMELINE(message) ::hoplite::LogFunc _logme(__FILE__, __LINE__, __func__, message)
 // To make the logging lib plugable with other logging libs and make
 // the implementation unawared by the user, RayLog is only a declaration
 // which hide the implementation into logging.cc file.
@@ -115,6 +115,6 @@ private:
   std::string hashstamp_;
 };
 
-} // namespace ray
+} // namespace hoplite
 
 #endif // RAY_UTIL_LOGGING_H

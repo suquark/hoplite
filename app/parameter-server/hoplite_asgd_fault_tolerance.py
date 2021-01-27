@@ -32,19 +32,25 @@ from ps_helper import ConvNet
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class ParameterServer(object):
-    def __init__(self, args_dict, lr, model_type="custom"):
+    def __init__(self, args_dict, lr, workers, model_type="custom"):
+        os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
         self.store = hoplite.create_store_using_dict(args_dict)
         self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
+        self.workers = workers
 
-    def apply_gradients(self, *gradients):
-        reduced_gradient_id = self.store.reduce_async(gradients, hoplite.ReduceOp.SUM)
+    def apply_gradients(self, gradients, num_reduce_objects):
+        reduced_gradient_id = self.store.reduce_async(
+            gradients, hoplite.ReduceOp.SUM, num_reduce_objects=num_reduce_objects)
         grad_buffer = self.store.get(reduced_gradient_id)
+        ready_ids = self.store.get_reduced_objects(reduced_gradient_id)
+        ready_ids.remove(reduced_gradient_id)  # should not include the reduction id
+
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
-        return self.get_parameter_id()
+        return self.get_parameter_id(), ready_ids
 
     def get_parameter_id(self):
         new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
@@ -74,6 +80,7 @@ class ParameterServer(object):
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
     def __init__(self, args_dict, model_type="custom", device="cpu"):
+        os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
         self.store = hoplite.create_store_using_dict(args_dict)
         self.device = device
         self.model = ConvNet(model_type).to(device)
@@ -110,8 +117,9 @@ args = parser.parse_args()
 args_dict = hoplite.extract_dict_from_args(args)
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(args_dict, 1e-2, model_type=args.model)
 workers = [DataWorker.remote(args_dict, model_type=args.model, device='cuda') for _ in range(args.num_workers)]
+
+ps = ParameterServer.remote(args_dict, 1e-2, workers=workers, model_type=args.model)
 
 # get initial weights
 current_weights = ps.get_parameter_id.remote()
@@ -119,15 +127,22 @@ current_weights = ps.get_parameter_id.remote()
 print("Running Asynchronous Parameter Server Training.")
 step_start = time.time()
 gradients = {}
+index = 0
+
 for worker in workers:
-    gradients[worker.compute_gradients.remote(current_weights)] = worker
+    gradient_id = hoplite.object_id_from_int(index)
+    index += 1
+    gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
 
 for i in range(args.iterations):
-    ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
-    current_weights = ps.apply_gradients.remote(*ready_gradient_list)
+    gradient_ids = list(gradients.keys())
+    num_reduce_objects = min(args.num_async, len(gradients))
+    current_weights, ready_gradient_list = ray.get(ps.apply_gradients.remote(gradient_ids, num_reduce_objects))
     for ready_gradient_id in ready_gradient_list:
-        worker = gradients.pop(ready_gradient_id)
-        gradients[worker.compute_gradients.remote(current_weights)] = worker
+        worker, _ = gradients.pop(ready_gradient_id)
+        gradient_id = hoplite.object_id_from_int(index)
+        index += 1
+        gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
     now = time.time()
     print("step time:", now - step_start, flush=True)
     step_start = now

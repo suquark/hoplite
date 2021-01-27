@@ -11,20 +11,20 @@ from libcpp.unordered_set cimport unordered_set
 from libcpp.vector cimport vector as c_vector
 
 cdef extern from "util/logging.h" namespace "ray" nogil:
-    cdef cppclass CRayLogLevel "ray::RayLogLevel":
+    cdef cppclass CRayLogLevel "hoplite::RayLogLevel":
         pass
 
-    cdef cppclass CRayLog  "ray::RayLog":
+    cdef cppclass CRayLog  "hoplite::RayLog":
         @staticmethod
         void StartRayLog(const c_string &my_address, CRayLogLevel log_level)
 
 
-cdef extern from "util/logging.h" namespace "ray::RayLogLevel" nogil:
-    cdef CRayLogLevel CRayLogDEBUG "ray::RayLogLevel::DEBUG"
-    cdef CRayLogLevel CRayLogINFO "ray::RayLogLevel::INFO"
-    cdef CRayLogLevel CRayLogWARNING "ray::RayLogLevel::WARNING"
-    cdef CRayLogLevel CRayLogERROR "ray::RayLogLevel::ERROR"
-    cdef CRayLogLevel CRayLogFATAL "ray::RayLogLevel::FATAL"
+cdef extern from "util/logging.h" namespace "hoplite::RayLogLevel" nogil:
+    cdef CRayLogLevel CRayLogDEBUG "hoplite::RayLogLevel::DEBUG"
+    cdef CRayLogLevel CRayLogINFO "hoplite::RayLogLevel::INFO"
+    cdef CRayLogLevel CRayLogWARNING "hoplite::RayLogLevel::WARNING"
+    cdef CRayLogLevel CRayLogERROR "hoplite::RayLogLevel::ERROR"
+    cdef CRayLogLevel CRayLogFATAL "hoplite::RayLogLevel::FATAL"
 
 
 cdef extern from "common/id.h" namespace "" nogil:

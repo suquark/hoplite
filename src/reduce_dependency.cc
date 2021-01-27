@@ -168,6 +168,11 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     root->owner_ip = reduce_dst_;
     object_size_ = object_size;
   }
+  if (ready_ids_.count(object_id)) {
+    // duplicated object. ignore
+    return NULL;
+  }
+  ready_ids_.insert(object_id);
   if (!suspended_nodes_.empty()) {
     // assign to a suspended node first
     Node *n = suspended_nodes_.front();
