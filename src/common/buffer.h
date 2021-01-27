@@ -36,6 +36,7 @@ class Buffer {
 #else
     volatile int64_t progress;
 #endif
+    volatile bool reset = false;
   private:
     uint8_t* data_ptr_;
     int64_t size_;

@@ -95,6 +95,7 @@ message PullAndReduceObjectRequest {
   bytes object_id_to_pull = 6;  // The ObjectID of the sender.
   int64 object_size = 7;
   bool is_sender_leaf = 8;  // Is the sender a leaf node?
+  bool reset_progress = 9;  // reset the progress (for error handling)
 }
 
 message PullAndReduceObjectReply {
@@ -116,6 +117,15 @@ message CreateReduceTaskRequest {
 }
 
 message CreateReduceTaskReply {
+}
+
+message HandleReceiveReducedObjectFailureRequest {
+  bytes reduction_id = 1;
+  bytes receiver_ip = 2;
+  bytes sender_ip = 3;
+}
+
+message HandleReceiveReducedObjectFailureReply {
 }
 
 // other API
@@ -145,6 +155,7 @@ service NotificationServer {
   rpc WriteLocation(WriteLocationRequest) returns (WriteLocationReply);
   rpc GetLocationSync(GetLocationSyncRequest) returns (GetLocationSyncReply);
   rpc HandlePullObjectFailure(HandlePullObjectFailureRequest) returns (HandlePullObjectFailureReply);
+  rpc HandleReceiveReducedObjectFailure(HandleReceiveReducedObjectFailureRequest) returns (HandleReceiveReducedObjectFailureReply);
   rpc CreateReduceTask(CreateReduceTaskRequest) returns (CreateReduceTaskReply);
 }
 

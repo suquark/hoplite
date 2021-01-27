@@ -42,7 +42,7 @@ public:
     }
     receiver_.receive_and_reduce_object(reduction_id, request->is_tree_branch(), request->sender_ip(),
                                         request->from_left_child(), request->object_size(), object_id_to_reduce,
-                                        object_id_to_pull, request->is_sender_leaf(), task);
+                                        object_id_to_pull, request->is_sender_leaf(), request->reset_progress(), task);
     return grpc::Status::OK;
   }
 

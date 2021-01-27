@@ -8,13 +8,45 @@
 #include <unistd.h>
 
 #include "common/config.h"
-#include "finegrained_pipelining.h"
 #include "object_sender.h"
 #include "util/protobuf_utils.h"
 
 using objectstore::ObjectWriterRequest;
 using objectstore::ReceiveObjectRequest;
 using objectstore::ReceiveReducedObjectRequest;
+
+template <typename T> inline int stream_send(int conn_fd, T *stream, int64_t offset = 0) {
+  TIMELINE("ObjectSender::stream_send()");
+  LOG(DEBUG) << "ObjectSender::stream_send(), offset=" << offset;
+  const uint8_t *data_ptr = stream->Data();
+  const int64_t object_size = stream->Size();
+
+  if (stream->IsFinished()) {
+    int status = send_all(conn_fd, data_ptr + offset, object_size - offset);
+    if (status) {
+      LOG(ERROR) << "Failed to send object.";
+      return status;
+    }
+    return 0;
+  }
+  int64_t cursor = offset;
+  while (cursor < object_size) {
+    int64_t current_progress = stream->progress;
+    if (cursor < current_progress) {
+      int bytes_sent = send(conn_fd, data_ptr + cursor, current_progress - cursor, 0);
+      if (bytes_sent < 0) {
+        LOG(ERROR) << "[stream_send] socket send error (" << strerror(errno) << ", code=" << errno
+                   << ", cursor=" << cursor << ", stream_progress=" << current_progress << ")";
+        if (errno == EAGAIN) {
+          continue;
+        }
+        return errno;
+      }
+      cursor += bytes_sent;
+    }
+  }
+  return 0;
+}
 
 ObjectSender::ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gcs_client,
                            LocalStoreClient &local_store_client, const std::string &my_address)

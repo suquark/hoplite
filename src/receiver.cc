@@ -1,6 +1,9 @@
 #include "receiver.h"
+
+#include <fcntl.h> // for non-blocking socket
+#include <unistd.h>
+
 #include "common/config.h"
-#include "finegrained_pipelining.h"
 
 #include "object_store.pb.h"
 #include "util/protobuf_utils.h"
@@ -8,6 +11,162 @@
 using objectstore::ObjectWriterRequest;
 using objectstore::ReceiveObjectRequest;
 using objectstore::ReceiveReducedObjectRequest;
+
+template <typename T> inline int stream_receive_next(int conn_fd, T *stream, int64_t *receive_progress) {
+  int remaining_size = stream->Size() - *receive_progress;
+  // here we receive no more than STREAM_MAX_BLOCK_SIZE for streaming
+  int recv_block_size = remaining_size > STREAM_MAX_BLOCK_SIZE ? STREAM_MAX_BLOCK_SIZE : remaining_size;
+  while (true) {
+    int bytes_recv = recv(conn_fd, stream->MutableData() + *receive_progress, recv_block_size, 0);
+    if (bytes_recv < 0) {
+      if (errno == EAGAIN) {
+#ifndef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
+        LOG(WARNING) << "[stream_receive_next] socket recv error (EAGAIN). Ignored.";
+#endif
+        if (stream->reset) {
+          return 0;
+        }
+        continue;
+      }
+      LOG(ERROR) << "[stream_receive_next] socket recv error (" << strerror(errno) << ", code=" << errno << ")";
+      return -1;
+    } else if (bytes_recv == 0) {
+      LOG(ERROR) << "[stream_receive_next] 0 bytes received (" << strerror(errno) << ", code=" << errno << ")";
+      return -1;
+    }
+    *receive_progress += bytes_recv;
+    return 0;
+  }
+}
+
+template <typename T> inline int stream_receive(int conn_fd, T *stream, int64_t offset = 0) {
+  TIMELINE("stream_receive");
+  int64_t receive_progress = offset;
+  while (receive_progress < stream->Size() && !stream->reset) {
+    int ec = stream_receive_next<T>(conn_fd, stream, &receive_progress);
+    if (ec) {
+      // return the error
+      LOG(ERROR) << "[stream_receive] socket receive error (" << strerror(errno) << ", code=" << errno
+                 << ", receive_progress=" << receive_progress << ")";
+      return ec;
+    }
+    // update the progress
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+    stream->progress.store(receive_progress);
+#else
+    stream->progress = receive_progress;
+#endif
+  }
+  return 0;
+}
+
+/// reduce(conn, dep_stream) -> stream
+template <typename T, typename DT>
+int stream_reduce_add_single_thread(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add_single_thread");
+  LOG(DEBUG) << "stream_reduce_add_single_thread(), offset=" << offset;
+  int64_t receive_progress = offset;
+  const size_t element_size = sizeof(DT);
+  uint8_t *data_ptr = stream->MutableData();
+  uint8_t *dep_data_ptr = dep_stream.MutableData();
+  const int64_t object_size = stream->Size();
+  while (receive_progress < object_size && !stream->reset) {
+    int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
+    if (status) {
+      // return the error
+      return status;
+    }
+    // reduce related objects
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+    auto progress = stream->progress.load();
+    auto dep_stream_progress = dep_stream.progress.load();
+#else
+    auto progress = stream->progress;
+    auto dep_stream_progress = dep_stream.progress;
+#endif
+    if (dep_stream_progress > progress) {
+      int64_t n_reduce_elements = (std::min(dep_stream_progress, receive_progress) - progress) / element_size;
+      DT *cursor = (DT *)(data_ptr + progress);
+      const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
+      for (size_t i = 0; i < n_reduce_elements; i++) {
+        cursor[i] += own_data_cursor[i];
+      }
+      stream->progress += n_reduce_elements * element_size;
+    }
+  }
+  while (!stream->IsFinished() && !stream->reset) {
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+    auto progress = stream->progress.load();
+    auto dep_stream_progress = dep_stream.progress.load();
+#else
+    auto progress = stream->progress;
+    auto dep_stream_progress = dep_stream.progress;
+#endif
+    int64_t n_reduce_elements = (dep_stream_progress - progress) / element_size;
+    DT *cursor = (DT *)(data_ptr + progress);
+    const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
+    for (size_t i = 0; i < n_reduce_elements; i++) {
+      cursor[i] += own_data_cursor[i];
+    }
+    stream->progress += n_reduce_elements * element_size;
+  }
+  return 0;
+}
+
+/// reduce(conn, dep_stream) -> stream
+template <typename T, typename DT>
+int stream_reduce_add_multi_thread(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add_multi_thread");
+  LOG(DEBUG) << "stream_reduce_add_multi_thread(), offset=" << offset;
+  int64_t receive_progress = offset;
+  const size_t element_size = sizeof(DT);
+  uint8_t *data_ptr = stream->MutableData();
+  uint8_t *dep_data_ptr = dep_stream.MutableData();
+  volatile bool reset = false;
+
+  std::thread t([&]() {
+    while (!stream->IsFinished() && !stream->reset && !reset) {
+#ifdef HOPLITE_ENABLE_ATOMIC_BUFFER_PROGRESS
+      auto progress = stream->progress.load();
+      auto dep_stream_progress = dep_stream.progress.load();
+#else
+      auto progress = stream->progress;
+      auto dep_stream_progress = dep_stream.progress;
+#endif
+      int64_t n_reduce_elements = (std::min(dep_stream_progress, receive_progress) - progress) / element_size;
+      DT *cursor = (DT *)(data_ptr + progress);
+      const DT *own_data_cursor = (DT *)(dep_data_ptr + progress);
+      for (size_t i = 0; i < n_reduce_elements; i++) {
+        cursor[i] += own_data_cursor[i];
+      }
+      stream->progress += n_reduce_elements * element_size;
+    }
+  });
+
+  const int64_t object_size = stream->Size();
+  while (receive_progress < object_size && !stream->reset) {
+    int status = stream_receive_next<T>(conn_fd, stream, &receive_progress);
+    if (status) {
+      reset = true;
+      t.join();
+      // return the error
+      return status;
+    }
+  }
+  t.join();
+  return 0;
+}
+
+/// reduce(conn, dep_stream) -> stream
+template <typename T, typename DT> int stream_reduce_add(int conn_fd, T *stream, T &dep_stream, int64_t offset) {
+  TIMELINE("stream_reduce_add");
+  int64_t left = stream->Size() - stream->progress;
+  if (left >= HOPLITE_MULTITHREAD_REDUCE_SIZE) {
+    return stream_reduce_add_multi_thread<T, DT>(conn_fd, stream, dep_stream, offset);
+  } else {
+    return stream_reduce_add_single_thread<T, DT>(conn_fd, stream, dep_stream, offset);
+  }
+}
 
 Receiver::Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client, LocalStoreClient &local_store_client,
                    const std::string &my_address, int port)
@@ -127,11 +286,6 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
     LOG(ERROR) << "Failed to connect to sender (ip=" << sender_ip << ", port=" << sender_port << ").";
     return ec;
   }
-  if (is_left_child) {
-    left_recv_conn_fd_ = conn_fd;
-  } else {
-    right_recv_conn_fd_ = conn_fd;
-  }
   // send request
   ObjectWriterRequest req;
   if (is_sender_leaf) {
@@ -148,13 +302,6 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
     req.set_allocated_receive_reduced_object(ro_request);
   }
   SendProtobufMessage(conn_fd, req);
-
-  if (intended_reset_) {
-    // when the outside code close the fd, the fd may not have been updated. double check and handle it here
-    close(conn_fd);
-    return -1;
-  }
-
   // start receiving object
 #ifdef HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
   DCHECK(fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | O_NONBLOCK) >= 0)
@@ -179,70 +326,63 @@ int ReduceReceiverTask::receive_reduced_object(const std::string &sender_ip, int
   return ec;
 }
 
-void ReduceReceiverTask::start_recv(const std::string &sender_ip, bool is_left_child) {
-  auto func = [&, sender_ip, is_left_child]() {
+void ReduceReceiverTask::start_recv(bool is_left_child) {
+  auto func = [this, is_left_child](std::string sender_ip) {
     int ec = receive_reduced_object(sender_ip, HOPLITE_SENDER_PORT, /*is_left_child=*/is_left_child);
     if (ec) {
-      if (!intended_reset_) {
-        LOG(FATAL) << "Failed to receive object for reduce from sender " << sender_ip;
-        // TODO(siyuan): handle failure.
-      } else {
-        LOG(INFO) << "Intended reset receiving object for reduce from sender " << sender_ip;
-      }
+      LOG(ERROR) << "Failed to receive object for reduce from sender " << sender_ip;
+      // this gRPC call must be non-blocking and executed by another thread
+      gcs_client_.HandleReceiveReducedObjectFailure(reduction_id_, my_address_, sender_ip);
     }
   };
   if (is_left_child) {
     DCHECK(!left_recv_thread_.joinable());
-    left_sender_ip_ = sender_ip;
-    left_recv_thread_ = std::thread(func);
+    left_recv_thread_ = std::thread(func, left_sender_ip);
   } else {
     DCHECK(!right_recv_thread_.joinable());
-    right_recv_thread_ = std::thread(func);
-    right_sender_ip_ = sender_ip;
+    right_recv_thread_ = std::thread(func, right_sender_ip);
   }
 }
 
-void ReduceReceiverTask::reset_recv(const std::string &new_sender_ip, bool is_left_child) {
-  intended_reset_ = true;
-  close(left_recv_conn_fd_);
-  close(right_recv_conn_fd_);
-  if (left_recv_thread_.joinable()) {
-    left_recv_thread_.join();
+void ReduceReceiverTask::reset_progress(bool is_left_child) {
+  TIMELINE("ReduceReceiverTask::reset_progress");
+  // target stream is required to reset anyway
+  target_stream->reset = true;
+  if (left_stream) {
+    left_stream->reset = true;
   }
+  // clean up previous threads
   if (right_recv_thread_.joinable()) {
     right_recv_thread_.join();
   }
-  intended_reset_ = false;
+  if (left_recv_thread_.joinable()) {
+    left_recv_thread_.join();
+  }
   // target stream is required to reset anyway
   target_stream->progress = 0;
-  if (is_left_child) {
-    if (is_tree_branch_) {
-      // the left sender first reduces it to the left stream, so both stream needs to be reset
-      left_stream->progress = 0;
-    }
-    start_recv(new_sender_ip, /*is_left_child=*/true);
-    start_recv(right_sender_ip_, /*is_left_child=*/false);
-  } else {
-    DCHECK(is_tree_branch_);
-    start_recv(left_sender_ip_, /*is_left_child=*/true);
-    start_recv(new_sender_ip, /*is_left_child=*/false);
+  if (is_left_child && is_tree_branch_) {
+    // the left sender first reduces it to the left stream, so both stream needs to be reset
+    left_stream->progress = 0;
+  }
+  target_stream->reset = false;
+  if (left_stream) {
+    left_stream->reset = false;
   }
 }
 
 void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_tree_branch,
                                          const std::string &sender_ip, bool from_left_child, int64_t object_size,
                                          const ObjectID &object_id_to_reduce, const ObjectID &object_id_to_pull,
-                                         bool is_sender_leaf, const std::shared_ptr<LocalReduceTask> &local_task) {
+                                         bool is_sender_leaf, bool reset_progress,
+                                         const std::shared_ptr<LocalReduceTask> &local_task) {
   TIMELINE("Receiver::receive_and_reduce_object() ");
+  std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
   std::shared_ptr<ReduceReceiverTask> task;
-  {
-    std::lock_guard<std::mutex> lock(reduce_receiver_tasks_mutex_);
-    if (!reduce_receiver_tasks_.count(reduction_id)) {
-      task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task);
-      reduce_receiver_tasks_[reduction_id] = task;
-    } else {
-      task = reduce_receiver_tasks_[reduction_id];
-    }
+  if (!reduce_receiver_tasks_.count(reduction_id)) {
+    task = std::make_shared<ReduceReceiverTask>(reduction_id, is_tree_branch, local_task, gcs_client_, my_address_);
+    reduce_receiver_tasks_[reduction_id] = task;
+  } else {
+    task = reduce_receiver_tasks_[reduction_id];
   }
   if (!task->local_object && !object_id_to_reduce.IsNil()) {
     Status s = local_store_client_.GetBufferOrCreate(object_id_to_reduce, object_size, &task->local_object);
@@ -266,5 +406,31 @@ void Receiver::receive_and_reduce_object(const ObjectID &reduction_id, bool is_t
     task->is_right_sender_leaf = is_sender_leaf;
     task->right_sender_object = object_id_to_pull;
   }
-  task->start_recv(sender_ip, from_left_child);
+
+  if (!reset_progress) {
+    if ((from_left_child && !task->left_sender_ip.empty()) || (!from_left_child && !task->right_sender_ip.empty())) {
+      return; // the task is running. prevent overriding.
+    }
+  }
+
+  // override ip address
+  if (from_left_child) {
+    task->left_sender_ip = sender_ip;
+  } else {
+    task->right_sender_ip = sender_ip;
+  }
+
+  if (!reset_progress) {
+    task->start_recv(from_left_child);
+  } else {
+    // clean up previous threads
+    task->reset_progress(from_left_child);
+    // restart all tasks
+    if (!task->left_sender_ip.empty()) {
+      task->start_recv(/*is_left_child=*/true);
+    }
+    if (!task->right_sender_ip.empty()) {
+      task->start_recv(/*is_left_child=*/false);
+    }
+  }
 }

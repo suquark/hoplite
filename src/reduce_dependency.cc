@@ -111,6 +111,12 @@ std::string ReduceTreeChain::DebugString() {
   std::stringstream s;
   s << std::endl << "==============================================================" << std::endl;
   s << "object_count: " << object_count_ << ", maximum_chain_length: " << maximum_chain_length_ << std::endl;
+  for (size_t i = 0; i < map_.size(); i++) {
+    Node *n = map_[i];
+    if (n->location_known()) {
+      s << i << ": " << n->object_id.ToString() << " @ " << n->owner_ip << std::endl;
+    }
+  }
   s << std::endl;
   if (chains_.size() == 0) {
     s << "Chain: NULL";
@@ -160,10 +166,20 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     DCHECK(!root->parent);
     root->object_id = reduction_id_;
     root->owner_ip = reduce_dst_;
+    object_size_ = object_size;
+  }
+  if (!suspended_nodes_.empty()) {
+    // assign to a suspended node first
+    Node *n = suspended_nodes_.front();
+    n->object_id = object_id;
+    n->owner_ip = owner_ip;
+    owner_to_node_[owner_ip] = n;
+    suspended_nodes_.pop();
+    return n;
   }
   if (num_ready_objects_ >= num_reduce_objects_ + 1) {
     // We already have enough nodes in the tree. Push more into the backup node.
-    backup_objects_.push({object_id, owner_ip});
+    backup_objects_.push_back({object_id, owner_ip});
     return NULL;
   }
   Node *n = rtc_->GetNode(num_ready_objects_);
@@ -172,7 +188,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     ++num_ready_objects_;
     if (num_ready_objects_ >= num_reduce_objects_ + 1) {
       // We already have enough nodes in the tree. Push more into the backup node.
-      backup_objects_.push({object_id, owner_ip});
+      backup_objects_.push_back({object_id, owner_ip});
       return NULL;
     }
     n = rtc_->GetNode(num_ready_objects_);
@@ -206,14 +222,22 @@ InbandDataNode *ReduceTask::AddInbandObject(const ObjectID &object_id, const std
   return &reduced_inband_dst_;
 }
 
-void ReduceTask::CompleteReduce(const std::string &receiver_ip) { owner_to_node_[receiver_ip]->set_finished(); }
-
-Node *ReduceTask::LocateFailure(const std::string &receiver_ip, bool left_child) {
-  if (left_child) {
-    return owner_to_node_[receiver_ip]->left_child;
-  } else {
-    return owner_to_node_[receiver_ip]->right_child;
+bool ReduceTask::ReassignFailedNode(Node *failed_node) {
+  failed_node->failed = true; // mark it as failed
+  if (!backup_objects_.empty()) {
+    auto pair = backup_objects_.front();
+    failed_node->object_id = pair.first;
+    failed_node->owner_ip = pair.second;
+    owner_to_node_[failed_node->owner_ip] = failed_node;
+    backup_objects_.pop_front();
+    return true;
   }
+  // reset the node. reassign it later.
+  owner_to_node_.erase(failed_node->owner_ip);
+  failed_node->owner_ip = "";
+  failed_node->object_id = ObjectID::Nil();
+  suspended_nodes_.push(failed_node);
+  return false;
 }
 
 std::vector<std::pair<Node *, ObjectID>> ReduceManager::AddObject(const ObjectID &object_id, int64_t object_size,

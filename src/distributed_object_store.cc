@@ -187,6 +187,9 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
     // negative means all included
     num_reduce_objects = objects_to_reduce.size();
   }
+  // we does not take local objects into account
+  num_reduce_objects -= local_objects.size();
+  DCHECK(num_reduce_objects > 0);
   gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
   // this is not necessary, but we can create the reduction object ahead of time
   if (local_objects.size() > 0) {

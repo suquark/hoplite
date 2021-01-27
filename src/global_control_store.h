@@ -39,6 +39,9 @@ public:
   bool HandlePullObjectFailure(const ObjectID &object_id, const std::string &receiver_ip,
                                std::string *alternative_sender_ip);
 
+  void HandleReceiveReducedObjectFailure(const ObjectID &reduction_id, const std::string &receiver_ip,
+                                         const std::string &sender_ip);
+
   /// Create reduce task
   /// \param reduce_dst The IP address of the node that holds the final reduced object.
   void CreateReduceTask(const std::vector<ObjectID> &objects_to_reduce, const ObjectID &reduction_id,

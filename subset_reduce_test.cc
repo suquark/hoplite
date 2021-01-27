@@ -28,6 +28,9 @@ int main(int argc, char **argv) {
   DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
+    if (world_rank == 0) {
+      LOG(INFO) << "\n\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Trail #" << trial << "/" << n_trials << "\n\n\n";
+    }
     ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
     std::vector<ObjectID> object_ids;
     for (int i = 0; i < world_size; i++) {

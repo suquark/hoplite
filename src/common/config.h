@@ -4,6 +4,8 @@
 // Enable non-blocking for the socket that receiving objects.
 #define HOPLITE_ENABLE_NONBLOCKING_SOCKET_RECV
 
+constexpr int64_t STREAM_MAX_BLOCK_SIZE = 4 * (2 << 20); // 4MB
+
 // Enable ACK for sending/receiving buffers. Usually used for debugging.
 // FIXME(suquark): Disable ACK would cause numeric mismatch.
 #define HOPLITE_ENABLE_ACK
