@@ -146,7 +146,7 @@ cdef class DistributedObjectStore:
             if reduction_id is not None:
                 if num_reduce_objects > 0:
                     self.store.get().Reduce(
-                        raw_object_ids, (<ObjectID>reduction_id).data, num_reduce_objects)
+                        raw_object_ids, (<ObjectID>reduction_id).data, <ssize_t>num_reduce_objects)
                 else:
                     self.store.get().Reduce(
                         raw_object_ids, (<ObjectID>reduction_id).data)
@@ -154,7 +154,7 @@ cdef class DistributedObjectStore:
             else:
                 if num_reduce_objects > 0:
                     self.store.get().Reduce(
-                        raw_object_ids, &_created_reduction_id.data, num_reduce_objects)
+                        raw_object_ids, &_created_reduction_id.data, <ssize_t>num_reduce_objects)
                 else:
                     self.store.get().Reduce(
                         raw_object_ids, &_created_reduction_id.data)

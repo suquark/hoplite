@@ -4,7 +4,7 @@ from libcpp cimport bool as c_bool
 from libcpp.memory cimport shared_ptr, unique_ptr
 from libcpp.string cimport string as c_string
 
-from libc.stdint cimport uint8_t, int32_t, uint64_t, int64_t, uint32_t, ssize_t
+from libc.stdint cimport uint8_t, int32_t, uint64_t, int64_t, uint32_t
 from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
 
@@ -69,7 +69,7 @@ cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
                     ssize_t num_reduce_objects)
 
         void Reduce(const c_vector[CObjectID] &object_ids,
-                    const ObjectID &reduction_id, 
+                    const CObjectID &reduction_id, 
                     ssize_t num_reduce_objects)
 
         unordered_set[CObjectID] GetReducedObjects(const CObjectID &reduction_id)
