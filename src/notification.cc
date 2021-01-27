@@ -66,7 +66,7 @@ public:
   grpc::Status CreateReduceTask(grpc::ServerContext *context, const CreateReduceTaskRequest *request,
                                 CreateReduceTaskReply *reply);
 
-  void InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
+  void InvokePullAndReduceObject(Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
                                  int64_t object_size, bool reset_progress);
 
   void InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,
@@ -453,7 +453,7 @@ void NotificationServiceImpl::RecoverReduceTaskFromFailure(const ObjectID &reduc
   failed_node->failed = false;
 }
 
-void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_node, const Node *sender_node,
+void NotificationServiceImpl::InvokePullAndReduceObject(Node *receiver_node, const Node *sender_node,
                                                         const ObjectID &reduction_id, int64_t object_size,
                                                         bool reset_progress) {
   TIMELINE("notification InvokePullAndReduceObject");
@@ -472,7 +472,14 @@ void NotificationServiceImpl::InvokePullAndReduceObject(const Node *receiver_nod
   request.set_reset_progress(reset_progress);
   PullAndReduceObjectReply reply;
   auto status = stub->PullAndReduceObject(&context, request, &reply);
-  DCHECK(status.ok());
+  if (!status.ok()) {
+    LOG(ERROR) << "InvokePullAndReduceObject failed for " << receiver_node->owner_ip;
+    {
+      std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
+      std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
+      task->RemoveNode(receiver_node);
+    }
+  }
 }
 
 void NotificationServiceImpl::InvokeReduceInbandObject(const std::string &receiver_ip, const ObjectID &reduction_id,

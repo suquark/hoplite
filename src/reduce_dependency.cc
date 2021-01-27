@@ -233,14 +233,13 @@ bool ReduceTask::ReassignFailedNode(Node *failed_node) {
     auto pair = backup_objects_.front();
     failed_node->object_id = pair.first;
     failed_node->owner_ip = pair.second;
+    ready_ids_.erase(failed_node->object_id);
     owner_to_node_[failed_node->owner_ip] = failed_node;
     backup_objects_.pop_front();
     return true;
   }
   // reset the node. reassign it later.
-  owner_to_node_.erase(failed_node->owner_ip);
-  failed_node->owner_ip = "";
-  failed_node->object_id = ObjectID::Nil();
+  RemoveNode(failed_node);
   suspended_nodes_.push(failed_node);
   return false;
 }

@@ -79,11 +79,25 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, args_dict, model_type="custom", device="cpu"):
+    def __init__(self, index, args_dict, model_type="custom", device="cpu", enable_fail=True):
         os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
         self.store = hoplite.create_store_using_dict(args_dict)
         self.device = device
         self.model = ConvNet(model_type).to(device)
+
+        if index == 2 and enable_fail:
+            import threading
+            def kill():
+                for i in reversed(range(20)):
+                    print(f"failing in {i+1} second(s)...")
+                    time.sleep(1)
+                import os
+                os._exit(1)
+            self.t = threading.Thread(target=kill)
+            self.t.start()
+
+    def poll(self):
+        pass
 
     def compute_gradients(self, parameter_id, gradient_id=None, batch_size=128):
         parameter_buffer = self.store.get(parameter_id)
@@ -109,7 +123,7 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
-parser.add_argument('--iterations', type=str, default=50, help='number of iterations')
+parser.add_argument('--iterations', type=int, default=50, help='number of iterations')
 hoplite.add_arguments(parser)
 
 hoplite.start_location_server()
@@ -117,7 +131,10 @@ args = parser.parse_args()
 args_dict = hoplite.extract_dict_from_args(args)
 
 ray.init(address='auto', ignore_reinit_error=True)
-workers = [DataWorker.remote(args_dict, model_type=args.model, device='cuda') for _ in range(args.num_workers)]
+
+workers = []
+for i in range(args.num_workers):
+    workers.append(DataWorker.remote(i, args_dict, model_type=args.model, device='cuda'))
 
 ps = ParameterServer.remote(args_dict, 1e-2, workers=workers, model_type=args.model)
 
@@ -129,12 +146,53 @@ step_start = time.time()
 gradients = {}
 index = 0
 
+aliveness_map = {}
+
 for worker in workers:
     gradient_id = hoplite.object_id_from_int(index)
     index += 1
     gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
+    aliveness_map[gradient_id] = worker.poll.remote()
+
+backup_workers = {}
+
+record = []
 
 for i in range(args.iterations):
+    event = ""
+    # check recovery
+    rejoined = []
+    for worker_index, (w, p) in backup_workers.items():
+        q, _ = ray.wait([p], num_returns=1, timeout=0)
+        if q:
+            event = "rejoin"
+            print(f"worker {worker_index} rejoined!")
+            workers[worker_index] = w
+            gradient_id = hoplite.object_id_from_int(index)
+            index += 1
+            gradients[gradient_id] = (w, w.compute_gradients.remote(current_weights, gradient_id=gradient_id))
+            aliveness_map[gradient_id] = w.poll.remote()
+            rejoined.append(worker_index)
+    for worker_index in rejoined:
+        del backup_workers[worker_index]
+
+    # check failure
+    ready_poll_tasks, _ = ray.wait(list(aliveness_map.values()), num_returns=len(aliveness_map), timeout=0)
+    for t in ready_poll_tasks:
+        try:
+            ray.get(t)
+        except ray.exceptions.RayActorError:
+            event = "fail"
+            _inv_aliveness_map = {v:k for k,v in aliveness_map.items()}
+            gradient_id = _inv_aliveness_map[t]
+            del aliveness_map[gradient_id]
+            failed_worker, _ = gradients.pop(gradient_id)
+            worker_index = workers.index(failed_worker)
+            print(f"worker {worker_index} failed. starting a new one...")
+            new_worker = DataWorker.remote(worker_index, args_dict, model_type=args.model, device='cuda', enable_fail=False)
+            backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
+
+    # actual iteration
     gradient_ids = list(gradients.keys())
     num_reduce_objects = min(args.num_async, len(gradients))
     current_weights, ready_gradient_list = ray.get(ps.apply_gradients.remote(gradient_ids, num_reduce_objects))
@@ -143,9 +201,15 @@ for i in range(args.iterations):
         gradient_id = hoplite.object_id_from_int(index)
         index += 1
         gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
+        aliveness_map[gradient_id] = worker.poll.remote()
     now = time.time()
     print("step time:", now - step_start, flush=True)
+    record.append({'duration': now - step_start, 'event': event})
     step_start = now
+
+import json
+with open("hoplite_ft.json", "w") as f:
+    json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()

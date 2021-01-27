@@ -31,8 +31,6 @@ import argparse
 import os
 import time
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 import numpy as np
 
@@ -88,9 +86,23 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, model_type="custom", device="cpu"):
+    def __init__(self, index, model_type="custom", device="cpu", enable_fail=True):
         self.device = device
         self.model = ConvNet(model_type).to(device)
+
+        if index == 2 and enable_fail:
+            import threading
+            def kill():
+                for i in reversed(range(20)):
+                    print(f"failing in {i+1} second(s)...")
+                    time.sleep(1)
+                import os
+                os._exit(1)
+            self.t = threading.Thread(target=kill)
+            self.t.start()
+
+    def poll(self):
+        pass
 
     def compute_gradients(self, weights, batch_size=128):
         self.model.set_weights(weights)
@@ -110,13 +122,15 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
-parser.add_argument('--iterations', type=str, default=20, help='number of iterations')
+parser.add_argument('--iterations', type=int, default=20, help='number of iterations')
 
 args = parser.parse_args()
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2, model_type=args.model)
-workers = [DataWorker.remote(model_type=args.model, device='cuda') for _ in range(args.num_workers)]
+workers = []
+for i in range(args.num_workers):
+    workers.append(DataWorker.remote(i, model_type=args.model, device='cuda'))
 
 # get initial weights
 current_weights = ps.get_weights.remote()
@@ -139,19 +153,71 @@ start = time.time()
 print("Running Asynchronous Parameter Server Training.")
 step_start = time.time()
 
+aliveness_map = {}
+
 gradients = {}
 for worker in workers:
-    gradients[worker.compute_gradients.remote(current_weights)] = worker
+    grad_ref = worker.compute_gradients.remote(current_weights)
+    aliveness_map[grad_ref] = worker.poll.remote()
+    gradients[grad_ref] = worker
+
+backup_workers = {}
+
+record = []
 
 for i in range(args.iterations):
-    ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
+    event = ""
+    # recovery check
+    rejoined = []
+    for index, (w, p) in backup_workers.items():
+        q, _ = ray.wait([p], num_returns=1, timeout=0)
+        if q:
+            event = "rejoin"
+            print(f"worker {index} rejoined!")
+            workers[index] = w
+            grad_ref = w.compute_gradients.remote(current_weights)
+            aliveness_map[grad_ref] = w.poll.remote()
+            gradients[grad_ref] = w
+            rejoined.append(index)
+    for index in rejoined:
+        del backup_workers[index]
+
+    # failure check
+    while True:
+        ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
+        no_except = True
+        for grad_ref in ready_gradient_list:
+            try:
+                ray.get(aliveness_map[grad_ref])
+            except ray.exceptions.RayActorError:
+                event = "fail"
+                no_except = False
+                worker = gradients.pop(grad_ref)
+                worker_index = workers.index(worker)
+                del aliveness_map[grad_ref]
+                print(f"worker {worker_index} failed. starting a new one...")
+                # start a new one
+                new_worker = DataWorker.remote(worker_index, model_type=args.model, device='cuda', enable_fail=False)
+                backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
+        if no_except:
+            break
+
+    # actual iteration
     current_weights = ps.apply_gradients.remote(*ready_gradient_list)
     for ready_gradient_id in ready_gradient_list:
         worker = gradients.pop(ready_gradient_id)
-        gradients[worker.compute_gradients.remote(current_weights)] = worker
+        grad_ref = worker.compute_gradients.remote(current_weights)
+        aliveness_map[grad_ref] = worker.poll.remote()
+        gradients[grad_ref] = worker
+
     now = time.time()
     print("step time:", now - step_start, flush=True)
+    record.append({'duration': now - step_start, 'event': event})
     step_start = now
+
+import json
+with open("ray_ft.json", "w") as f:
+    json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()

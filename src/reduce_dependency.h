@@ -118,6 +118,13 @@ public:
 
   Node *AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip);
 
+  void RemoveNode(Node *n) {
+    owner_to_node_.erase(n->owner_ip);
+    n->owner_ip = "";
+    ready_ids_.erase(n->object_id);
+    n->object_id = ObjectID::Nil();
+  }
+
   ///
   /// \return The destination node.
   InbandDataNode *AddInbandObject(const ObjectID &object_id, const std::string &inband_data);
