@@ -397,7 +397,7 @@ grpc::Status NotificationServiceImpl::GetReducedObjects(grpc::ServerContext *con
   std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
   std::vector<ObjectID> object_ids = task->GetReducedObjects();
   for (auto &object_id : object_ids) {
-    reply->add_objects(object_id.Binary());
+    reply->add_object_ids(object_id.Binary());
   }
   return grpc::Status::OK;
 }

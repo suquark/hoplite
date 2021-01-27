@@ -39,7 +39,6 @@ DistributedObjectStore::DistributedObjectStore(const std::string &notification_s
 DistributedObjectStore::~DistributedObjectStore() {
   TIMELINE("~DistributedObjectStore");
   object_sender_.Shutdown();
-  Shutdown();
   notification_listener_.Shutdown();
   LOG(DEBUG) << "Object store has been shutdown.";
 }
