@@ -167,7 +167,7 @@ for i in range(args.iterations):
             gradient_id = hoplite.object_id_from_int(index)
             index += 1
             gradients[gradient_id] = (w, w.compute_gradients.remote(current_weights, gradient_id=gradient_id))
-            aliveness_map[w.poll.remote()] = gradient_id
+            aliveness_map[gradient_id] = w.poll.remote()
             rejoined.append(worker_index)
     for worker_index in rejoined:
         del backup_workers[worker_index]
