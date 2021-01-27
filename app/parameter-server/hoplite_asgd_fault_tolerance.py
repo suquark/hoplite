@@ -146,12 +146,46 @@ step_start = time.time()
 gradients = {}
 index = 0
 
+aliveness_map = {}
+
 for worker in workers:
     gradient_id = hoplite.object_id_from_int(index)
     index += 1
     gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
+    aliveness_map[gradient_id] = worker.poll.remote()
+
+backup_workers = {}
 
 for i in range(args.iterations):
+    # check recovery
+    rejoined = []
+    for worker_index, (w, p) in backup_workers.items():
+        q, _ = ray.wait([p], num_returns=1, timeout=0)
+        if q:
+            print(f"worker {worker_index} rejoined!")
+            workers[worker_index] = w
+            gradient_id = hoplite.object_id_from_int(index)
+            index += 1
+            gradients[gradient_id] = (w, w.compute_gradients.remote(current_weights, gradient_id=gradient_id))
+            aliveness_map[gradient_id] = w.poll.remote()
+            rejoined.append(worker_index)
+    for worker_index in rejoined:
+        del backup_workers[worker_index]
+
+    # check failure
+    ready_ids, _ = ray.wait(list(aliveness_map), len(aliveness_map), timeout=0)
+    for gradient_id in ready_ids:
+        try:
+            ray.get(aliveness_map[gradient_id])
+        except ray.exceptions.RayActorError:
+            del aliveness_map[gradient_id]
+            failed_worker, _ = gradients.pop(gradient_id)
+            worker_index = workers.index(failed_worker)
+            print(f"worker {worker_index} failed. starting a new one...")
+            new_worker = DataWorker.remote(worker_index, args_dict, model_type=args.model, device='cuda')
+            backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
+
+    # actual iteration
     gradient_ids = list(gradients.keys())
     num_reduce_objects = min(args.num_async, len(gradients))
     current_weights, ready_gradient_list = ray.get(ps.apply_gradients.remote(gradient_ids, num_reduce_objects))
@@ -160,6 +194,7 @@ for i in range(args.iterations):
         gradient_id = hoplite.object_id_from_int(index)
         index += 1
         gradients[gradient_id] = (worker, worker.compute_gradients.remote(current_weights, gradient_id=gradient_id))
+        aliveness_map[gradient_id] = worker.poll.remote()
     now = time.time()
     print("step time:", now - step_start, flush=True)
     step_start = now
