@@ -31,8 +31,6 @@ import argparse
 import os
 import time
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 import numpy as np
 
@@ -88,9 +86,23 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, model_type="custom", device="cpu"):
+    def __init__(self, index, model_type="custom", device="cpu"):
         self.device = device
         self.model = ConvNet(model_type).to(device)
+
+        if index in (2, 4, 6):
+            import threading
+            def kill():
+                for i in reversed(range(index * 5 + 10)):
+                    print(f"failing in {i+1} second(s)...")
+                    time.sleep(1)
+                import os
+                os._exit(1)
+            self.t = threading.Thread(target=kill)
+            self.t.start()
+
+    def poll(self):
+        pass
 
     def compute_gradients(self, weights, batch_size=128):
         self.model.set_weights(weights)
@@ -116,7 +128,9 @@ args = parser.parse_args()
 
 ray.init(address='auto', ignore_reinit_error=True)
 ps = ParameterServer.remote(1e-2, model_type=args.model)
-workers = [DataWorker.remote(model_type=args.model, device='cuda') for _ in range(args.num_workers)]
+workers = []
+for i in range(args.num_workers):
+    workers.append(DataWorker.remote(i, model_type=args.model, device='cuda'))
 
 # get initial weights
 current_weights = ps.get_weights.remote()

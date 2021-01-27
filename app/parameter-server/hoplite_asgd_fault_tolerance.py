@@ -85,16 +85,19 @@ class DataWorker(object):
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-        if index == 4:
+        if index in (2, 4, 6):
             import threading
             def kill():
-                for i in reversed(range(10)):
+                for i in reversed(range(index * 5 + 10)):
                     print(f"failing in {i+1} second(s)...")
                     time.sleep(1)
                 import os
                 os._exit(1)
             self.t = threading.Thread(target=kill)
             self.t.start()
+
+    def poll(self):
+        pass
 
     def compute_gradients(self, parameter_id, gradient_id=None, batch_size=128):
         parameter_buffer = self.store.get(parameter_id)
