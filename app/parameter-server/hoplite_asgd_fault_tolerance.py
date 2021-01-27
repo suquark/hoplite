@@ -173,7 +173,7 @@ for i in range(args.iterations):
         del backup_workers[worker_index]
 
     # check failure
-    ready_ids, _ = ray.wait(list(aliveness_map), len(aliveness_map), timeout=0)
+    ready_ids, _ = ray.wait(list(aliveness_map), num_returns=len(aliveness_map), timeout=0)
     for gradient_id in ready_ids:
         try:
             ray.get(aliveness_map[gradient_id])
