@@ -171,11 +171,11 @@ cdef class DistributedObjectStore:
         else:
             raise NotImplementedError("Unsupported reduce_op")
 
-    def get_reduced_objects(reduction_id):
+    def get_reduced_objects(self, ObjectID reduction_id):
         cdef:
             unordered_set[CObjectID] object_ids_
             CObjectID oid
-        object_ids_ = self.store.get().GetReducedObjects((<ObjectID>reduction_id).data)
+        object_ids_ = self.store.get().GetReducedObjects(reduction_id.data)
         cdef unordered_set[CObjectID].iterator it = object_ids_.begin()
         object_ids = set()
         while it != object_ids_.end():
