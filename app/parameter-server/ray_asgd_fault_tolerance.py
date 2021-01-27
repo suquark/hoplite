@@ -1,22 +1,44 @@
 #!/usr/bin/env python3
 
+"""
+Parameter Server
+================
+
+The parameter server is a framework for distributed machine learning training.
+
+In the parameter server framework, a centralized server (or group of server
+nodes) maintains global shared parameters of a machine-learning model
+(e.g., a neural network) while the data and computation of calculating
+updates (i.e., gradient descent updates) are distributed over worker nodes.
+
+.. image:: ../images/param_actor.png
+    :align: center
+
+Parameter servers are a core part of many machine learning applications. This
+document walks through how to implement simple synchronous and asynchronous
+parameter servers using Ray actors.
+
+To run the application, first install some dependencies.
+
+.. code-block:: bash
+
+  pip install torch torchvision filelock
+
+Let's first define some helper functions and import some dependencies.
+
+"""
 import argparse
 import os
-import sys
 import time
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
 
+from ps_helper import ConvNet
+
 import ray
-
-import ray.rllib.utils.hoplite as hoplite
-store_lib = hoplite.store_lib
-
-from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
 
 ###########################################################################
@@ -37,34 +59,22 @@ from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class ParameterServer(object):
-    def __init__(self, args_dict, lr, model_type="custom"):
-        self.store = hoplite.utils.create_store_using_dict(args_dict)
+    def __init__(self, lr, model_type="custom"):
         self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
-        reduced_gradient_id = self.store.reduce_async(gradients, hoplite.store_lib.ReduceOp.SUM)
-        grad_buffer = self.store.get(reduced_gradient_id)
-        summed_gradients = self.model.buffer_to_tensors(grad_buffer)
+        summed_gradients = [
+            np.stack(gradient_zip).sum(axis=0)
+            for gradient_zip in zip(*gradients)
+        ]
         self.optimizer.zero_grad()
         self.model.set_gradients(summed_gradients)
         self.optimizer.step()
-        return self.get_parameter_id()
-
-    def get_parameter_id(self):
-        new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
-        cont_p = np.concatenate([p.ravel().view(np.uint8) for p in new_parameters])
-        buffer = hoplite.store_lib.Buffer.from_buffer(cont_p)
-        parameter_id = self.store.put(buffer)
-        return parameter_id
+        return self.model.get_weights()
 
     def get_weights(self):
         return self.model.get_weights()
-
-    def set_parameters(self, parameter_id):
-        parameter_buffer = self.store.get(parameter_id)
-        parameters = self.model.buffer_to_tensors(parameter_buffer)
-        self.model.set_parameters(parameters)
 
 
 ###########################################################################
@@ -78,26 +88,19 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, args_dict, model_type="custom", device="cpu"):
-        self.store = hoplite.utils.create_store_using_dict(args_dict)
+    def __init__(self, model_type="custom", device="cpu"):
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-    def compute_gradients(self, parameter_id, gradient_id=None, batch_size=128):
-        parameter_buffer = self.store.get(parameter_id)
-        parameters = self.model.buffer_to_tensors(parameter_buffer)
-        self.model.set_parameters(parameters)
+    def compute_gradients(self, weights, batch_size=128):
+        self.model.set_weights(weights)
 
         data = torch.randn(batch_size, 3, 224, 224, device=self.device)
         self.model.zero_grad()
         output = self.model(data)
         loss = torch.mean(output)
         loss.backward()
-        gradients = self.model.get_gradients()
-        cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
-        buffer = hoplite.store_lib.Buffer.from_buffer(cont_g)
-        gradient_id = self.store.put(buffer, gradient_id)
-        return gradient_id
+        return self.model.get_gradients()
 
 
 parser = argparse.ArgumentParser(description='parameter server')
@@ -107,22 +110,35 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
-parser.add_argument('--iterations', type=str, default=50, help='number of iterations')
-hoplite.utils.add_arguments(parser)
+parser.add_argument('--iterations', type=str, default=20, help='number of iterations')
 
-hoplite.utils.start_location_server()
 args = parser.parse_args()
-args_dict = hoplite.utils.extract_dict_from_args(args)
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(args_dict, 1e-2, model_type=args.model)
-workers = [DataWorker.remote(args_dict, model_type=args.model, device='cuda') for _ in range(args.num_workers)]
+ps = ParameterServer.remote(1e-2, model_type=args.model)
+workers = [DataWorker.remote(model_type=args.model, device='cuda') for _ in range(args.num_workers)]
 
 # get initial weights
-current_weights = ps.get_parameter_id.remote()
+current_weights = ps.get_weights.remote()
 
+start = time.time()
+
+###########################################################################
+# Asynchronous Parameter Server Training
+# --------------------------------------
+# We'll now create a synchronous parameter server training scheme. We'll first
+# instantiate a process for the parameter server, along with multiple
+# workers.
+
+###########################################################################
+# Here, workers will asynchronously compute the gradients given its
+# current weights and send these gradients to the parameter server as
+# soon as they are ready. When the Parameter server finishes applying the
+# new gradient, the server will send back a copy of the current weights to the
+# worker. The worker will then update the weights and repeat.
 print("Running Asynchronous Parameter Server Training.")
 step_start = time.time()
+
 gradients = {}
 for worker in workers:
     gradients[worker.compute_gradients.remote(current_weights)] = worker
@@ -139,3 +155,17 @@ for i in range(args.iterations):
 
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
+
+##############################################################################
+# Final Thoughts
+# --------------
+#
+# This approach is powerful because it enables you to implement a parameter
+# server with a few lines of code as part of a Python application.
+# As a result, this simplifies the deployment of applications that use
+# parameter servers and to modify the behavior of the parameter server.
+#
+# For example, sharding the parameter server, changing the update rule,
+# switch between asynchronous and synchronous updates, ignoring
+# straggler workers, or any number of other customizations,
+# will only require a few extra lines of code.

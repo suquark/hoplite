@@ -1,0 +1,16 @@
+#!/bin/bash
+export RAY_BACKEND_LOG_LEVEL=info
+
+ROOT_DIR=$(dirname $(realpath -s $0))/../../
+source $ROOT_DIR/load_cluster_env.sh
+
+n_nodes=8
+model=resnet50
+
+echo "==========" async-ps-$n_nodes-$model-hoplite "=========="
+python hoplite_asgd_fault_tolerance.py -n $(($n_nodes - 1)) -a $((($n_nodes - 1) / 2)) -m $model
+sleep 1
+
+echo "==========" async-ps-$n_nodes-$model-ray "=========="
+python ray_asgd_fault_tolerance.py -n $(($n_nodes - 1)) -a $((($n_nodes - 1) / 2)) -m $model
+sleep 1

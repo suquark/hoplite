@@ -1,7 +1,15 @@
 import atexit
 import os
 import subprocess
+import sys
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import py_distributed_object_store as _hoplite_store
+
+Buffer = _hoplite_store.Buffer
+ObjectID = _hoplite_store.ObjectID
+ReduceOp = _hoplite_store.ReduceOp
 
 
 def get_my_address():
@@ -39,8 +47,7 @@ def extract_dict_from_args(args):
 
 
 def create_store_using_dict(args_dict):
-    import py_distributed_object_store as store_lib
-    store = store_lib.DistributedObjectStore(
+    store = _hoplite_store.DistributedObjectStore(
         args_dict['redis_address'],
         args_dict['redis_port'],
         args_dict['notification_port'],
@@ -52,8 +59,7 @@ def create_store_using_dict(args_dict):
 
 
 def object_id_from_int(n):
-    import py_distributed_object_store as store_lib
-    return store_lib.ObjectID(str(n).encode().rjust(20, b'\0'))
+    return _hoplite_store.ObjectID(str(n).encode().rjust(20, b'\0'))
 
 
 def random_object_id():
@@ -61,7 +67,7 @@ def random_object_id():
     return object_id_from_int(random.randint(0, 1e20-1))
 
 
-def register_cleanup(processes):
+def _register_cleanup(processes):
     def _cleanup_processes():
         for p in processes:
             p.terminate()
@@ -69,8 +75,12 @@ def register_cleanup(processes):
 
 
 def start_location_server():
-    notification_path = os.path.join(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))), 'notification')
+    notification_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'notification')
     notification_p = subprocess.Popen([notification_path, get_my_address()])
-    register_cleanup([notification_p])
+    _register_cleanup([notification_p])
     time.sleep(2)
+
+
+__all__ = ('start_location_server', 'random_object_id', 'object_id_from_int',
+           'create_store_using_dict', 'extract_dict_from_args', 'add_arguments', 'get_my_address',
+           'Buffer', 'ObjectID', 'ReduceOp')

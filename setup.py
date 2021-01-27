@@ -12,7 +12,7 @@ ext_modules = [
         libraries=["distributed_object_store"],
         # this is necessary for the dynamic linking of Linux to
         # be working in a distributed environment
-        extra_link_args=['-Wl,-rpath='+os.path.abspath(".")],
+        extra_link_args=['-Wl,-rpath='+os.path.abspath("python/hoplite")],
     )
 ]
 
