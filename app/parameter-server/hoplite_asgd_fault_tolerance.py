@@ -85,10 +85,10 @@ class DataWorker(object):
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
-        if index in (2, 4, 6):
+        if index == 2:
             import threading
             def kill():
-                for i in reversed(range(index * 5 + 10)):
+                for i in reversed(range(30)):
                     print(f"failing in {i+1} second(s)...")
                     time.sleep(1)
                 import os
