@@ -153,16 +153,25 @@ start = time.time()
 print("Running Asynchronous Parameter Server Training.")
 step_start = time.time()
 
+aliveness_map = {}
+
 gradients = {}
 for worker in workers:
-    gradients[worker.compute_gradients.remote(current_weights)] = worker
+    grad_ref = worker.compute_gradients.remote(current_weights)
+    aliveness_map[grad_ref] = worker.poll.remote()
+    gradients[grad_ref] = worker
 
 for i in range(args.iterations):
     ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
+    for grad_ref in ready_gradient_list:
+        ray.get(aliveness_map[grad_ref])
     current_weights = ps.apply_gradients.remote(*ready_gradient_list)
     for ready_gradient_id in ready_gradient_list:
         worker = gradients.pop(ready_gradient_id)
-        gradients[worker.compute_gradients.remote(current_weights)] = worker
+        grad_ref = worker.compute_gradients.remote(current_weights)
+        aliveness_map[grad_ref] = worker.poll.remote()
+        gradients[grad_ref] = worker
+
     now = time.time()
     print("step time:", now - step_start, flush=True)
     step_start = now
