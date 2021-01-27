@@ -80,7 +80,9 @@ public:
   ReduceTreeChain(int64_t object_count, int64_t maximum_chain_length);
 
   /// Get the node by the index in the tree.
-  Node *GetNode(int index) { return map_[index]; }
+  Node *GetNode(int index) const { return map_[index]; }
+
+  const std::vector<Node *> &GetAllNodes() const { return map_; }
 
   /// Get the root node.
   Node *GetRoot() {
@@ -122,6 +124,18 @@ public:
   std::vector<float> &GetInbandReducedData() { return reduced_inband_data_; }
 
   ObjectID GetReductionID() const { return reduction_id_; }
+
+  std::vector<ObjectID> GetReducedObjects() const {
+    std::vector<ObjectID> object_ids;
+    if (rtc_) {
+      for (const auto &n : rtc_->GetAllNodes()) {
+        if (!n->object_id.IsNil()) {
+          object_ids.push_back(n->object_id);
+        }
+      }
+    }
+    return object_ids;
+  }
 
   int64_t GetObjectSize() const { return object_size_; }
 

@@ -13,6 +13,8 @@ using objectstore::CreateReduceTaskReply;
 using objectstore::CreateReduceTaskRequest;
 using objectstore::GetLocationSyncReply;
 using objectstore::GetLocationSyncRequest;
+using objectstore::GetReducedObjectsReply;
+using objectstore::GetReducedObjectsRequest;
 using objectstore::HandlePullObjectFailureReply;
 using objectstore::HandlePullObjectFailureRequest;
 using objectstore::HandleReceiveReducedObjectFailureReply;
@@ -139,4 +141,19 @@ void GlobalControlStoreClient::CreateReduceTask(const std::vector<ObjectID> &obj
   }
   auto status = notification_stub_->CreateReduceTask(&context, request, &reply);
   DCHECK(status.ok()) << status.error_message();
+}
+
+std::unordered_set<ObjectID> GlobalControlStoreClient::GetReducedObjects(const ObjectID &reduction_id) {
+  TIMELINE("GlobalControlStoreClient::GetReducedObjects");
+  grpc::ClientContext context;
+  GetReducedObjectsRequest request;
+  GetReducedObjectsReply reply;
+  request.set_reduction_id(reduction_id.Binary());
+  auto status = notification_stub_->GetReducedObjects(&context, request, &reply);
+  std::unordered_set<ObjectID> reduced_objects;
+  for (const auto &object_id_str : reply.object_ids()) {
+    ObjectID object_id = ObjectID::FromBinary(object_id_str);
+    reduced_objects.insert(object_id);
+  }
+  return reduced_objects;
 }

@@ -2,20 +2,6 @@ syntax = "proto3";
 
 package objectstore;
 
-// Object Control Protocol
-message RemoteGetReducedObjectsRequest {
-  bytes reduction_id = 1;
-}
-
-message RemoteGetReducedObjectsReply {
-  repeated bytes object_ids = 2;
-}
-
-service ObjectStore {
-  rpc RemoteGetReducedObjects(RemoteGetReducedObjectsRequest)
-      returns (RemoteGetReducedObjectsReply);
-}
-
 // Object Writer Protocol
 
 message ReceiveObjectRequest {
@@ -128,6 +114,15 @@ message HandleReceiveReducedObjectFailureRequest {
 message HandleReceiveReducedObjectFailureReply {
 }
 
+// Object Control Protocol
+message GetReducedObjectsRequest {
+  bytes reduction_id = 1;
+}
+
+message GetReducedObjectsReply {
+  repeated bytes object_ids = 2;
+}
+
 // other API
 
 message ConnectRequest {
@@ -157,6 +152,7 @@ service NotificationServer {
   rpc HandlePullObjectFailure(HandlePullObjectFailureRequest) returns (HandlePullObjectFailureReply);
   rpc HandleReceiveReducedObjectFailure(HandleReceiveReducedObjectFailureRequest) returns (HandleReceiveReducedObjectFailureReply);
   rpc CreateReduceTask(CreateReduceTaskRequest) returns (CreateReduceTaskReply);
+  rpc GetReducedObjects(GetReducedObjectsRequest) returns (GetReducedObjectsReply);
 }
 
 service NotificationListener {
