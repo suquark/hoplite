@@ -6,6 +6,7 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
 sudo fuser -k 6666/tcp -s &> /dev/null
 sudo fuser -k 50055/tcp -s &> /dev/null
+sudo fuser -k 20210/tcp -s &> /dev/null
 
 ## setup
 ROOT_DIR=$(dirname $(realpath -s $0))
