@@ -15,7 +15,7 @@ from cpython cimport Py_buffer, PyObject
 from cpython.buffer cimport PyBUF_SIMPLE, PyObject_CheckBuffer, PyBuffer_Release, PyObject_GetBuffer, PyBuffer_FillInfo
 
 from enum import Enum
-import utils
+import socket
 
 
 cdef class Buffer:
@@ -123,7 +123,7 @@ cdef class DistributedObjectStore:
                   int notification_port, int notification_listening_port,
                   bytes plasma_socket, int object_writer_port,
                   int grpc_port):
-        my_address = utils.get_my_address().encode()
+        my_address = socket.gethostbyname(socket.gethostname()).encode()
         CRayLog.StartRayLog(my_address, CRayLogDEBUG)
         self.store.reset(new CDistributedObjectStore(redis_address, redis_port,
             notification_port, notification_listening_port, plasma_socket,
@@ -135,7 +135,7 @@ cdef class DistributedObjectStore:
         self.store.get().Get(object_id.data, &buf)
         return Buffer.from_native(buf)
 
-    def reduce_async(self, object_ids, reduce_op, reduction_id=None):
+    def reduce_async(self, object_ids, reduce_op, reduction_id=None, num_reduce_objects=-1):
         cdef:
             ObjectID _created_reduction_id = ObjectID(b'\0' * 20)
             c_vector[CObjectID] raw_object_ids
@@ -144,12 +144,20 @@ cdef class DistributedObjectStore:
             for oid in object_ids:
                 raw_object_ids.push_back((<ObjectID>oid).data)
             if reduction_id is not None:
-                self.store.get().Reduce(
-                    raw_object_ids, (<ObjectID>reduction_id).data)
+                if num_reduce_objects > 0:
+                    self.store.get().Reduce(
+                        raw_object_ids, (<ObjectID>reduction_id).data, num_reduce_objects)
+                else:
+                    self.store.get().Reduce(
+                        raw_object_ids, (<ObjectID>reduction_id).data)
                 return reduction_id
             else:
-                self.store.get().Reduce(
-                    raw_object_ids, &_created_reduction_id.data)
+                if num_reduce_objects > 0:
+                    self.store.get().Reduce(
+                        raw_object_ids, &_created_reduction_id.data, num_reduce_objects)
+                else:
+                    self.store.get().Reduce(
+                        raw_object_ids, &_created_reduction_id.data)
                 return _created_reduction_id
         else:
             raise NotImplementedError("Unsupported reduce_op")
