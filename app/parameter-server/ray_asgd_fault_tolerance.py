@@ -93,7 +93,7 @@ class DataWorker(object):
         if index == 2:
             import threading
             def kill():
-                for i in reversed(range(30)):
+                for i in reversed(range(20)):
                     print(f"failing in {i+1} second(s)...")
                     time.sleep(1)
                 import os
