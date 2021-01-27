@@ -161,7 +161,24 @@ for worker in workers:
     aliveness_map[grad_ref] = worker.poll.remote()
     gradients[grad_ref] = worker
 
+backup_workers = {}
+
 for i in range(args.iterations):
+    # recovery check
+    rejoined = []
+    for index, (w, p) in backup_workers.items():
+        q, _ = ray.wait([p], num_returns=1, timeout=0)
+        if q:
+            print(f"worker {index} rejoined!")
+            workers[index] = w
+            grad_ref = w.compute_gradients.remote(current_weights)
+            aliveness_map[grad_ref] = w.poll.remote()
+            gradients[grad_ref] = w
+            rejoined.append(index)
+    for index in rejoined:
+        del backup_workers[index]
+
+    # failure check
     while True:
         ready_gradient_list, _ = ray.wait(list(gradients), num_returns=min(args.num_async, len(gradients)))
         no_except = True
@@ -172,16 +189,15 @@ for i in range(args.iterations):
                 no_except = False
                 worker = gradients.pop(grad_ref)
                 worker_index = workers.index(worker)
+                del aliveness_map[grad_ref]
                 print(f"worker {worker_index} failed. starting a new one...")
                 # start a new one
                 new_worker = DataWorker.remote(worker_index, model_type=args.model, device='cuda')
-                workers[worker_index] = new_worker
-                grad_ref = new_worker.compute_gradients.remote(current_weights)
-                aliveness_map[grad_ref] = new_worker.poll.remote()
-                gradients[grad_ref] = new_worker
+                backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
         if no_except:
             break
 
+    # actual iteration
     current_weights = ps.apply_gradients.remote(*ready_gradient_list)
     for ready_gradient_id in ready_gradient_list:
         worker = gradients.pop(ready_gradient_id)
