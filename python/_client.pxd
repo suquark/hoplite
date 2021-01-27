@@ -6,6 +6,8 @@ from libcpp.string cimport string as c_string
 
 from libc.stdint cimport uint8_t, int32_t, uint64_t, int64_t, uint32_t
 from libcpp.unordered_map cimport unordered_map
+from libcpp.unordered_set cimport unordered_set
+
 from libcpp.vector cimport vector as c_vector
 
 cdef extern from "util/logging.h" namespace "ray" nogil:
@@ -61,6 +63,16 @@ cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
 
         void Reduce(const c_vector[CObjectID] &object_ids,
                     const CObjectID &reduction_id)
+
+        void Reduce(const c_vector[CObjectID] &object_ids, 
+                    CObjectID *created_reduction_id, 
+                    ssize_t num_reduce_objects)
+
+        void Reduce(const c_vector[CObjectID] &object_ids,
+                    const CObjectID &reduction_id, 
+                    ssize_t num_reduce_objects)
+
+        unordered_set[CObjectID] GetReducedObjects(const CObjectID &reduction_id)
 
         void Get(const CObjectID &object_id,
                  shared_ptr[CBuffer] *result)
