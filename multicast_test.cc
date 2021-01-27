@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   int world_size;
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::DEBUG);
+  ::hoplite::RayLog::StartRayLog(my_address, ::hoplite::RayLogLevel::DEBUG);
 
   TIMELINE("main");
 

@@ -31,7 +31,7 @@ notification_server_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notific
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 py_distributed_object_store: libdistributed_object_store.so
-	python setup.py build_ext --inplace && cp *cpython*.so python/
+	python setup.py build_ext --inplace && cp *distributed_object_store*.so python/hoplite && cp notification python/hoplite
 
 libdistributed_object_store.so: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) $(OBJECT_STORE_OBJS)
 	$(CXX) $^ $(LDFLAGS) -shared -o $@
@@ -64,7 +64,7 @@ reduce_dependency_test: $(UTILS_OBJS) $(COMMON_OBJS) src/reduce_dependency.cc re
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=src/ $<
 
 clean_bins:
-	rm -rf notification *_test python/*.cpp python/*.so *.so
+	rm -rf notification *_test python/*.cpp python/*.so python/hoplite/*.so *.so python/hoplite/notification
 clean_objfiles:
 	rm -rf *.o src/*.o src/common/*.o src/util/*.o
 clean: clean_bins clean_objfiles

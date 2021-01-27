@@ -6,6 +6,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "common/id.h"
@@ -182,6 +183,7 @@ private:
   std::unique_ptr<ReduceTreeChain> rtc_;
   std::unordered_map<std::string, Node *> owner_to_node_;
   std::deque<std::pair<ObjectID, std::string>> backup_objects_;
+  std::unordered_set<ObjectID> ready_ids_;
   std::queue<Node *> suspended_nodes_;
   // for inband data
   std::vector<float> reduced_inband_data_;

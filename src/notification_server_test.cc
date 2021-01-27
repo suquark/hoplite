@@ -225,7 +225,7 @@ void SPEED_TEST(size_t object_size) {
 int main(int argc, char **argv) {
   std::string notification_address = std::string(argv[1]);
   std::string my_address = std::string(argv[2]);
-  ::ray::RayLog::StartRayLog(my_address, ::ray::RayLogLevel::INFO);
+  ::hoplite::RayLog::StartRayLog(my_address, ::hoplite::RayLogLevel::INFO);
   std::unique_ptr<NotificationListener> notification_listener;
   std::thread notification_listener_thread;
   notification_listener.reset(new NotificationListener(my_address, 8888));

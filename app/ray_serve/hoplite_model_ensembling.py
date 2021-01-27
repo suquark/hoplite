@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import time
 
 import ray
@@ -13,9 +12,7 @@ import torch
 import torchvision.models as models
 
 os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'  # suppress log printing
-sys.path.insert(0, "../../python")
-import py_distributed_object_store as store_lib
-import utils
+import hoplite
 
 from efficientnet_pytorch import EfficientNet
 
@@ -34,7 +31,7 @@ class ModelWorker:
             self.model = EfficientNet.from_name(model_name).cuda().eval()
         else:
             self.model = getattr(models, model_name)().cuda().eval()
-        self.store = utils.create_store_using_dict(args_dict)
+        self.store = hoplite.create_store_using_dict(args_dict)
 
     def inference(self, x_id):
         buffer = self.store.get(x_id)
@@ -48,7 +45,7 @@ class ModelWorker:
 
 class InferenceHost:
     def __init__(self, args_dict, scale=1):
-        self.store = utils.create_store_using_dict(args_dict)
+        self.store = hoplite.create_store_using_dict(args_dict)
 
         # Imagine this is a data labeling task, and the user have loaded a bunch of images,
         # cached in memory. Because it is interactive,
@@ -72,8 +69,8 @@ class InferenceHost:
         # The original serialization of pytorch tensor would be way too slow.
         x = self.images.numpy()
 
-        object_id = utils.object_id_from_int(self.request_id)
-        buffer = store_lib.Buffer.from_buffer(x)
+        object_id = hoplite.object_id_from_int(self.request_id)
+        buffer = hoplite.Buffer.from_buffer(x)
         self.store.put(buffer, object_id)
         self.request_id += 1
 
@@ -86,10 +83,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ray serve with hoplite')
     parser.add_argument("scale", type=int, default=1)
     # We just use this to extract default configurations
-    utils.add_arguments(parser)
+    hoplite.add_arguments(parser)
     args = parser.parse_args()
-    args_dict = utils.extract_dict_from_args(args)
-    utils.start_location_server()
+    args_dict = hoplite.extract_dict_from_args(args)
+    hoplite.start_location_server()
 
     ray.init(address='auto')
     client = serve.start()

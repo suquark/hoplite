@@ -117,6 +117,12 @@ cdef class ObjectID:
     def __eq__(self, other):
         return self.data.Binary() == (<ObjectID>other).data.Binary()
 
+    def __str__(self):
+        return "ObjectID(" + self.data.Binary().hex() + ")"
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class ReduceOp(Enum):
      MAX = 1
