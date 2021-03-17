@@ -1,10 +1,7 @@
-EXECS=compare_bcast reduce allreduce gather allgather send_recv
+EXECS=multicast reduce allreduce gather allgather send_recv
 MPICC?=mpicc
 
 all: ${EXECS}
-
-compare_bcast: compare_bcast.c
-	${MPICC} -O2 -o compare_bcast compare_bcast.c
 
 multicast: multicast.c
 	${MPICC} -O2 -o multicast multicast.c

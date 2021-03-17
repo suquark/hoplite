@@ -33,6 +33,10 @@ class RayBenchmarkWorker:
     def put_object(self):
         return ray.put(np.ones(self.object_size//4, dtype=np.float32))
 
+    def get_and_put_object(self, object_id):
+        """This method is specifically for round trip"""
+        return ray.put(ray.get(object_id))
+
     def get_objects(self, object_ids):
         object_ids = ray.get(object_ids)
         start = time.time()
@@ -70,6 +74,12 @@ class RayBenchmarkActorPool:
     def barrier(self):
         return [w.barrier.remote() for w in self.actors]
 
+    def prepare_object(self, rank):
+        object_id = self.actors[rank].put_object.remote()
+        # wait until we have put that object
+        ray.wait([object_id], num_returns=1, timeout=None)
+        return object_id
+
     def prepare_objects(self):
         object_ids = [w.put_object.remote() for w in self.actors]
         # wait until we put all objects
@@ -87,11 +97,16 @@ class RayBenchmarkActorPool:
         return len(self.actors)
 
 
+def ray_roundtrip(notification_address, world_size, object_size):
+    actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
+    object_id = actor_pool.prepare_object(rank=0)
+    object_id = actor_pool[1].get_and_put_object.remote(object_id)
+    return ray.get(actor_pool[0].get_objects.remote([object_id]))
+
+
 def ray_multicast(notification_address, world_size, object_size):
     actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
-    object_id = actor_pool[0].put_object.remote()
-    # wait until we have put that object
-    ray.wait([object_id], num_returns=1, timeout=None)
+    object_id = actor_pool.prepare_object(rank=0)
     durations = ray.get([w.get_objects.remote([object_id]) for w in actor_pool.actors])
     return max(durations)
 
