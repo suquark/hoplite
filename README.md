@@ -1,5 +1,25 @@
 # Hoplite: Efficient Collective Communication for Task-Based Distributed Systems
 
+
+## TODOs
+
+[x] Move outdated scripts into `_archived`
+[x] Rename `python/auto_ray_benchmarks.py` to `python/launch_ray_microbenchmarks.py`.
+[x] Move Ray roundtrip test into `python/auto_ray_benchmarks.py`
+[x] Move hoplite python microbenchmarks into `python/hoplite_microbenchmarks.py`
+[x] Move microbenchmarks to `microbenchmarks`.
+[ ] Implement barrier inside hoplite.
+[ ] Reorganize automatic testing for python hoplite and C++ hoplite.
+[ ] Use constants for ports etc in `src/distributed_object_store.cc`.
+[ ] Cleanup python/cython code.
+[ ] Test `python/launch_ray_microbenchmarks.py`
+[ ] Test `python/hoplite_microbenchmarks.py`
+[ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
+[ ] Test refactored `src/reduce_dependency.cc`.
+[ ] Change build system to CMake.
+[ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
+[ ] Improve documentation coverage.
+
 ## Install dependencies
 
 ```bash
