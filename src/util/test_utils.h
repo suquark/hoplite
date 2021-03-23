@@ -84,7 +84,7 @@ void print_reduction_result(const ObjectID &object_id, const std::shared_ptr<Buf
   const T *view = (const T *)result->Data();
   int64_t num_elements = result->Size() / sizeof(T);
 
-  LOG(INFO) << object_id.ToString() << " CRC32 = " << result->CRC32() << "\n"
+  LOG(INFO) << object_id.ToString() << " Hash = " << result->Hash() << "\n"
             << "Results: [" << view[0] << ", " << view[1] << ", " << view[2] << ", " << view[3] << ", " << view[4]
             << ", ... , " << view[num_elements - 1] << "] \n"
             << "Result errors: first item = " << view[1] - expected_sum

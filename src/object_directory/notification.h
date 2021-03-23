@@ -2,7 +2,7 @@
 #define NOTIFICATION_H
 
 #include "common/id.h"
-#include "logging.h"
+#include "util/logging.h"
 #include <atomic>
 #include <grpcpp/server.h>
 #include <string>

@@ -2,15 +2,18 @@
 #include <memory>
 #include <mpi.h>
 #include <string>
+#include <thread>
 #include <vector>
 
 // Make the Put() call blocking for more precise timing.
 #define HOPLITE_PUT_BLOCKING true
 
+#include "common/buffer.h"
+#include "common/id.h"
 #include "distributed_object_store.h"
-#include "logging.h"
-#include "socket_utils.h"
-#include "test_utils.h"
+#include "util/logging.h"
+#include "util/socket_utils.h"
+#include "util/test_utils.h"
 
 int main(int argc, char **argv) {
   // argv: *, redis_address, object_size, n_trials
@@ -31,6 +34,7 @@ int main(int argc, char **argv) {
   DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
+    ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
     std::vector<ObjectID> object_ids;
     float sum = 0;
     for (int i = 0; i < world_size; i++) {
@@ -42,27 +46,20 @@ int main(int argc, char **argv) {
     DCHECK(object_size % sizeof(float) == 0);
 
     ObjectID rank_object_id = object_ids[world_rank];
-    std::unordered_map<ObjectID, std::shared_ptr<Buffer>> gather_result;
+    std::shared_ptr<Buffer> reduction_result;
 
     put_random_buffer<float>(store, rank_object_id, object_size);
-
     MPI_Barrier(MPI_COMM_WORLD);
 
+    auto start = std::chrono::system_clock::now();
     if (world_rank == 0) {
-      auto start = std::chrono::system_clock::now();
-      for (auto &object_id : object_ids) {
-        store.Get(object_id, &gather_result[object_id]);
-      }
-      auto end = std::chrono::system_clock::now();
-      std::chrono::duration<double> duration = end - start;
-      LOG(INFO) << "gathered using " << duration.count() << " seconds";
-
-      uint32_t sum_crc = 0;
-      for (auto &object_id : object_ids) {
-        sum_crc += gather_result[object_id]->CRC32();
-      }
-      LOG(INFO) << "CRC32 for objects is " << sum_crc;
+      store.Reduce(object_ids, reduction_id);
     }
+    store.Get(reduction_id, &reduction_result);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    LOG(INFO) << reduction_id.ToString() << " is reduced using " << duration.count();
+    print_reduction_result<float>(reduction_id, reduction_result, sum);
     MPI_Barrier(MPI_COMM_WORLD);
   }
 

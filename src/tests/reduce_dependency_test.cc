@@ -1,4 +1,4 @@
-#include "reduce_dependency.h"
+#include "object_directory/reduce_dependency.h"
 #include <iostream>
 
 int main() {

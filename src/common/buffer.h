@@ -8,6 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 #include "common/config.h"
+#include "util/hash.h"
 
 class Buffer {
   public:
@@ -23,7 +24,7 @@ class Buffer {
     uint8_t* MutableData();
     const uint8_t* Data() const;
     int64_t Size() const;
-    uint32_t CRC32() const;
+    uint64_t Hash() const;
     void ShrinkForLRU();
     void Seal() { progress = size_; }
     bool IsFinished() const { return progress >= size_; }

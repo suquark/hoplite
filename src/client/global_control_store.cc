@@ -5,7 +5,7 @@
 #include <grpcpp/server_context.h>
 
 #include "global_control_store.h"
-#include "logging.h"
+#include "util/logging.h"
 
 using objectstore::ConnectReply;
 using objectstore::ConnectRequest;

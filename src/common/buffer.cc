@@ -1,8 +1,7 @@
 #include <algorithm>
 #include <cstring>
-#include "logging.h"
+#include "util/logging.h"
 #include "common/buffer.h"
-#include <zlib.h>
 
 Buffer::Buffer(uint8_t* data_ptr, int64_t size): progress(size), data_ptr_(data_ptr), size_(size), is_data_owner_(false) {}
 
@@ -13,10 +12,8 @@ Buffer::Buffer(int64_t size): progress(0), size_(size), is_data_owner_(true) {
 uint8_t* Buffer::MutableData() { return data_ptr_; }
 const uint8_t* Buffer::Data() const { return data_ptr_; }
 int64_t Buffer::Size() const { return size_; }
-uint32_t Buffer::CRC32() const {
-  unsigned long crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, data_ptr_, size_);
-  return crc;
+uint64_t Buffer::Hash() const {
+  return MurmurHash64A(data_ptr_, size_, 0);
 }
 
 void Buffer::CopyFrom(const std::vector<uint8_t> &data) {

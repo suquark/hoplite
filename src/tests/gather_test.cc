@@ -1,4 +1,5 @@
 #include <chrono>
+#include <memory>
 #include <mpi.h>
 #include <string>
 #include <vector>
@@ -6,12 +7,10 @@
 // Make the Put() call blocking for more precise timing.
 #define HOPLITE_PUT_BLOCKING true
 
-#include "common/buffer.h"
-#include "common/id.h"
 #include "distributed_object_store.h"
-#include "logging.h"
-#include "socket_utils.h"
-#include "test_utils.h"
+#include "util/logging.h"
+#include "util/socket_utils.h"
+#include "util/test_utils.h"
 
 int main(int argc, char **argv) {
   // argv: *, redis_address, object_size, n_trials
@@ -32,37 +31,41 @@ int main(int argc, char **argv) {
   DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
-    ObjectID object_id = object_id_from_integer(trial);
-    std::shared_ptr<Buffer> result;
+    std::vector<ObjectID> object_ids;
+    float sum = 0;
+    for (int i = 0; i < world_size; i++) {
+      auto oid = object_id_from_integer(trial * 1000000 + i);
+      object_ids.push_back(oid);
+      auto rnum = get_uniform_random_float(oid.Hex());
+      sum += rnum;
+    }
+    DCHECK(object_size % sizeof(float) == 0);
+
+    ObjectID rank_object_id = object_ids[world_rank];
+    std::unordered_map<ObjectID, std::shared_ptr<Buffer>> gather_result;
+
+    put_random_buffer<float>(store, rank_object_id, object_size);
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     if (world_rank == 0) {
-      result = std::make_shared<Buffer>(object_size);
-      uint8_t *buf = result->MutableData();
-      for (int64_t i = 0; i < object_size; i++) {
-        buf[i] = i % 256;
-      }
-      result->Seal();
-      store.Put(result, object_id);
-
-      LOG(INFO) << object_id.ToString() << " is created!"
-                << " CRC32 = " << result->CRC32();
-
-      LOG(INFO) << "entering barrier";
-      MPI_Barrier(MPI_COMM_WORLD);
-    } else {
-
-      LOG(INFO) << "entering barrier";
-      MPI_Barrier(MPI_COMM_WORLD);
       auto start = std::chrono::system_clock::now();
-      store.Get(object_id, &result);
+      for (auto &object_id : object_ids) {
+        store.Get(object_id, &gather_result[object_id]);
+      }
       auto end = std::chrono::system_clock::now();
       std::chrono::duration<double> duration = end - start;
+      LOG(INFO) << "gathered using " << duration.count() << " seconds";
 
-      LOG(INFO) << object_id.ToString() << " is retrieved using " << duration.count()
-                << " seconds. CRC32 = " << result->CRC32();
+      uint32_t sum_crc = 0;
+      for (auto &object_id : object_ids) {
+        sum_crc += gather_result[object_id]->Hash();
+      }
+      LOG(INFO) << "Hash for objects is " << sum_crc;
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
+
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
   return 0;

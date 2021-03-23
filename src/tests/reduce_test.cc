@@ -4,10 +4,13 @@
 #include <string>
 #include <vector>
 
+// Make the Put() call blocking for more precise timing.
+#define HOPLITE_PUT_BLOCKING true
+
 #include "distributed_object_store.h"
-#include "logging.h"
-#include "socket_utils.h"
-#include "test_utils.h"
+#include "util/logging.h"
+#include "util/socket_utils.h"
+#include "util/test_utils.h"
 
 int main(int argc, char **argv) {
   // argv: *, redis_address, object_size, n_trials
@@ -28,39 +31,32 @@ int main(int argc, char **argv) {
   DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
 
   for (int trial = 0; trial < n_trials; trial++) {
-    if (world_rank == 0) {
-      LOG(INFO) << "\n\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Trail #" << trial << "/" << n_trials << "\n\n\n";
-    }
     ObjectID reduction_id = object_id_from_integer(trial * 1000000 + 99999);
     std::vector<ObjectID> object_ids;
+    float sum = 0;
     for (int i = 0; i < world_size; i++) {
       auto oid = object_id_from_integer(trial * 1000000 + i);
       object_ids.push_back(oid);
+      auto rnum = get_uniform_random_float(oid.Hex());
+      sum += rnum;
     }
     DCHECK(object_size % sizeof(float) == 0);
 
     ObjectID rank_object_id = object_ids[world_rank];
     std::shared_ptr<Buffer> reduction_result;
-    int num_reduce_objects = world_size / 2;
 
-    put_fixed_buffer(store, rank_object_id, object_size, (float)world_rank);
+    put_random_buffer<float>(store, rank_object_id, object_size);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (world_rank == 0) {
       auto start = std::chrono::system_clock::now();
-      store.Reduce(object_ids, reduction_id, num_reduce_objects);
+      store.Reduce(object_ids, reduction_id);
       store.Get(reduction_id, &reduction_result);
       auto end = std::chrono::system_clock::now();
       std::chrono::duration<double> duration = end - start;
-      LOG(INFO) << "Reduce " << num_reduce_objects << " objects";
       LOG(INFO) << reduction_id.ToString() << " is reduced using " << duration.count();
-      std::unordered_set<ObjectID> reduced_objects;
-      reduced_objects = store.GetReducedObjects(reduction_id);
-      for (const auto &reduced_object : reduced_objects) {
-        LOG(INFO) << "Reduced object: " << reduced_object.ToString();
-      }
-      print_reduction_result<float>(reduction_id, reduction_result, 0.0);
+      print_reduction_result<float>(reduction_id, reduction_result, sum);
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
