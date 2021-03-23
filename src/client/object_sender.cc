@@ -1,9 +1,9 @@
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstring>
-#include <logging.h>
+#include <util/logging.h>
 #include <netinet/in.h>
-#include <socket_utils.h>
+#include <util/socket_utils.h>
 #include <sys/socket.h>
 #include <unistd.h>
 

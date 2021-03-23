@@ -1,5 +1,5 @@
 #include "local_store_client.h"
-#include "logging.h"
+#include "util/logging.h"
 
 LocalStoreClient::LocalStoreClient(const bool use_plasma, const std::string &plasma_socket)
     : use_plasma_(use_plasma), total_store_size_(0) {

@@ -10,7 +10,7 @@
 
 #include "common/config.h"
 #include "distributed_object_store.h"
-#include "logging.h"
+#include "util/logging.h"
 
 ////////////////////////////////////////////////////////////////
 // The object store API

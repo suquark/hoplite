@@ -1,8 +1,8 @@
 cluster_name: hoplite-ray-serve
 
-min_workers: 16
-max_workers: 16
-initial_workers: 16
+min_workers: 7
+max_workers: 7
+initial_workers: 7
 
 provider:
     type: aws

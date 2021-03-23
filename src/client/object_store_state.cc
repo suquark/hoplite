@@ -1,5 +1,5 @@
 #include "object_store_state.h"
-#include "logging.h"
+#include "util/logging.h"
 #include <cstring>
 
 std::shared_ptr<Buffer> ObjectStoreState::create_reduction_stream(const ObjectID &reduction_id, size_t size) {

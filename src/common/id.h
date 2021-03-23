@@ -8,12 +8,10 @@
 #include <mutex>
 #include <random>
 #include <thread>
+#include "util/hash.h"
 #include "util/logging.h"
 
 constexpr int kUniqueIDSize = 20;
-
-// Declaration.
-uint64_t MurmurHash64A(const void *key, int len, unsigned int seed);
 
 /// A helper function to fill random bytes into the `data`.
 /// Warning: this is not fork-safe, we need to re-seed after that.
