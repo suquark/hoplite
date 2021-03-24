@@ -23,13 +23,13 @@ public:
   }
 
   grpc::Status ConnectListener(grpc::ServerContext *context, const ConnectListenerRequest *request,
-                               ConnectListenerReply *reply) {
+                               ConnectListenerReply *reply) override {
     TIMELINE("ConnectListener");
     return grpc::Status::OK;
   }
 
   grpc::Status PullAndReduceObject(grpc::ServerContext *context, const PullAndReduceObjectRequest *request,
-                                   PullAndReduceObjectReply *reply) {
+                                   PullAndReduceObjectReply *reply) override {
     TIMELINE("PullAndReduceObject");
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     ObjectID object_id_to_reduce = ObjectID::FromBinary(request->object_id_to_reduce());
@@ -47,7 +47,7 @@ public:
   }
 
   grpc::Status ReduceInbandObject(grpc::ServerContext *context, const ReduceInbandObjectRequest *request,
-                                  ReduceInbandObjectReply *reply) {
+                                  ReduceInbandObjectReply *reply) override {
     TIMELINE("ReduceInbandObject");
     ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
     std::shared_ptr<LocalReduceTask> task = state_.get_local_reduce_task(reduction_id);

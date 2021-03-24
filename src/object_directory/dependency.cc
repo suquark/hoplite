@@ -1,9 +1,12 @@
 #include "dependency.h"
+
 #include "util/logging.h"
+#include <utility>
 
 ObjectDependency::ObjectDependency(const ObjectID &object_id,
                                    std::function<void(const ObjectID &)> object_ready_callback)
-    : object_id_(object_id), object_ready_callback_(object_ready_callback), index_(0), pq_(&compare_priority) {}
+    : object_id_(object_id), object_ready_callback_(std::move(object_ready_callback)), index_(0),
+      pq_(&compare_priority) {}
 
 void ObjectDependency::create_new_chain(const std::string &node) {
   auto new_chain = std::make_shared<chain_type>(std::initializer_list<std::string>{node});
@@ -46,30 +49,30 @@ void ObjectDependency::recover_chain(const std::shared_ptr<chain_type> &c, const
 }
 
 bool ObjectDependency::Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
-                           std::string *inband_data, std::function<void()> on_fail) {
+                           std::string *inband_data, const std::function<void()> &on_fail) {
   TIMELINE("ObjectDependency::Get");
   std::lock_guard<std::mutex> lock(mutex_);
   return get_impl_(receiver, occupying, object_size, sender, inband_data, on_fail);
 }
 
-bool ObjectDependency::Available() const { return !inband_data_.empty() || available_keys_.size() > 0; }
+bool ObjectDependency::Available() const { return !inband_data_.empty() || !available_keys_.empty(); }
 
 bool ObjectDependency::get_impl_(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
-                                 std::string *inband_data, std::function<void()> on_fail) {
+                                 std::string *inband_data, const std::function<void()> &on_fail) {
   LOG(DEBUG) << "[Dependency] Get for " << receiver;
   if (!inband_data_.empty()) {
     *inband_data = inband_data_;
     *object_size = object_size_;
     return true;
   }
-  if (available_keys_.size() <= 0) {
+  if (available_keys_.empty()) {
     if (on_fail != nullptr) {
       LOG(DEBUG) << "[Dependency] Get failed for " << receiver;
       on_fail();
     }
     return false;
   }
-  std::string parent = "";
+  std::string parent;
   // we are sure we can find one in the priority queue
   while (true) {
     int64_t key = pq_.top().second;
@@ -121,8 +124,8 @@ void ObjectDependency::HandleCompletion(const std::string &receiver, int64_t obj
     recevier_to_sender_.erase(receiver);
   }
   auto &c = node_to_chain_[receiver];
-  DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << receiver << ")."
-                        << DebugPrint();
+  DCHECK(!c->empty()) << "We assume that each chain should have length >= 1. (node=" << receiver << ")."
+                      << DebugPrint();
   if (c->size() == 1) {
     DCHECK(c->front() == receiver) << "When there is only one node, it should be the node itself (" << receiver << "). "
                                    << "However, \"" << c->front() << "\" is found." << DebugPrint();
@@ -140,14 +143,14 @@ void ObjectDependency::HandleCompletion(const std::string &receiver, int64_t obj
       updated = true;
       create_new_chain(n);
     }
-    DCHECK(c->size() > 0) << "We assume that each chain should have length >= 1. (node=" << receiver << ")."
-                          << DebugPrint();
+    DCHECK(!c->empty()) << "We assume that each chain should have length >= 1. (node=" << receiver << ")."
+                        << DebugPrint();
     if (updated) {
       // update the chain because its size changed
       update_chain(reversed_map_[c], c);
     }
     // TODO(siyuan): maybe we should remove this since it would never be reached.
-    if (available_keys_.size() > 0 && notification_required) {
+    if (!available_keys_.empty() && notification_required) {
       lock.unlock();
       // we must unlock here because the callback may access this lock again.
       object_ready_callback_(object_id_);
@@ -198,6 +201,7 @@ bool ObjectDependency::HandleFailure(const std::string &receiver, std::string *a
       }
     }
     LOG(FATAL) << "Unreachable code";
+    assert(false);
   } else {
     // remove the sender
     c->pop_front();
@@ -210,7 +214,6 @@ bool ObjectDependency::HandleFailure(const std::string &receiver, std::string *a
       reversed_map_.erase(c);
     }
     int64_t object_size;
-    std::string sender;
     std::string inband_data;
     bool success = get_impl_(receiver, true, &object_size, &sender, &inband_data, nullptr);
     if (success) {

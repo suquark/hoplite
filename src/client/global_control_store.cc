@@ -1,7 +1,5 @@
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/server.h>
-#include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 
 #include "global_control_store.h"

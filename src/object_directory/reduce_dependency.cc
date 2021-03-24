@@ -1,6 +1,7 @@
 #include "reduce_dependency.h"
 
 #include <cmath>
+#include <memory>
 
 #include "common/config.h"
 #include "util/logging.h"
@@ -31,7 +32,7 @@ ReduceTreeChain::ReduceTreeChain(int64_t object_count, int64_t maximum_chain_len
 
   // initialize chains
   for (auto &chain : chains_) {
-    if (chain.size() > 0) {
+    if (!chain.empty()) {
       chain[0].is_tree_node = false;
       chain[0].subtree_size = 1;
       for (int i = 1; i < chain.size(); i++) {
@@ -49,19 +50,19 @@ ReduceTreeChain::ReduceTreeChain(int64_t object_count, int64_t maximum_chain_len
     int w = depth_ - 1;
     int front = (1 << w) - 1;
     int end = (1 << (w + 1)) - 1;
-    if (chains_.size() > 0) {
+    if (!chains_.empty()) {
       for (int i = front; i < end; i++) {
         auto &t = tree_[i];
         t.is_tree_node = true;
         t.subtree_size = 1;
         auto &left_chain = chains_[(i - front) << 1];
         auto &right_chain = chains_[((i - front) << 1) + 1];
-        if (left_chain.size() > 0) {
+        if (!left_chain.empty()) {
           t.left_child = &left_chain.back();
           t.left_child->parent = &t;
           t.subtree_size += t.left_child->subtree_size;
         }
-        if (right_chain.size() > 0) {
+        if (!right_chain.empty()) {
           t.right_child = &right_chain.back();
           t.right_child->parent = &t;
           t.subtree_size += t.right_child->subtree_size;
@@ -94,13 +95,12 @@ ReduceTreeChain::ReduceTreeChain(int64_t object_count, int64_t maximum_chain_len
 
   // assign orders by in-order tree traverse
   map_.resize(object_count);
-  for (int i = 0; i < tree_.size(); i++) {
-    auto &t = tree_[i];
+  for (auto &t : tree_) {
     map_[t.init_order()] = &t;
   }
   for (auto &c : chains_) {
-    if (c.size() > 0) {
-      for (Node *s = &c.back(); s != NULL; s = s->left_child) {
+    if (!c.empty()) {
+      for (Node *s = &c.back(); s != nullptr; s = s->left_child) {
         map_[s->init_order()] = s;
       }
     }
@@ -118,7 +118,7 @@ std::string ReduceTreeChain::DebugString() {
     }
   }
   s << std::endl;
-  if (chains_.size() == 0) {
+  if (chains_.empty()) {
     s << "Chain: NULL";
   } else {
     for (int i = 0; i < chains_.size(); i++) {
@@ -135,7 +135,7 @@ std::string ReduceTreeChain::DebugString() {
     }
   }
   s << std::endl << std::endl;
-  if (tree_.size() == 0) {
+  if (tree_.empty()) {
     s << "Tree: NULL" << std::endl;
   } else {
     s << "Tree:" << std::endl;
@@ -160,7 +160,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     // we intialize it now because previously we do not know the object size
     int64_t maximum_chain_length = round(double(object_size) / double(HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY));
     // add one for the reduction result receiver
-    rtc_.reset(new ReduceTreeChain(num_reduce_objects_ + 1, maximum_chain_length));
+    rtc_ = std::make_unique<ReduceTreeChain>(num_reduce_objects_ + 1, maximum_chain_length);
     // we initialize the root node here, because it could be skipped later
     Node *root = rtc_->GetRoot();
     DCHECK(!root->parent);
@@ -170,7 +170,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
   }
   if (ready_ids_.count(object_id)) {
     // duplicated object. ignore
-    return NULL;
+    return nullptr;
   }
   ready_ids_.insert(object_id);
   if (!suspended_nodes_.empty()) {
@@ -184,8 +184,8 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
   }
   if (num_ready_objects_ >= num_reduce_objects_ + 1) {
     // We already have enough nodes in the tree. Push more into the backup node.
-    backup_objects_.push_back({object_id, owner_ip});
-    return NULL;
+    backup_objects_.emplace_back(object_id, owner_ip);
+    return nullptr;
   }
   Node *n = rtc_->GetNode(num_ready_objects_);
   if (n->is_root()) {
@@ -193,8 +193,8 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
     ++num_ready_objects_;
     if (num_ready_objects_ >= num_reduce_objects_ + 1) {
       // We already have enough nodes in the tree. Push more into the backup node.
-      backup_objects_.push_back({object_id, owner_ip});
-      return NULL;
+      backup_objects_.emplace_back(object_id, owner_ip);
+      return nullptr;
     }
     n = rtc_->GetNode(num_ready_objects_);
   }
@@ -206,7 +206,7 @@ Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, cons
 }
 
 InbandDataNode *ReduceTask::AddInbandObject(const ObjectID &object_id, const std::string &inband_data) {
-  float *data = (float *)inband_data.data();
+  auto *data = (float *)inband_data.data();
   size_t size = inband_data.size() / sizeof(float);
   if (reduced_inband_dst_.reduced_inband_data.empty()) {
     reduced_inband_dst_.reduced_inband_data = std::vector<float>(data, data + size);
@@ -251,7 +251,7 @@ std::vector<std::pair<Node *, ObjectID>> ReduceManager::AddObject(const ObjectID
     for (auto &task : object_id_to_tasks_[object_id]) {
       Node *n = task->AddObject(object_id, object_size, owner_ip);
       if (n) {
-        nodes.push_back(std::make_pair(n, task->GetReductionID()));
+        nodes.emplace_back(n, task->GetReductionID());
       }
     }
   }
@@ -265,7 +265,7 @@ std::vector<std::pair<InbandDataNode *, ObjectID>> ReduceManager::AddInbandObjec
     for (auto &task : object_id_to_tasks_[object_id]) {
       InbandDataNode *n = task->AddInbandObject(object_id, inband_data);
       if (n) {
-        nodes.push_back(std::make_pair(n, task->GetReductionID()));
+        nodes.emplace_back(n, task->GetReductionID());
       }
     }
   }

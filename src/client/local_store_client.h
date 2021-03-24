@@ -10,7 +10,7 @@
 
 class LocalStoreClient {
 public:
-  LocalStoreClient(const bool use_plasma, const std::string &plasma_socket);
+  LocalStoreClient(bool use_plasma, const std::string &plasma_socket);
 
   Status Create(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data);
 

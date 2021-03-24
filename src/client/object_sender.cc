@@ -59,7 +59,7 @@ ObjectSender::ObjectSender(ObjectStoreState &state, GlobalControlStoreClient &gc
 
 void sender_handle_signal(int sig) {
   LOG(DEBUG) << "Signal received on object sender";
-  pthread_exit(NULL);
+  pthread_exit(nullptr);
 }
 
 void ObjectSender::Run() { server_thread_ = std::thread(&ObjectSender::listener_loop, this); }

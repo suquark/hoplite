@@ -1,16 +1,13 @@
 #include <atomic>
 #include <condition_variable>
-#include <cstdlib>
-#include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
+#include <memory>
 #include <queue>
 #include <thread>
-#include <unistd.h>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 #include "common/config.h"
@@ -48,23 +45,23 @@ using objectstore::WriteLocationRequest;
 
 class NotificationServiceImpl final : public objectstore::NotificationServer::Service {
 public:
-  NotificationServiceImpl(const int notification_listener_port);
+  explicit NotificationServiceImpl(int notification_listener_port);
 
-  grpc::Status Barrier(grpc::ServerContext *context, const BarrierRequest *request, BarrierReply *reply);
+  grpc::Status Barrier(grpc::ServerContext *context, const BarrierRequest *request, BarrierReply *reply) override;
 
-  grpc::Status Connect(grpc::ServerContext *context, const ConnectRequest *request, ConnectReply *reply);
+  grpc::Status Connect(grpc::ServerContext *context, const ConnectRequest *request, ConnectReply *reply) override;
 
   grpc::Status WriteLocation(grpc::ServerContext *context, const WriteLocationRequest *request,
-                             WriteLocationReply *reply);
+                             WriteLocationReply *reply) override;
 
   grpc::Status GetLocationSync(grpc::ServerContext *context, const GetLocationSyncRequest *request,
-                               GetLocationSyncReply *reply);
+                               GetLocationSyncReply *reply) override;
 
   grpc::Status HandlePullObjectFailure(grpc::ServerContext *context, const HandlePullObjectFailureRequest *request,
-                                       HandlePullObjectFailureReply *reply);
+                                       HandlePullObjectFailureReply *reply) override;
 
   grpc::Status CreateReduceTask(grpc::ServerContext *context, const CreateReduceTaskRequest *request,
-                                CreateReduceTaskReply *reply);
+                                CreateReduceTaskReply *reply) override;
 
   void InvokePullAndReduceObject(Node *receiver_node, const Node *sender_node, const ObjectID &reduction_id,
                                  int64_t object_size, bool reset_progress);
@@ -74,12 +71,12 @@ public:
 
   grpc::Status HandleReceiveReducedObjectFailure(grpc::ServerContext *context,
                                                  const HandleReceiveReducedObjectFailureRequest *request,
-                                                 HandleReceiveReducedObjectFailureReply *reply);
+                                                 HandleReceiveReducedObjectFailureReply *reply) override;
 
   void RecoverReduceTaskFromFailure(const ObjectID &reduction_id, Node *failed_node);
 
   grpc::Status GetReducedObjects(grpc::ServerContext *context, const GetReducedObjectsRequest *request,
-                                 GetReducedObjectsReply *reply);
+                                 GetReducedObjectsReply *reply) override;
 
 private:
   objectstore::NotificationListener::Stub *
@@ -92,13 +89,12 @@ private:
   void add_object_for_reduce(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip,
                              const std::string &inband_data);
 
-  std::mutex barrier_mutex_;
   std::atomic<int> barrier_arrive_counter_;
   std::atomic<int> barrier_leave_counter_;
 
   const int notification_listener_port_;
   struct ReceiverQueueElement {
-    enum { SYNC, ASYNC, REDUCE } type;
+    enum { SYNC, REDUCE } type;
     // For synchronous recevier
     std::shared_ptr<std::mutex> sync_mutex;
     GetLocationSyncReply *reply;
@@ -236,7 +232,7 @@ void NotificationServiceImpl::add_object_for_reduce(const ObjectID &object_id, i
       }
     }
   } else {
-    auto results = reduce_manager_.AddInbandObject(object_id, std::move(inband_data));
+    auto results = reduce_manager_.AddInbandObject(object_id, inband_data);
     for (auto &r : results) {
       InbandDataNode *n = r.first;
       if (n->finished) {
@@ -263,7 +259,6 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
     ReceiverQueueElement &receiver = q.front();
     std::string receiver_ip = receiver.receiver_ip;
     int64_t object_size;
-    std::string inband_data;
     std::string sender_ip;
     if (inband_data.empty()) {
       dep->Get(receiver_ip, receiver.occupying, &object_size, &sender_ip, &inband_data,
@@ -292,8 +287,8 @@ grpc::Status NotificationServiceImpl::WriteLocation(grpc::ServerContext *context
                                                     WriteLocationReply *reply) {
   TIMELINE("NotificationServiceImpl::WriteLocation");
   ObjectID object_id = ObjectID::FromBinary(request->object_id());
-  std::string sender_ip = request->sender_ip();
-  bool finished = request->finished();
+  const std::string &sender_ip = request->sender_ip();
+  // bool finished = request->finished();
   // TODO(siyuan): deal with 'finished' property
   std::shared_ptr<ObjectDependency> dep = get_dependency(object_id);
   if (request->has_inband_data_case() == WriteLocationRequest::kInbandData) {
@@ -384,7 +379,7 @@ grpc::Status NotificationServiceImpl::CreateReduceTask(grpc::ServerContext *cont
     if (success) {
       // NOTE: this would affect all on-going reducing tasks, so some tasks would receive duplicated
       // objects. we need to de-duplicate them
-      add_object_for_reduce(object_id, object_size, std::move(owner_ip), std::move(inband_data));
+      add_object_for_reduce(object_id, object_size, owner_ip, inband_data);
     }
   }
   return grpc::Status::OK;
@@ -411,7 +406,7 @@ NotificationServiceImpl::HandleReceiveReducedObjectFailure(grpc::ServerContext *
   TIMELINE("NotificationServiceImpl::CreateReduceTask");
   ObjectID reduction_id = ObjectID::FromBinary(request->reduction_id());
   // request->receiver_ip() is unused now. keep it in case we would use it in the future.
-  std::string sender_ip = request->sender_ip();
+  const std::string& sender_ip = request->sender_ip();
   {
     std::lock_guard<std::mutex> lock(reduce_manager_mutex_);
     std::shared_ptr<ReduceTask> task = reduce_manager_.GetReduceTask(reduction_id);
@@ -535,7 +530,7 @@ int main(int argc, char **argv) {
   std::thread notification_server_thread;
   ::hoplite::RayLog::StartRayLog(my_address, ::hoplite::RayLogLevel::DEBUG);
 
-  notification_server.reset(new NotificationServer(my_address, 7777, 8888));
+  notification_server = std::make_unique<NotificationServer>(my_address, 7777, 8888);
   notification_server_thread = notification_server->Run();
   notification_server_thread.join();
 }
