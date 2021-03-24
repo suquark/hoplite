@@ -38,8 +38,6 @@ public:
   std::unordered_set<ObjectID> GetReducedObjects(const ObjectID &reduction_id);
 
 private:
-  void worker_loop();
-
   template <typename T> void reduce_local_objects(const std::vector<ObjectID> &object_ids, Buffer *output) {
     DCHECK(output->Size() % sizeof(T) == 0) << "Buffer size cannot be divide whole by the element size";
     auto num_elements = output->Size() / sizeof(T);

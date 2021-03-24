@@ -2,9 +2,7 @@
 #include <unordered_set>
 
 // gRPC headers
-#include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 
@@ -59,9 +57,9 @@ void DistributedObjectStore::Put(const std::shared_ptr<Buffer> &buffer, const Ob
   TIMELINE(std::string("DistributedObjectStore Put single object ") + object_id.Hex());
   // put object into Plasma
   std::shared_ptr<Buffer> ptr;
-  auto pstatus = local_store_client_.Create(object_id, buffer->Size(), &ptr);
-  DCHECK(pstatus.ok()) << "Plasma failed to create object_id = " << object_id.Hex() << " size = " << buffer->Size()
-                       << ", status = " << pstatus.ToString();
+  auto status = local_store_client_.Create(object_id, buffer->Size(), &ptr);
+  DCHECK(status.ok()) << "Plasma failed to create object_id = " << object_id.Hex() << " size = " << buffer->Size()
+                      << ", status = " << status.ToString();
   if (buffer->Size() <= inband_data_size_limit) {
     LOG(DEBUG) << "Put a small object, copy without streaming";
     ptr->CopyFrom(*buffer);
@@ -96,7 +94,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
                                     ssize_t num_reduce_objects) {
   // TODO: support different reduce op and types.
   TIMELINE("DistributedObjectStore Async Reduce");
-  DCHECK(object_ids.size() > 0);
+  DCHECK(!object_ids.empty());
 
   // only include remote objects
   std::vector<ObjectID> objects_to_reduce;
@@ -114,7 +112,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
   // this must be ahead of 'CreateReduceTask' to avoid concurrency issues
   // (e.g. local_reduce_task accessed before created).
   state_.create_local_reduce_task(reduction_id, local_objects);
-  if (local_objects.size() > 0) {
+  if (!local_objects.empty()) {
     int64_t size = local_store_client_.GetBufferNoExcept(local_objects[0])->Size();
     if (size <= inband_data_size_limit) {
       // for inband data, we just let the object store handle for us
@@ -132,7 +130,7 @@ void DistributedObjectStore::Reduce(const std::vector<ObjectID> &object_ids, con
   DCHECK(num_reduce_objects > 0);
   gcs_client_.CreateReduceTask(objects_to_reduce, reduction_id, num_reduce_objects);
   // this is not necessary, but we can create the reduction object ahead of time
-  if (local_objects.size() > 0) {
+  if (!local_objects.empty()) {
     int64_t size = local_store_client_.GetBufferNoExcept(local_objects[0])->Size();
     std::shared_ptr<Buffer> r;
     // NOTE: DO NOT USE CREATE() HERE! Otherwise it will override old results.

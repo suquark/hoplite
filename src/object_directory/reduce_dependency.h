@@ -173,7 +173,7 @@ public:
     if (search != owner_to_node_.end()) {
       return search->second;
     }
-    return NULL;
+    return nullptr;
   }
 
   /// \param[out] failed_node

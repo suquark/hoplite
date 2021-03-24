@@ -176,7 +176,7 @@ Receiver::Receiver(ObjectStoreState &state, GlobalControlStoreClient &gcs_client
 bool Receiver::check_and_store_inband_data(const ObjectID &object_id, int64_t object_size,
                                            const std::string &inband_data) {
   TIMELINE("Receiver::check_and_store_inband_data");
-  if (inband_data.size() > 0) {
+  if (!inband_data.empty()) {
     LOG(DEBUG) << "fetching object directly from inband data";
     DCHECK(inband_data.size() <= inband_data_size_limit) << "unexpected inband data size";
     std::shared_ptr<Buffer> data;

@@ -41,7 +41,7 @@ public:
   /// The function call is secured by the internal lock so the info will not get updated inside the function call.
   /// \return True if we successfully returned the information for the receiver.
   bool Get(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
-           std::string *inband_data, std::function<void()> on_fail = nullptr);
+           std::string *inband_data, const std::function<void()>& on_fail = nullptr);
 
   /// A shortcut check of the availability.
   bool Available() const;
@@ -88,7 +88,7 @@ private:
   void recover_chain(const std::shared_ptr<chain_type> &c, const std::string &sender);
 
   bool get_impl_(const std::string &receiver, bool occupying, int64_t *object_size, std::string *sender,
-                 std::string *inband_data, std::function<void()> on_fail);
+                 std::string *inband_data, const std::function<void()>& on_fail);
 
   ObjectID object_id_;
   int64_t object_size_ = -1;

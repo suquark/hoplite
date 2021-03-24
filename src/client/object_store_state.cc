@@ -1,6 +1,5 @@
 #include "object_store_state.h"
 #include "util/logging.h"
-#include <cstring>
 
 std::shared_ptr<Buffer> ObjectStoreState::create_reduction_stream(const ObjectID &reduction_id, size_t size) {
   std::unique_lock<std::mutex> l(reduction_stream_mutex_);
@@ -43,7 +42,7 @@ void ObjectStoreState::create_local_reduce_task(const ObjectID &reduction_id,
                                                 const std::vector<ObjectID> &local_objects) {
   DCHECK(local_objects.size() <= 1);
   auto t = std::make_shared<LocalReduceTask>();
-  if (local_objects.size() > 0) {
+  if (!local_objects.empty()) {
     t->local_object = local_objects[0];
   }
   {
