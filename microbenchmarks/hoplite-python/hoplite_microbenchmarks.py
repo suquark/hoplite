@@ -20,8 +20,8 @@ def barrier(notification_address, notification_port, world_size):
 
 
 @ray.remote(resources={'machine': 1})
-def sendrecv(args_dict, notification_address, world_size, world_rank, object_size):
-    store = hoplite.create_store_using_dict(args_dict)
+def sendrecv(object_directory_address, world_size, world_rank, object_size):
+    store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.ObjectID(b'\0' * 20)
     object_id2 = hoplite.ObjectID(b'\1' * 20)
     if world_rank == 0:
@@ -29,7 +29,7 @@ def sendrecv(args_dict, notification_address, world_size, world_rank, object_siz
         buffer = hoplite.Buffer.from_buffer(array)
         hash_s = hash(buffer)
         print("Buffer created, hash =", hash_s)
-        barrier(notification_address, notification_port, world_size)
+        barrier(object_directory_address, notification_port, world_size)
         start = time.time()
         store.put(buffer, object_id)
         buffer = store.get(object_id2)
@@ -39,23 +39,23 @@ def sendrecv(args_dict, notification_address, world_size, world_rank, object_siz
         print("duration = ", duration)
         assert hash_s == hash_r, "Hash mismatch!"
     else:
-        barrier(notification_address, notification_port, world_size)
+        barrier(object_directory_address, notification_port, world_size)
         buffer = store.get(object_id)
         store.put(buffer, object_id2)
 
 
 @ray.remote(resources={'machine': 1})
-def multicast(args_dict, notification_address, world_size, world_rank, object_size):
-    store = hoplite.create_store_using_dict(args_dict)
+def multicast(object_directory_address, world_size, world_rank, object_size):
+    store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.ObjectID(b'\0' * 20)
     if world_rank == 0:
         array = np.random.randint(2**30, size=object_size//4, dtype=np.int32)
         buffer = hoplite.Buffer.from_buffer(array)
         print("Buffer created, hash =", hash(buffer))
         store.put(buffer, object_id)
-        barrier(notification_address, notification_port, world_size)
+        barrier(object_directory_address, notification_port, world_size)
     else:
-        barrier(notification_address, notification_port, world_size)
+        barrier(object_directory_address, notification_port, world_size)
         start = time.time()
         buffer = store.get(object_id)
         duration = time.time() - start
@@ -63,9 +63,10 @@ def multicast(args_dict, notification_address, world_size, world_rank, object_si
         array = np.frombuffer(buffer, dtype=np.int32)
         print(array)
 
+
 @ray.remote(resources={'machine': 1})
-def reduce(args_dict, notification_address, world_size, world_rank, object_size):
-    store = hoplite.create_store_using_dict(args_dict)
+def reduce(object_directory_address, world_size, world_rank, object_size):
+    store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.object_id_from_int(world_rank)
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = hoplite.Buffer.from_buffer(array)
@@ -76,7 +77,7 @@ def reduce(args_dict, notification_address, world_size, world_rank, object_size)
         object_ids = []
         for i in range(0, world_size):
             object_ids.append(hoplite.object_id_from_int(i))
-        barrier(notification_address, notification_port, world_size)
+        barrier(object_directory_address, notification_port, world_size)
         start = time.time()
         reduction_id = store.reduce_async(object_ids, hoplite.ReduceOp.SUM)
         reduced_buffer = store.get(reduction_id)
@@ -85,11 +86,11 @@ def reduce(args_dict, notification_address, world_size, world_rank, object_size)
         print("Reduce completed, hash =", hash(reduced_buffer), "duration =", duration)
         print(reduce_result)
     else:
-        barrier(notification_address, notification_port, world_size)
+        barrier(object_directory_address, notification_port, world_size)
 
 @ray.remote(resources={'machine': 1})
-def allreduce(args_dict, notification_address, world_size, world_rank, object_size):
-    store = hoplite.create_store_using_dict(args_dict)
+def allreduce(object_directory_address, world_size, world_rank, object_size):
+    store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.object_id_from_int(world_rank)
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = hoplite.Buffer.from_buffer(array)
@@ -99,7 +100,7 @@ def allreduce(args_dict, notification_address, world_size, world_rank, object_si
     for i in range(0, world_size):
         object_ids.append(hoplite.object_id_from_int(i))
     reduction_id = hoplite.object_id_from_int(99999999999)
-    barrier(notification_address, notification_port, world_size)
+    barrier(object_directory_address, notification_port, world_size)
 
     start = time.time()
     if world_rank == 0:
@@ -113,8 +114,8 @@ def allreduce(args_dict, notification_address, world_size, world_rank, object_si
 
 
 @ray.remote(resources={'machine': 1})
-def gather(args_dict, notification_address, world_size, world_rank, object_size):
-    store = hoplite.create_store_using_dict(args_dict)
+def gather(object_directory_address, world_size, world_rank, object_size):
+    store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.object_id_from_int(world_rank)
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = hoplite.Buffer.from_buffer(array)
@@ -124,7 +125,7 @@ def gather(args_dict, notification_address, world_size, world_rank, object_size)
     object_ids = []
     for i in range(0, world_size):
         object_ids.append(hoplite.object_id_from_int(i))
-    barrier(notification_address, notification_port, world_size)
+    barrier(object_directory_address, notification_port, world_size)
 
     if world_rank == 0:
         buffers = []
@@ -137,8 +138,8 @@ def gather(args_dict, notification_address, world_size, world_rank, object_size)
 
 
 @ray.remote(resources={'machine': 1})
-def allgather(args_dict, notification_address, world_size, world_rank, object_size):
-    store = hoplite.create_store_using_dict(args_dict)
+def allgather(object_directory_address, world_size, world_rank, object_size):
+    store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.object_id_from_int(world_rank)
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = hoplite.Buffer.from_buffer(array)
@@ -148,7 +149,7 @@ def allgather(args_dict, notification_address, world_size, world_rank, object_si
     object_ids = []
     for i in range(0, world_size):
         object_ids.append(hoplite.object_id_from_int(i))
-    barrier(notification_address, notification_port, world_size)
+    barrier(object_directory_address, notification_port, world_size)
 
     buffers = []
     start = time.time()
@@ -160,7 +161,6 @@ def allgather(args_dict, notification_address, world_size, world_rank, object_si
 
 
 parser = argparse.ArgumentParser(description='broadcast test')
-hoplite.add_arguments(parser)
 parser.add_argument('-t', '--type-of-test', type=str, required=True,
                     help='Type of the test')
 parser.add_argument('-n', '--world-size', type=int, required=True,
@@ -169,10 +169,8 @@ parser.add_argument('-s', '--object-size', type=int, required=True,
                     help='The size of the object')
 
 args = parser.parse_args()
-args_dict = hoplite.extract_dict_from_args(args)
-
 hoplite.start_location_server()
-notification_address = hoplite.get_my_address()
+object_directory_address = hoplite.get_my_address()
 
 ray.init(address='auto')
 
@@ -180,22 +178,20 @@ tasks = []
 
 time.sleep(1)
 
-args_dict['seed'] = np.random.randint(0, 2**30)
-
 for rank in range(args.world_size):
     if args.type_of_test == 'sendrecv':
         assert (args.world_size == 2)
-        task_id = sendrecv.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = sendrecv.remote(object_directory_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'multicast':
-        task_id = multicast.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = multicast.remote(object_directory_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'reduce':
-        task_id = reduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = reduce.remote(object_directory_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'allreduce':
-        task_id = allreduce.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = allreduce.remote(object_directory_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'gather':
-        task_id = gather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = gather.remote(object_directory_address, args.world_size, rank, args.object_size)
     elif args.type_of_test == 'allgather':
-        task_id = allgather.remote(args_dict, notification_address, args.world_size, rank, args.object_size)
+        task_id = allgather.remote(object_directory_address, args.world_size, rank, args.object_size)
     else:
         raise ValueError(f"Test '{args.type_of_test}' not exists.")
     tasks.append(task_id)

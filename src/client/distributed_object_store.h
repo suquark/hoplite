@@ -17,9 +17,7 @@
 
 class DistributedObjectStore {
 public:
-  DistributedObjectStore(const std::string &notification_server_address, int redis_port, int notification_server_port,
-                         int notification_listen_port, const std::string &plasma_socket, const std::string &my_address,
-                         int object_writer_port, int grpc_port);
+  explicit DistributedObjectStore(const std::string &object_directory_address);
 
   ~DistributedObjectStore();
 
@@ -72,15 +70,6 @@ private:
   ObjectSender object_sender_;
   Receiver receiver_;
   NotificationListener notification_listener_;
-
-  ////////////////////////////////////////////////////////////////////////////////
-  // Object Control
-  ////////////////////////////////////////////////////////////////////////////////
-
-  // port for the gRPC service of the object store
-  const int grpc_port_;
-  // the IP adddress of the gRPC server including the port number
-  std::string grpc_address_;
 };
 
 #endif // DISTRIBUTED_OBJECT_STORE_H

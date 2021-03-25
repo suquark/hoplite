@@ -134,15 +134,10 @@ class ReduceOp(Enum):
 cdef class DistributedObjectStore:
     cdef unique_ptr[CDistributedObjectStore] store
 
-    def __cinit__(self, bytes redis_address, int redis_port,
-                  int notification_port, int notification_listening_port,
-                  bytes plasma_socket, int object_writer_port,
-                  int grpc_port):
+    def __cinit__(self, string object_directory_address):
         my_address = socket.gethostbyname(socket.gethostname()).encode()
         CRayLog.StartRayLog(my_address, CRayLogDEBUG)
-        self.store.reset(new CDistributedObjectStore(redis_address, redis_port,
-            notification_port, notification_listening_port, plasma_socket,
-            my_address, object_writer_port, grpc_port))
+        self.store.reset(new CDistributedObjectStore(object_directory_address.encode()))
 
     def get(self, ObjectID object_id):
         cdef:

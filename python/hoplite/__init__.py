@@ -7,6 +7,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import py_distributed_object_store as _hoplite_store
 
+HopliteClient = _hoplite_store.DistributedObjectStore
 Buffer = _hoplite_store.Buffer
 ObjectID = _hoplite_store.ObjectID
 ReduceOp = _hoplite_store.ReduceOp
@@ -35,26 +36,11 @@ def add_arguments(parser):
 
 
 def extract_dict_from_args(args):
-    return {
-        'redis_address': args.redis_address.encode(),
-        'redis_port': args.redis_port,
-        'notification_port': args.notification_port,
-        'notification_listening_port': args.notification_listening_port,
-        'plasma_socket': args.plasma_socket.encode(),
-        'object_writer_port': args.object_writer_port,
-        'grpc_port': args.grpc_port,
-    }
+    return {'redis_address': args.redis_address.encode()}
 
 
 def create_store_using_dict(args_dict):
-    store = _hoplite_store.DistributedObjectStore(
-        args_dict['redis_address'],
-        args_dict['redis_port'],
-        args_dict['notification_port'],
-        args_dict['notification_listening_port'],
-        args_dict['plasma_socket'],
-        args_dict['object_writer_port'],
-        args_dict['grpc_port'])
+    store = _hoplite_store.DistributedObjectStore(args_dict['redis_address'])
     return store
 
 

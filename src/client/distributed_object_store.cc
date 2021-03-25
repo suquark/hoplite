@@ -9,20 +9,17 @@
 #include "common/config.h"
 #include "distributed_object_store.h"
 #include "util/logging.h"
+#include "util/socket_utils.h"
 
 ////////////////////////////////////////////////////////////////
 // The object store API
 ////////////////////////////////////////////////////////////////
 
-DistributedObjectStore::DistributedObjectStore(const std::string &notification_server_address, int redis_port,
-                                               int notification_server_port, int notification_listen_port,
-                                               const std::string &plasma_socket, const std::string &my_address,
-                                               int object_writer_port, int grpc_port)
-    : my_address_(my_address), gcs_client_{notification_server_address, my_address_, notification_server_port},
-      local_store_client_{false, plasma_socket}, object_sender_{state_, gcs_client_, local_store_client_, my_address_},
-      receiver_{state_, gcs_client_, local_store_client_, my_address_, object_writer_port},
-      notification_listener_(my_address_, notification_listen_port, state_, receiver_, local_store_client_),
-      grpc_port_(grpc_port), grpc_address_(my_address_ + ":" + std::to_string(grpc_port_)) {
+DistributedObjectStore::DistributedObjectStore(const std::string &object_directory_address)
+    : my_address_(get_host_ipaddress()), gcs_client_{object_directory_address, my_address_, OBJECT_DIRECTORY_PORT},
+      local_store_client_{}, object_sender_{state_, gcs_client_, local_store_client_, my_address_},
+      receiver_{state_, gcs_client_, local_store_client_, my_address_, HOPLITE_RECEIVER_PORT},
+      notification_listener_(my_address_, OBJECT_DIRECTORY_LISTENER_PORT, state_, receiver_, local_store_client_) {
   TIMELINE("DistributedObjectStore construction function");
   // Creating the first random ObjectID will initialize the random number
   // generator, which is pretty slow. So we generate one first, and it

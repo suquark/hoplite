@@ -1,9 +1,8 @@
 #include "local_store_client.h"
 #include "util/logging.h"
 
-LocalStoreClient::LocalStoreClient(const bool use_plasma, const std::string &plasma_socket)
-    : use_plasma_(use_plasma), total_store_size_(0) {
-  std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
+LocalStoreClient::LocalStoreClient() : total_store_size_(0) {
+  // std::lock_guard<std::mutex> lock_guard(local_store_mutex_);
   // if (use_plasma) {
   //   plasma_client_.Connect(plasma_socket, "");
   // }

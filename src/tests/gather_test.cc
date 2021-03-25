@@ -13,8 +13,8 @@
 #include "util/test_utils.h"
 
 int main(int argc, char **argv) {
-  // argv: *, redis_address, object_size, n_trials
-  std::string redis_address = std::string(argv[1]);
+  // argv: *, object_directory_address, object_size, n_trials
+  std::string object_directory_address = std::string(argv[1]);
   int64_t object_size = std::strtoll(argv[2], NULL, 10);
   int64_t n_trials = std::strtoll(argv[3], NULL, 10);
   std::string my_address = get_host_ipaddress();
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
   TIMELINE("main");
 
-  DistributedObjectStore store(redis_address, 6380, 7777, 8888, "/tmp/multicast_plasma", my_address, 6666, 50055);
+  DistributedObjectStore store(object_directory_address);
 
   for (int trial = 0; trial < n_trials; trial++) {
     std::vector<ObjectID> object_ids;

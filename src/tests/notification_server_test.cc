@@ -7,6 +7,7 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
+#include <memory>
 #include <queue>
 #include <string>
 #include <thread>
@@ -228,7 +229,7 @@ int main(int argc, char **argv) {
   ::hoplite::RayLog::StartRayLog(my_address, ::hoplite::RayLogLevel::INFO);
   std::unique_ptr<NotificationListener> notification_listener;
   std::thread notification_listener_thread;
-  notification_listener.reset(new NotificationListener(my_address, 8888));
+  notification_listener = std::make_unique<NotificationListener>(my_address, 8888);
   notification_listener_thread = notification_listener->Run();
   channel = grpc::CreateChannel(notification_address + ":7777", grpc::InsecureChannelCredentials());
   stub = objectstore::NotificationServer::NewStub(channel);

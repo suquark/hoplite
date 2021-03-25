@@ -48,11 +48,7 @@ cdef extern from "common/buffer.h" namespace "" nogil:
 
 cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
     cdef cppclass CDistributedObjectStore "DistributedObjectStore":
-        CDistributedObjectStore(const c_string &redis_address, int redis_port,
-                                int notification_port, int notification_listening_port,
-                                const c_string &plasma_socket,
-                                const c_string &my_address, int object_writer_port,
-                                int grpc_port)
+        CDistributedObjectStore(const c_string &object_directory_address)
 
         void Put(const shared_ptr[CBuffer] &buffer, const CObjectID &object_id)
 

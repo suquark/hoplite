@@ -10,7 +10,7 @@
 
 class LocalStoreClient {
 public:
-  LocalStoreClient(bool use_plasma, const std::string &plasma_socket);
+  LocalStoreClient();
 
   Status Create(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data);
 
@@ -36,7 +36,6 @@ public:
 private:
   Status create_internal(const ObjectID &object_id, int64_t data_size, std::shared_ptr<Buffer> *data);
   bool object_exists_unsafe(const ObjectID &object_id, bool require_finished);
-  const bool use_plasma_;
   std::mutex local_store_mutex_;
   std::unordered_map<ObjectID, std::shared_ptr<Buffer>> buffers_;
   size_t total_store_size_;
