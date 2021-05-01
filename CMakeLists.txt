@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #if (MSVC)
 #    # warning level 4 and all warnings as errors
