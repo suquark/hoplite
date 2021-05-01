@@ -57,3 +57,4 @@ python/*.cpp
 *.csv
 *.json
 cmake-build-debug/
+.idea/

@@ -3,21 +3,23 @@
 
 ## TODOs
 
-[x] Move outdated scripts into `_archived`
+- [x] Move outdated scripts into `_archived`
 
-[x] Rename `python/auto_ray_benchmarks.py` to `python/launch_ray_microbenchmarks.py`.
+- [x] Rename `python/auto_ray_benchmarks.py` to `python/launch_ray_microbenchmarks.py`.
 
-[x] Move Ray roundtrip test into `python/auto_ray_benchmarks.py`
+- [x] Move Ray roundtrip test into `python/auto_ray_benchmarks.py`
 
-[x] Move hoplite python microbenchmarks into `python/hoplite_microbenchmarks.py`
+- [x] Move hoplite python microbenchmarks into `python/hoplite_microbenchmarks.py`
 
-[x] Move microbenchmarks to `microbenchmarks`.
+- [x] Move microbenchmarks to `microbenchmarks`.
+
+- [x] Change build system to CMake.
+
+- [x] Use constants for ports etc in `src/distributed_object_store.cc`.
 
 [ ] Implement barrier inside hoplite.
 
 [ ] Reorganize automatic testing for python hoplite and C++ hoplite.
-
-[ ] Use constants for ports etc in `src/distributed_object_store.cc`.
 
 [ ] Cleanup python/cython code.
 
@@ -29,11 +31,20 @@
 
 [ ] Test refactored `src/reduce_dependency.cc`.
 
-[ ] Change build system to CMake.
-
 [ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
 
 [ ] Improve documentation coverage.
+
+## Build Hoplite
+
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j
+```
+
+Binaries and shared libraries are under `build` after successful compilation.
 
 ## Install dependencies
 

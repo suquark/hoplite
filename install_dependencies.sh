@@ -6,6 +6,7 @@ sudo apt update
 
 ## build grpc
 if [ ! -d grpc ]; then
+     # TODO: pin version to 1.31.0
      git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc.git
 
      sudo apt-get install \
