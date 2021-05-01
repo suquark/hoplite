@@ -24,7 +24,7 @@ find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(gRPC REQUIRED)
 find_package(MPI REQUIRED)
-message(STATUS "Using Protobuf ${Protobuf_VERSION}, gRPC ${gRPC_VERSION}, MPI ${MPI_VERSION}")
+message(STATUS "Using Protobuf ${Protobuf_VERSION}, gRPC ${gRPC_VERSION}")
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${gRPC_INCLUDE_DIRS})
