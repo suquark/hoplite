@@ -16,12 +16,11 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 # Cmake find modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include(FindGRPC)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
-# find_package(gRPC REQUIRED) # already handled by 'FindGRPC'
+find_package(gRPC REQUIRED)
 find_package(MPI REQUIRED)
 message(STATUS "Using Protobuf ${Protobuf_VERSION}, gRPC ${gRPC_VERSION}, MPI ${MPI_VERSION}")
 
@@ -50,8 +49,8 @@ add_library(hoplite_client_lib SHARED ${hoplite_client_SRC}
 set_target_properties(hoplite_client_lib PROPERTIES
         PUBLIC_HEADER src/client/distributed_object_store.h
         POSITION_INDEPENDENT_CODE ON)
-target_include_directories(hoplite_client_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/client)
-target_link_libraries(hoplite_client_lib PUBLIC hoplite_utils hoplite_common
+target_include_directories(hoplite_client_lib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/client)
+target_link_libraries(hoplite_client_lib PRIVATE hoplite_utils hoplite_common
         ${Protobuf_LIBRARIES}
         ${gRPC_LIBRARIES}
         gRPC::grpc++_reflection
@@ -67,8 +66,8 @@ add_executable(notification
         ${object_directory_SRC}
         ${HOPLITE_PROTO_SRCS} ${HOPLITE_PROTO_HDRS}
         ${HOPLITE_GRPC_SRCS} ${HOPLITE_GRPC_HDRS})
-target_include_directories(notification PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/object_directory)
-target_link_libraries(notification PUBLIC hoplite_utils hoplite_common
+target_include_directories(notification PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/object_directory)
+target_link_libraries(notification PRIVATE hoplite_utils hoplite_common
         PRIVATE Threads::Threads
         ${CMAKE_DL_LIBS}
         ${Protobuf_LIBRARIES}
@@ -88,10 +87,10 @@ foreach (testname ${hoplite_communication_tests})
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests/"
             COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"
             LINK_FLAGS "${MPI_LINK_FLAGS}")
-    target_include_directories(${testname} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/client
-                               PRIVATE ${MPI_INCLUDE_PATH})
-    target_link_libraries(${testname} PUBLIC hoplite_common hoplite_utils hoplite_client
-            PRIVATE Threads::Threads
+    target_include_directories(${testname} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/client
+                               ${MPI_INCLUDE_PATH})
+    target_link_libraries(${testname} PRIVATE hoplite_common hoplite_utils hoplite_client
+            Threads::Threads
             ${CMAKE_DL_LIBS}
             ${Protobuf_LIBRARIES}
             ${gRPC_LIBRARIES}
@@ -101,8 +100,8 @@ foreach (testname ${hoplite_communication_tests})
 endforeach (testname ${hoplite_communication_tests})
 
 add_executable(reduce_dependency_test "src/tests/reduce_dependency_test.cc" "src/object_directory/reduce_dependency.cc")
-target_link_libraries(reduce_dependency_test PUBLIC hoplite_common hoplite_utils
-        PRIVATE Threads::Threads
+target_link_libraries(reduce_dependency_test PRIVATE hoplite_common hoplite_utils
+        Threads::Threads
         ${CMAKE_DL_LIBS}
         ${Protobuf_LIBRARIES}
         ${gRPC_LIBRARIES}
