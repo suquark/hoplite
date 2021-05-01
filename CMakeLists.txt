@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.13)
 project(Hoplite VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -16,11 +16,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 # Cmake find modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(FindGRPC)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
-find_package(gRPC REQUIRED)
+# find_package(gRPC REQUIRED) # already handled by 'FindGRPC'
 find_package(MPI REQUIRED)
 message(STATUS "Using Protobuf ${Protobuf_VERSION}, gRPC ${gRPC_VERSION}, MPI ${MPI_VERSION}")
 

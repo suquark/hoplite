@@ -35,6 +35,15 @@
 
 [ ] Improve documentation coverage.
 
+## Build Hoplite
+
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+```
+
+
 ## Install dependencies
 
 ```bash
