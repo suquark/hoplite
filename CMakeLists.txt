@@ -85,7 +85,9 @@ foreach (testname ${hoplite_communication_tests})
             PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests/"
             LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests/"
-            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests/")
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests/"
+            COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"
+            LINK_FLAGS "${MPI_LINK_FLAGS}")
     target_include_directories(${testname} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/client)
     target_link_libraries(${testname} PUBLIC hoplite_common hoplite_utils hoplite_client
             PRIVATE Threads::Threads
