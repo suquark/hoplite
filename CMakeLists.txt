@@ -17,6 +17,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Cmake find modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(FindGRPC)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
