@@ -1,6 +1,7 @@
 #include "dependency.h"
 
 #include "util/logging.h"
+#include <assert.h>
 #include <utility>
 
 ObjectDependency::ObjectDependency(const ObjectID &object_id,
