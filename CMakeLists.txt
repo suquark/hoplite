@@ -90,7 +90,7 @@ foreach (testname ${hoplite_communication_tests})
             LINK_FLAGS "${MPI_LINK_FLAGS}")
     target_include_directories(${testname} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/client
                                ${MPI_INCLUDE_PATH})
-    target_link_libraries(${testname} PRIVATE hoplite_common hoplite_utils hoplite_client
+    target_link_libraries(${testname} PRIVATE hoplite_client hoplite_common hoplite_utils
             Threads::Threads
             ${CMAKE_DL_LIBS}
             ${Protobuf_LIBRARIES}
