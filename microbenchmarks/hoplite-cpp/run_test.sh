@@ -42,7 +42,7 @@ export RAY_BACKEND_LOG_LEVEL=info
 
 pkill notification
 sleep 0.5
-($BINARIES_DIR/notification $MY_IPADDR 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
+($BINARIES_DIR/notification 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
 sleep 0.5
 
 all_nodes=(${ALL_IPADDR[@]:0:$world_size})

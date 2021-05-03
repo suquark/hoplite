@@ -1,5 +1,5 @@
 import atexit
-import os
+import pathlib
 import subprocess
 import time
 
@@ -59,8 +59,8 @@ def _register_cleanup(processes):
 
 
 def start_location_server():
-    notification_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'notification')
-    notification_p = subprocess.Popen([notification_path, get_my_address()])
+    server_exec = pathlib.Path(__file__).parent.parent.parent.absolute() / 'build' / 'notification'
+    notification_p = subprocess.Popen([str(server_exec)])
     _register_cleanup([notification_p])
     time.sleep(2)
 
