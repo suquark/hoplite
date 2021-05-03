@@ -17,23 +17,25 @@
 
 - [x] Use constants for ports etc in `src/distributed_object_store.cc`.
 
-[ ] Implement barrier inside hoplite.
+- [ ] `StrictHostKeyChecking=no` in `~/.ssh/config`
 
-[ ] Reorganize automatic testing for python hoplite and C++ hoplite.
+- [ ] Implement barrier inside hoplite.
 
-[ ] Cleanup python/cython code.
+- [ ] Reorganize automatic testing for python hoplite and C++ hoplite.
 
-[ ] Test `python/launch_ray_microbenchmarks.py`
+- [ ] Cleanup python/cython code.
 
-[ ] Test `python/hoplite_microbenchmarks.py`
+- [ ] Test `python/launch_ray_microbenchmarks.py`
 
-[ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
+- [ ] Test `python/hoplite_microbenchmarks.py`
 
-[ ] Test refactored `src/reduce_dependency.cc`.
+- [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
 
-[ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
+- [ ] Test refactored `src/reduce_dependency.cc`.
 
-[ ] Improve documentation coverage.
+- [ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
+
+- [ ] Improve documentation coverage.
 
 ## Build Hoplite
 
