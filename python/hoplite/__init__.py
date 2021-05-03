@@ -3,7 +3,7 @@ import os
 import subprocess
 import time
 
-import _hoplite_lib as _hoplite_store
+import _hoplite_client as _hoplite_store
 
 HopliteClient = _hoplite_store.DistributedObjectStore
 Buffer = _hoplite_store.Buffer
