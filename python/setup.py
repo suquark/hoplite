@@ -10,10 +10,10 @@ lib_dir = project_dir / 'build'
 
 ext_modules = [
     Extension(
-        "hoplite",
+        "_hoplite_lib",
         sources=["_client.pyx"],
         include_dirs=[str(src_dir), str(lib_dir)],  # lib_dir contains "object_store.grpc.pb.h"
-        library_dirs=[str(project_dir)],
+        library_dirs=[str(lib_dir)],
         libraries=["hoplite_client_lib"],
         # this is necessary for the dynamic linking of Linux to
         # be working in a distributed environment
@@ -21,5 +21,9 @@ ext_modules = [
     )
 ]
 
-setup(name="hoplite",
+setup(name='hoplite',
+      zip_safe=False,
+      packages=['hoplite'],
+      package_dir={'hoplite': 'hoplite'},
+      package_data={'hoplite': ['hoplite*.so']},
       ext_modules=cythonize(ext_modules))
