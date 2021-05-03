@@ -9,7 +9,7 @@ src_dir = project_dir / 'src'
 lib_dir = project_dir / 'build'
 
 import shutil
-shutil.copy(lib_dir / 'notification', '.')
+shutil.copy(lib_dir / 'notification', 'hoplite/')
 
 ext_modules = [
     Extension(
