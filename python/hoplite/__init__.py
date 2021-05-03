@@ -3,7 +3,7 @@ import pathlib
 import subprocess
 import time
 
-import _hoplite_client as _hoplite_store
+from . import _hoplite_client as _hoplite_store
 
 HopliteClient = _hoplite_store.DistributedObjectStore
 Buffer = _hoplite_store.Buffer
@@ -59,7 +59,7 @@ def _register_cleanup(processes):
 
 
 def start_location_server():
-    server_exec = pathlib.Path(__file__).parent.parent.parent.absolute() / 'build' / 'notification'
+    server_exec = pathlib.Path(__file__).resolve().parent.absolute() / 'notification'
     notification_p = subprocess.Popen([str(server_exec)])
     _register_cleanup([notification_p])
     time.sleep(2)
