@@ -46,7 +46,7 @@ cdef extern from "common/buffer.h" namespace "" nogil:
         uint32_t CRC32() const
 
 
-cdef extern from "../src/distributed_object_store.h" namespace "" nogil:
+cdef extern from "client/distributed_object_store.h" namespace "" nogil:
     cdef cppclass CDistributedObjectStore "DistributedObjectStore":
         CDistributedObjectStore(const c_string &object_directory_address)
 
