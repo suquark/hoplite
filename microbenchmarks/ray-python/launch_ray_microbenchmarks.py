@@ -9,8 +9,9 @@ NUM_NODES = (4, 8, 12, 16)
 OBJECT_SIZES = (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30)
 REPEAT_TIMES = 5
 
+microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
 parser = argparse.ArgumentParser(description='Ray microbenchmarks')
-parser.add_argument('test_name', type=str, help='Name of the test (multicast, reduce, allreduce, gather, allgather)')
+parser.add_argument('test_name', type=str, choices=microbenchmark_names, help='Microbenchmark name')
 parser.add_argument('-n', '--world-size', type=int, required=False,
                     help='Size of the collective processing group')
 parser.add_argument('-s', '--object-size', type=int, required=False,

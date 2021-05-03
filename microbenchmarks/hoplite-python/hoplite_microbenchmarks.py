@@ -20,7 +20,7 @@ def barrier(notification_address, notification_port, world_size):
 
 
 @ray.remote(resources={'machine': 1})
-def sendrecv(object_directory_address, world_size, world_rank, object_size):
+def roundtrip(object_directory_address, world_size, world_rank, object_size):
     store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.ObjectID(b'\0' * 20)
     object_id2 = hoplite.ObjectID(b'\1' * 20)
@@ -159,7 +159,7 @@ def allgather(object_directory_address, world_size, world_rank, object_size):
 
     print("AllGather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
 
-microbenchmark_names = ['sendrecv', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
+microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
 parser = argparse.ArgumentParser(description='Hoplite microbenchmark with the Python library.')
 parser.add_argument('microbenchmark_name', type=str, choices=microbenchmark_names,
                     help='Name of the microbenchmark.')
@@ -176,9 +176,9 @@ tasks = []
 
 if args.microbenchmark_name not in microbenchmark_names:
     raise ValueError(f"Microbenchmark '{args.microbenchmark_name}' does not exist.")
-elif args.microbenchmark_name == 'sendrecv':
+elif args.microbenchmark_name == 'roundtrip':
     if args.world_size != 2:
-        raise ValueError("For the sendrecv microbenchmark, the world_size must be 2.")
+        raise ValueError("For the roundtrip microbenchmark, the world_size must be 2.")
 
 for rank in range(args.world_size):
     task_id = globals()[args.microbenchmark_name].remote(
