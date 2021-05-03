@@ -20,7 +20,7 @@ def barrier(notification_address, notification_port, world_size):
 
 
 @ray.remote(resources={'machine': 1})
-def sendrecv(object_directory_address, world_size, world_rank, object_size):
+def roundtrip(object_directory_address, world_size, world_rank, object_size):
     store = hoplite.HopliteClient(object_directory_address)
     object_id = hoplite.ObjectID(b'\0' * 20)
     object_id2 = hoplite.ObjectID(b'\1' * 20)
@@ -159,41 +159,30 @@ def allgather(object_directory_address, world_size, world_rank, object_size):
 
     print("AllGather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
 
-
-parser = argparse.ArgumentParser(description='broadcast test')
-parser.add_argument('-t', '--type-of-test', type=str, required=True,
-                    help='Type of the test')
-parser.add_argument('-n', '--world-size', type=int, required=True,
-                    help='Size of the collective processing group')
-parser.add_argument('-s', '--object-size', type=int, required=True,
-                    help='The size of the object')
+microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
+parser = argparse.ArgumentParser(description='Hoplite microbenchmark with the Python library.')
+parser.add_argument('microbenchmark_name', type=str, choices=microbenchmark_names,
+                    help='Name of the microbenchmark.')
+parser.add_argument('-n', '--world-size', type=int, required=True, help='Size of the collective processing group')
+parser.add_argument('-s', '--object-size', type=int, required=True, help='The size of the object')
 
 args = parser.parse_args()
 hoplite.start_location_server()
 object_directory_address = hoplite.get_my_address()
-
 ray.init(address='auto')
+time.sleep(1)
 
 tasks = []
 
-time.sleep(1)
+if args.microbenchmark_name not in microbenchmark_names:
+    raise ValueError(f"Microbenchmark '{args.microbenchmark_name}' does not exist.")
+elif args.microbenchmark_name == 'roundtrip':
+    if args.world_size != 2:
+        raise ValueError("For the roundtrip microbenchmark, the world_size must be 2.")
 
 for rank in range(args.world_size):
-    if args.type_of_test == 'sendrecv':
-        assert (args.world_size == 2)
-        task_id = sendrecv.remote(object_directory_address, args.world_size, rank, args.object_size)
-    elif args.type_of_test == 'multicast':
-        task_id = multicast.remote(object_directory_address, args.world_size, rank, args.object_size)
-    elif args.type_of_test == 'reduce':
-        task_id = reduce.remote(object_directory_address, args.world_size, rank, args.object_size)
-    elif args.type_of_test == 'allreduce':
-        task_id = allreduce.remote(object_directory_address, args.world_size, rank, args.object_size)
-    elif args.type_of_test == 'gather':
-        task_id = gather.remote(object_directory_address, args.world_size, rank, args.object_size)
-    elif args.type_of_test == 'allgather':
-        task_id = allgather.remote(object_directory_address, args.world_size, rank, args.object_size)
-    else:
-        raise ValueError(f"Test '{args.type_of_test}' not exists.")
+    task_id = globals()[args.microbenchmark_name].remote(
+        object_directory_address, args.world_size, rank, args.object_size)
     tasks.append(task_id)
 
 ray.get(tasks)
