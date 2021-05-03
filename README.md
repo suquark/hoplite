@@ -56,7 +56,7 @@ Binaries and shared libraries are under `build` after successful compilation.
 
 ## Microbenchmarks
 
-`${test_name}` includes `multicast`, `reduce`, `gather`, `allreduce`, `allgather`.
+`${microbenchmark_name}` includes `multicast`, `reduce`, `gather`, `allreduce`, `allgather`.
 
 ### Automatic benchmarking
 
@@ -80,13 +80,16 @@ Binaries and shared libraries are under `build` after successful compilation.
 
 **C++**
 
-`./run_tests.sh ${test_name}_test ${total_number_of_nodes} ${input_size_in_bytes}`
+```
+cd microbenchmarks/hoplite-cpp
+`./run_tests.sh ${microbenchmark_name}_test ${total_number_of_nodes} ${input_size_in_bytes}`
+```
 
 **Python**
 
 ```
-cd python
-./launch_test.py -t ray-${test_name} -n ${total_number_of_nodes} -s ${input_size_in_bytes}
+cd microbenchmarks/hoplite-python
+./launch_test.py -t ray-${microbenchmark_name} -n ${total_number_of_nodes} -s ${input_size_in_bytes}
 ```
 
 **Round-trip**
@@ -98,7 +101,7 @@ cd python
 
 ### MPI
 
-`cd mpi && ./mpi_{test_name}.sh ${total_number_of_nodes} ${input_size_in_bytes}`
+`cd mpi && ./mpi_{microbenchmark_name}.sh ${total_number_of_nodes} ${input_size_in_bytes}`
 
 **Round trip**
 
@@ -106,7 +109,10 @@ cd python
 
 ### Gloo
 
-`cd gloo && ./run_benchmark.sh ${gloo_test_name} ${total_number_of_nodes} ${input_size_in_bytes}`
+```
+cd microbenchmarks/gloo-cpp
+./run_benchmark.sh ${gloo_microbenchmark_name} ${total_number_of_nodes} ${input_size_in_bytes}`
+```
 
 ## Lint
 
