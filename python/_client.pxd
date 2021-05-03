@@ -43,7 +43,7 @@ cdef extern from "common/buffer.h" namespace "" nogil:
         const uint8_t* Data()
         uint8_t* MutableData()
         int64_t Size()
-        uint32_t CRC32() const
+        uint64_t Hash() const
 
 
 cdef extern from "client/distributed_object_store.h" namespace "" nogil:
@@ -60,12 +60,12 @@ cdef extern from "client/distributed_object_store.h" namespace "" nogil:
         void Reduce(const c_vector[CObjectID] &object_ids,
                     const CObjectID &reduction_id)
 
-        void Reduce(const c_vector[CObjectID] &object_ids, 
-                    CObjectID *created_reduction_id, 
+        void Reduce(const c_vector[CObjectID] &object_ids,
+                    CObjectID *created_reduction_id,
                     ssize_t num_reduce_objects)
 
         void Reduce(const c_vector[CObjectID] &object_ids,
-                    const CObjectID &reduction_id, 
+                    const CObjectID &reduction_id,
                     ssize_t num_reduce_objects)
 
         unordered_set[CObjectID] GetReducedObjects(const CObjectID &reduction_id)

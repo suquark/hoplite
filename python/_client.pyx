@@ -90,7 +90,7 @@ cdef class Buffer:
         return self.buf.get().Size()
 
     def __hash__(self):
-        return self.buf.get().CRC32()
+        return self.buf.get().Hash()
 
     def __dealloc__(self):
         if self.py_buf.obj is not None:
@@ -134,7 +134,7 @@ class ReduceOp(Enum):
 cdef class DistributedObjectStore:
     cdef unique_ptr[CDistributedObjectStore] store
 
-    def __cinit__(self, string object_directory_address):
+    def __cinit__(self, str object_directory_address):
         my_address = socket.gethostbyname(socket.gethostname()).encode()
         CRayLog.StartRayLog(my_address, CRayLogDEBUG)
         self.store.reset(new CDistributedObjectStore(object_directory_address.encode()))
