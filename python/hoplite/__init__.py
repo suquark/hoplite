@@ -1,11 +1,9 @@
 import atexit
 import os
 import subprocess
-import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import py_distributed_object_store as _hoplite_store
+import _hoplite_lib as _hoplite_store
 
 HopliteClient = _hoplite_store.DistributedObjectStore
 Buffer = _hoplite_store.Buffer
