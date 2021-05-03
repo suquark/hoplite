@@ -42,6 +42,8 @@ def roundtrip(object_directory_address, world_size, world_rank, object_size):
         barrier(object_directory_address, notification_port, world_size)
         buffer = store.get(object_id)
         store.put(buffer, object_id2)
+    # avoid disconnecting from hoplite store another one finishes
+    barrier(object_directory_address, notification_port, world_size)
 
 
 @ray.remote(resources={'machine': 1})
@@ -62,6 +64,8 @@ def multicast(object_directory_address, world_size, world_rank, object_size):
         print("Buffer received, hash =", hash(buffer), "duration =", duration)
         array = np.frombuffer(buffer, dtype=np.int32)
         print(array)
+    # avoid disconnecting from hoplite store another one finishes
+    barrier(object_directory_address, notification_port, world_size)
 
 
 @ray.remote(resources={'machine': 1})
@@ -85,8 +89,8 @@ def reduce(object_directory_address, world_size, world_rank, object_size):
         reduce_result = np.frombuffer(reduced_buffer)
         print("Reduce completed, hash =", hash(reduced_buffer), "duration =", duration)
         print(reduce_result)
-    else:
-        barrier(object_directory_address, notification_port, world_size)
+    # avoid disconnecting from hoplite store another one finishes
+    barrier(object_directory_address, notification_port, world_size)
 
 @ray.remote(resources={'machine': 1})
 def allreduce(object_directory_address, world_size, world_rank, object_size):
@@ -111,6 +115,8 @@ def allreduce(object_directory_address, world_size, world_rank, object_size):
     reduce_result = np.frombuffer(reduced_buffer)
     print("AllReduce completed, hash =", hash(reduced_buffer), "duration =", duration)
     print(reduce_result)
+    # avoid disconnecting from hoplite store another one finishes
+    barrier(object_directory_address, notification_port, world_size)
 
 
 @ray.remote(resources={'machine': 1})
@@ -135,6 +141,8 @@ def gather(object_directory_address, world_size, world_rank, object_size):
         duration = time.time() - start
 
         print("Gather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
+    # avoid disconnecting from hoplite store another one finishes
+    barrier(object_directory_address, notification_port, world_size)
 
 
 @ray.remote(resources={'machine': 1})
@@ -158,6 +166,8 @@ def allgather(object_directory_address, world_size, world_rank, object_size):
     duration = time.time() - start
 
     print("AllGather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
+    # avoid disconnecting from hoplite store another one finishes
+    barrier(object_directory_address, notification_port, world_size)
 
 microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
 parser = argparse.ArgumentParser(description='Hoplite microbenchmark with the Python library.')
