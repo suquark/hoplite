@@ -1,11 +1,9 @@
 import atexit
-import os
+import pathlib
 import subprocess
-import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import py_distributed_object_store as _hoplite_store
+import _hoplite_client as _hoplite_store
 
 HopliteClient = _hoplite_store.DistributedObjectStore
 Buffer = _hoplite_store.Buffer
@@ -61,8 +59,8 @@ def _register_cleanup(processes):
 
 
 def start_location_server():
-    notification_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'notification')
-    notification_p = subprocess.Popen([notification_path, get_my_address()])
+    server_exec = pathlib.Path(__file__).parent.parent.parent.absolute() / 'build' / 'notification'
+    notification_p = subprocess.Popen([str(server_exec)])
     _register_cleanup([notification_p])
     time.sleep(2)
 
