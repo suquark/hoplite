@@ -25,5 +25,5 @@ setup(name='hoplite',
       zip_safe=False,
       packages=['hoplite'],
       package_dir={'hoplite': 'hoplite'},
-      package_data={'hoplite': ['hoplite*.so']},
+      package_data={'hoplite': ['_hoplite_lib*.so']},
       ext_modules=cythonize(ext_modules))
