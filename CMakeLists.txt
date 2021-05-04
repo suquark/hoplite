@@ -119,11 +119,6 @@ set_target_properties(reduce_dependency_test
 #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 #    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-# TODO: unconverted makefile content:
-# python/object_store_pb2_grpc.py:
-#	python -m pip install grpcio-tools
-#	python -m grpc_tools.protoc -Isrc --python_out=python --grpc_python_out=python src/object_store.proto
-#
 #notification_server_test: $(PROTO_OBJS) $(UTILS_OBJS) $(COMMON_OBJS) src/notification_server_test.o
 #	$(CXX) $^ $(LDFLAGS) -o $@
 #

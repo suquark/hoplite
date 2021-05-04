@@ -1,33 +1,14 @@
 # Hoplite: Efficient Collective Communication for Task-Based Distributed Systems
 
-
 ## TODOs
-
-- [x] Move outdated scripts into `_archived`
-
-- [x] Rename `python/auto_ray_benchmarks.py` to `python/launch_ray_microbenchmarks.py`.
-
-- [x] Move Ray roundtrip test into `python/auto_ray_benchmarks.py`
-
-- [x] Move hoplite python microbenchmarks into `python/hoplite_microbenchmarks.py`
-
-- [x] Move microbenchmarks to `microbenchmarks`.
-
-- [x] Change build system to CMake.
-
-- [x] Use constants for ports etc in `src/distributed_object_store.cc`.
 
 - [ ] `StrictHostKeyChecking=no` in `~/.ssh/config`
 
-- [ ] Implement barrier inside hoplite.
-
 - [ ] Reorganize automatic testing for python hoplite and C++ hoplite.
 
-- [ ] Cleanup python/cython code.
+- [ ] Cleanup python code.
 
 - [ ] Test `python/launch_ray_microbenchmarks.py`
-
-- [ ] Test `python/hoplite_microbenchmarks.py`
 
 - [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
 
@@ -37,21 +18,37 @@
 
 - [ ] Improve documentation coverage.
 
-## Build Hoplite
-
-```bash
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j
-```
-
-Binaries and shared libraries are under `build` after successful compilation.
 
 ## Install dependencies
 
 ```bash
+# C++ dependencies
 ./install_dependencies.sh
+# python dependencies
+pip install requirements.txt
+```
+
+## Build Hoplite
+
+First, build Hoplite C++ binaries 
+
+```bash
+# requires CMake >= 3.13, gcc/clang with C++14 support
+mkdir build
+pushd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j
+popd
+```
+
+Binaries and shared libraries are under `build` after successful compilation.
+
+Then build Hoplite Python library
+
+```bash
+pushd python
+python setup.py build_ext --inplace
+popd
 ```
 
 ## Microbenchmarks
@@ -76,43 +73,15 @@ Binaries and shared libraries are under `build` after successful compilation.
 
 `python parse_gloo_result.py ../gloo_log/`
 
-### Hoplite
+## Benchmark manually
 
-**C++**
+**Hoplite C++ interface** See [microbenchmarks/hoplite-cpp](microbenchmarks/hoplite-cpp)
 
-```
-cd microbenchmarks/hoplite-cpp
-`./run_tests.sh ${microbenchmark_name}_test ${total_number_of_nodes} ${input_size_in_bytes}`
-```
+**Hoplite Python interface** See [microbenchmarks/hoplite-python](microbenchmarks/hoplite-python)
 
-**Python**
+**MPI (baseline)** See [microbenchmarks/mpi-cpp](microbenchmarks/mpi-cpp)
 
-```
-cd microbenchmarks/hoplite-python
-./launch_test.py -t ray-${microbenchmark_name} -n ${total_number_of_nodes} -s ${input_size_in_bytes}
-```
-
-**Round-trip**
-
-```
-cd python
-./launch_test.py -t sendrecv -n 2 -s ${input_size_in_bytes}
-```
-
-### MPI
-
-`cd mpi && ./mpi_{microbenchmark_name}.sh ${total_number_of_nodes} ${input_size_in_bytes}`
-
-**Round trip**
-
-`cd mpi && ./mpi_sendrecv.sh ${input_size_in_bytes}`
-
-### Gloo
-
-```
-cd microbenchmarks/gloo-cpp
-./run_benchmark.sh ${gloo_microbenchmark_name} ${total_number_of_nodes} ${input_size_in_bytes}`
-```
+**Gloo (baseline)** See [microbenchmarks/gloo-cpp](microbenchmarks/gloo-cpp)
 
 ## Lint
 
