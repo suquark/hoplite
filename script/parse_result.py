@@ -117,7 +117,7 @@ def main(log_dir):
     tasks = {}
 
     for filename in files:
-        if filename != "latest":
+        if filename != "latest" and filename != "archive":
             splited = filename.split('-')
             if len(splited) != 5:
                 exit(-1)

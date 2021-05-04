@@ -158,7 +158,8 @@ std::string ReduceTreeChain::DebugString() {
 Node *ReduceTask::AddObject(const ObjectID &object_id, int64_t object_size, const std::string &owner_ip) {
   if (!rtc_) {
     // we intialize it now because previously we do not know the object size
-    int64_t maximum_chain_length = round(double(object_size) / double(HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY));
+    // int64_t maximum_chain_length = round(double(object_size) / double(HOPLITE_BANDWIDTH * HOPLITE_RPC_LATENCY));
+    int64_t maximum_chain_length = 1;
     // add one for the reduction result receiver
     rtc_.reset(new ReduceTreeChain(num_reduce_objects_ + 1, maximum_chain_length));
     // we initialize the root node here, because it could be skipped later

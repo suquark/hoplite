@@ -14,7 +14,8 @@
 #include <utility>
 #include <vector>
 
-constexpr int64_t inband_data_size_limit = 65536;
+// constexpr int64_t inband_data_size_limit = 65536;
+constexpr int64_t inband_data_size_limit = (int64_t)1e15;
 
 struct SyncReply {
   std::string sender_ip;
