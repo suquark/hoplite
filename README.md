@@ -1,33 +1,14 @@
 # Hoplite: Efficient Collective Communication for Task-Based Distributed Systems
 
-
 ## TODOs
-
-- [x] Move outdated scripts into `_archived`
-
-- [x] Rename `python/auto_ray_benchmarks.py` to `python/launch_ray_microbenchmarks.py`.
-
-- [x] Move Ray roundtrip test into `python/auto_ray_benchmarks.py`
-
-- [x] Move hoplite python microbenchmarks into `python/hoplite_microbenchmarks.py`
-
-- [x] Move microbenchmarks to `microbenchmarks`.
-
-- [x] Change build system to CMake.
-
-- [x] Use constants for ports etc in `src/distributed_object_store.cc`.
 
 - [ ] `StrictHostKeyChecking=no` in `~/.ssh/config`
 
-- [ ] Implement barrier inside hoplite.
-
 - [ ] Reorganize automatic testing for python hoplite and C++ hoplite.
 
-- [ ] Cleanup python/cython code.
+- [ ] Cleanup python code.
 
 - [ ] Test `python/launch_ray_microbenchmarks.py`
-
-- [ ] Test `python/hoplite_microbenchmarks.py`
 
 - [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
 
@@ -37,21 +18,37 @@
 
 - [ ] Improve documentation coverage.
 
-## Build Hoplite
-
-```bash
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j
-```
-
-Binaries and shared libraries are under `build` after successful compilation.
 
 ## Install dependencies
 
 ```bash
+# C++ dependencies
 ./install_dependencies.sh
+# python dependencies
+pip install requirements.txt
+```
+
+## Build Hoplite
+
+First, build Hoplite C++ binaries 
+
+```bash
+# requires CMake >= 3.13, gcc/clang with C++14 support
+mkdir build
+pushd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j
+popd
+```
+
+Binaries and shared libraries are under `build` after successful compilation.
+
+Then build Hoplite Python library
+
+```bash
+pushd python
+python setup.py build_ext --inplace
+popd
 ```
 
 ## Microbenchmarks
