@@ -162,7 +162,7 @@ else:
     object_directory_address = None
 
 # exchange object directory address
-object_directory_address = comm.Bcast(object_directory_address, root=0)
+object_directory_address = comm.Bcast(object_directory_address.encode(), root=0).decode()
 store = hoplite.HopliteClient(object_directory_address)
 
 globals()[args.microbenchmark_name](store, args.object_size)
