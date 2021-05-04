@@ -7,7 +7,6 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 SCRIPT_DIR=$(dirname $(realpath -s $0))
 TEST_UNILS_DIR=$(realpath -s $SCRIPT_DIR/../../test_utils)
 BINARIES_DIR=$(realpath -s $SCRIPT_DIR/../../build)
-TEST_BINARIES_DIR=$BINARIES_DIR/tests
 
 ## cleanup procs
 sudo fuser -k 6666/tcp -s &> /dev/null
@@ -15,15 +14,12 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 sudo fuser -k 20210/tcp -s &> /dev/null
 
 test_name=$1
-test_executable_abspath=$TEST_BINARIES_DIR/${test_name}_test
 world_size=$2
 object_size=$3
 n_trials=$4
 
-if [ ! -f $test_executable_abspath ]; then
-    echo "$(tput setaf 1)[ERROR]$(tput sgr 0) test executable not found: $test_executable_abspath"
-    exit -2
-fi
+# TODO: remove softlink once we can install hoplite correctly
+ln -sfn $(realpath -s ../../python/hoplite/) hoplite
 
 # get cluster info
 source $TEST_UNILS_DIR/load_cluster_env.sh
@@ -40,10 +36,10 @@ ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 
 export RAY_BACKEND_LOG_LEVEL=info
 
-pkill notification
-sleep 0.5
-($BINARIES_DIR/notification 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
-sleep 0.5
+# pkill notification
+# sleep 0.5
+# ($BINARIES_DIR/notification 2>&1 | tee $log_dir/$MY_IPADDR.notification.log) &
+# sleep 0.5
 
 all_nodes=(${ALL_IPADDR[@]:0:$world_size})
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
@@ -51,6 +47,6 @@ all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 $TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
     -x HOPLITE_LOGGING_DIR=$log_dir \
     -x RAY_BACKEND_LOG_LEVEL=$RAY_BACKEND_LOG_LEVEL \
-    test_wrapper.sh $test_executable_abspath $MY_IPADDR $object_size $n_trials
+    test_wrapper.sh python hoplite_microbenchmarks.py $test_name -s $object_size
 
 sleep 1

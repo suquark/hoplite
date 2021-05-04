@@ -12,7 +12,7 @@ for num_nodes in 4 8 12 16; do
       filename=log/$test_name-$num_nodes-$obj_size-$test_index
       if [ ! -f $filename ]; then
          echo LOG: $filename
-         python hoplite_microbenchmarks.py ${test_name} -n $num_nodes -s $obj_size 2>&1 # | tee $filename
+         ./run_test.sh ${test_name} $num_nodes $obj_size 10 2>&1 # | tee $filename
         sleep 2
       fi
     done
