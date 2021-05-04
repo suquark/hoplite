@@ -151,7 +151,7 @@ args = parser.parse_args()
 if args.microbenchmark_name not in microbenchmark_names:
     raise ValueError(f"Microbenchmark '{args.microbenchmark_name}' does not exist.")
 elif args.microbenchmark_name == 'roundtrip':
-    if args.world_size != 2:
+    if world_size != 2:
         raise ValueError("For the roundtrip microbenchmark, the world_size must be 2.")
 
 if rank == 0:
