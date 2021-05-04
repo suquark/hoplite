@@ -21,7 +21,7 @@ def roundtrip(store, object_size):
         buffer = hoplite.Buffer.from_buffer(array)
         hash_s = hash(buffer)
         print("Buffer created, hash =", hash_s)
-        
+
         comm.Barrier()
         start = time.time()
         store.put(buffer, object_id)
@@ -159,10 +159,10 @@ if rank == 0:
     time.sleep(1)
     object_directory_address = hoplite.get_my_address()
 else:
-    object_directory_address = ""
+    object_directory_address = None
 
-# exchange object directory address
-object_directory_address = comm.Bcast(object_directory_address.encode(), root=0).decode()
+# broadcast object directory address
+object_directory_address = comm.bcast(object_directory_address, root=0)
 store = hoplite.HopliteClient(object_directory_address)
 
 globals()[args.microbenchmark_name](store, args.object_size)
