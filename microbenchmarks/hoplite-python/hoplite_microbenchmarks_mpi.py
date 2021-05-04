@@ -60,17 +60,18 @@ def reduce(store, object_size):
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = hoplite.Buffer.from_buffer(array)
     store.put(buffer, object_id)
-
     print("Buffer created, hash =", hash(buffer))
+    object_ids = []
+    for i in range(0, world_size):
+        object_ids.append(hoplite.object_id_from_int(i))
+    comm.Barrier()
+
+    start = time.time()
     if rank == 0:
-        object_ids = []
-        for i in range(0, world_size):
-            object_ids.append(hoplite.object_id_from_int(i))
-        comm.Barrier()
-        start = time.time()
         reduction_id = store.reduce_async(object_ids, hoplite.ReduceOp.SUM)
         reduced_buffer = store.get(reduction_id)
         duration = time.time() - start
+
         reduce_result = np.frombuffer(reduced_buffer)
         print("Reduce completed, hash =", hash(reduced_buffer), "duration =", duration)
         print(reduce_result)
