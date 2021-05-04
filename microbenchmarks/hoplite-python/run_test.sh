@@ -18,6 +18,9 @@ world_size=$2
 object_size=$3
 n_trials=$4
 
+# TODO: remove softlink once we can install hoplite correctly
+ln -sfn $(realpath -s ../../python/hoplite/) hoplite
+
 # get cluster info
 source $TEST_UNILS_DIR/load_cluster_env.sh
 OTHERS_IPADDR=(${OTHERS_IPADDR[@]:0:$(($world_size-1))})
