@@ -66,8 +66,8 @@ def reduce(store, object_size):
         object_ids.append(hoplite.object_id_from_int(i))
     comm.Barrier()
 
-    start = time.time()
     if rank == 0:
+        start = time.time()
         reduction_id = store.reduce_async(object_ids, hoplite.ReduceOp.SUM)
         reduced_buffer = store.get(reduction_id)
         duration = time.time() - start

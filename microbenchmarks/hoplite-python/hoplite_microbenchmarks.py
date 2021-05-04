@@ -71,21 +71,22 @@ def multicast(object_directory_address, world_size, world_rank, object_size):
 @ray.remote(resources={'machine': 1})
 def reduce(object_directory_address, world_size, world_rank, object_size):
     store = hoplite.HopliteClient(object_directory_address)
-    object_id = hoplite.object_id_from_int(world_rank)
+    object_id = hoplite.object_id_from_int(rank)
     array = np.random.rand(object_size//4).astype(np.float32)
     buffer = hoplite.Buffer.from_buffer(array)
     store.put(buffer, object_id)
-
     print("Buffer created, hash =", hash(buffer))
-    if world_rank == 0:
-        object_ids = []
-        for i in range(0, world_size):
-            object_ids.append(hoplite.object_id_from_int(i))
-        barrier(object_directory_address, notification_port, world_size)
+    object_ids = []
+    for i in range(0, world_size):
+        object_ids.append(hoplite.object_id_from_int(i))
+    barrier(object_directory_address, notification_port, world_size)
+
+    if rank == 0:
         start = time.time()
         reduction_id = store.reduce_async(object_ids, hoplite.ReduceOp.SUM)
         reduced_buffer = store.get(reduction_id)
         duration = time.time() - start
+
         reduce_result = np.frombuffer(reduced_buffer)
         print("Reduce completed, hash =", hash(reduced_buffer), "duration =", duration)
         print(reduce_result)
