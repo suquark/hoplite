@@ -73,43 +73,15 @@ popd
 
 `python parse_gloo_result.py ../gloo_log/`
 
-### Hoplite
+## Benchmark manually
 
-**C++**
+**Hoplite C++ interface** See [microbenchmarks/hoplite-cpp](microbenchmarks/hoplite-cpp)
 
-```
-cd microbenchmarks/hoplite-cpp
-`./run_tests.sh ${microbenchmark_name}_test ${total_number_of_nodes} ${input_size_in_bytes}`
-```
+**Hoplite Python interface** See [microbenchmarks/hoplite-python](microbenchmarks/hoplite-python)
 
-**Python**
+**MPI (baseline)** See [microbenchmarks/mpi-cpp](microbenchmarks/mpi-cpp)
 
-```
-cd microbenchmarks/hoplite-python
-./launch_test.py -t ray-${microbenchmark_name} -n ${total_number_of_nodes} -s ${input_size_in_bytes}
-```
-
-**Round-trip**
-
-```
-cd python
-./launch_test.py -t sendrecv -n 2 -s ${input_size_in_bytes}
-```
-
-### MPI
-
-`cd mpi && ./mpi_{microbenchmark_name}.sh ${total_number_of_nodes} ${input_size_in_bytes}`
-
-**Round trip**
-
-`cd mpi && ./mpi_sendrecv.sh ${input_size_in_bytes}`
-
-### Gloo
-
-```
-cd microbenchmarks/gloo-cpp
-./run_benchmark.sh ${gloo_microbenchmark_name} ${total_number_of_nodes} ${input_size_in_bytes}`
-```
+**Gloo (baseline)** See [microbenchmarks/gloo-cpp](microbenchmarks/gloo-cpp)
 
 ## Lint
 
