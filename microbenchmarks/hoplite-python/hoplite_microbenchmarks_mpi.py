@@ -159,7 +159,7 @@ if rank == 0:
     time.sleep(1)
     object_directory_address = hoplite.get_my_address()
 else:
-    object_directory_address = None
+    object_directory_address = ""
 
 # exchange object directory address
 object_directory_address = comm.Bcast(object_directory_address.encode(), root=0).decode()
