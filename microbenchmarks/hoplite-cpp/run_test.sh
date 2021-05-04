@@ -15,7 +15,7 @@ sudo fuser -k 50055/tcp -s &> /dev/null
 sudo fuser -k 20210/tcp -s &> /dev/null
 
 test_name=$1
-test_executable_abspath=$TEST_BINARIES_DIR/$test_name
+test_executable_abspath=$TEST_BINARIES_DIR/${test_name}_test
 world_size=$2
 object_size=$3
 n_trials=$4
