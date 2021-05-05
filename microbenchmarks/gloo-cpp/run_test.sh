@@ -38,6 +38,7 @@ echo "IP address of this node: $MY_IPADDR"
 all_nodes=(${ALL_IPADDR[@]:0:$world_size})
 all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 $TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
+    -x GLOO_DIR="$GLOO_DIR" \
     -x GLOO_LOGGING_DIR="$log_dir" \
     -x REDIS_HOST="$MY_IPADDR" \
     -x test_name="$test_name" \
