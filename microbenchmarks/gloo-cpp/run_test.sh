@@ -7,7 +7,7 @@ if [ "$#" -lt 3 ]; then
   exit -1
 fi
 
-if [ "$#" -gt 6 ]; then
+if [ "$#" -gt 3 ]; then
   echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many arguments: $#"
   exit -1
 fi
@@ -23,8 +23,6 @@ TEST_UNILS_DIR=$(realpath -s $SCRIPT_DIR/../../test_utils)
 GLOO_DIR=$SCRIPT_DIR/gloo/
 
 source $TEST_UNILS_DIR/load_cluster_env.sh
-ALL_IPADDR=(${ALL_IPADDR[@]:0:$world_size})
-PIDS=()
 
 # prepare logging directory
 log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
@@ -35,25 +33,15 @@ ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 redis-server --port 7777 --protected-mode no &> /dev/null &
 REDIS_PID=$!
 sleep 1
-
-i=0
 echo "IP address of this node: $MY_IPADDR"
-for node in ${ALL_IPADDR[@]}; do
-  echo "=> launching gloo benchmark on $node (rank=$i)"
-  ssh -o StrictHostKeyChecking=no $node \
-    $GLOO_DIR/build/gloo/benchmark/benchmark \
-    --size $world_size \
-    --rank $i \
-    --redis-host $MY_IPADDR \
-    --redis-port 7777 \
-    --prefix benchmark-$test_name-$world_size-$object_size \
-    --transport tcp \
-    --elements $(($object_size / 4)) \
-    --iteration-count 1 \
-    $test_name \
-    2>&1 | tee $log_dir/$i.log &
-  PIDS+=($!)
-  i=$(($i + 1))
-done
-wait ${PIDS[@]}
+
+all_nodes=(${ALL_IPADDR[@]:0:$world_size})
+all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
+$TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
+    -x GLOO_LOGGING_DIR="$log_dir" \
+    -x REDIS_HOST="$MY_IPADDR" \
+    -x test_name="$test_name" \
+    -x object_size="$object_size" \
+    test_wrapper.sh
+
 kill $REDIS_PID

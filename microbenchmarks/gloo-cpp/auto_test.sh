@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$#" -lt 1 ]; then echo "ERROR: number of tests"; exit; fi
+if [ "$#" -lt 1 ]; then echo "ERROR: rounds of benchmarks (for calculating mean and std)"; exit; fi
 if [ "$#" -gt 2 ]; then echo "ERROR: too many arguments: $#"; exit; fi
 
 for num_nodes in 4 8 12 16
