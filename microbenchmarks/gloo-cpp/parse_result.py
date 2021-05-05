@@ -1,6 +1,7 @@
 import argparse
 import os
 import numpy as np
+import pandas as pd
 
 # Example output
 
@@ -23,7 +24,7 @@ def parse_file(task_name, log_dir, foldername):
             return float("nan")
 
 
-def main(log_dir):
+def collect_log_folders(log_dir):
     tasks = {}
 
     for filename in os.listdir(log_dir):
@@ -39,6 +40,12 @@ def main(log_dir):
             tasks[task] = []
         tasks[task].append(filename)
 
+    return tasks
+
+
+def main(log_dir):
+    tasks = collect_log_folders(log_dir)
+
     results = {}
 
     for task, folders in tasks.items():
@@ -51,9 +58,16 @@ def main(log_dir):
 
     task_list = sorted(list(results.keys()), reverse=True)
 
-    for task in task_list:
+    df = pd.DataFrame(columns = ['Benchmark Name', '#Nodes', 'Object Size (in bytes)',
+                                'Average Time (s)', 'Std Time (s)', 'Repeated Times'])
+
+    for i, task in enumerate(task_list):
         task_name, number_of_nodes, object_size = task
-        print(f"{task_name}, {number_of_nodes}, {object_size}, {np.mean(results[task])}, {np.std(results[task])}, {len(results[task])}")
+        df.loc[i] = [task_name, number_of_nodes, object_size, np.mean(results[task]), np.std(results[task]),
+                     len(results[task])]
+
+    print(df)
+    df.to_csv('gloo_results.csv', index=False)
 
 
 if __name__ == "__main__":
