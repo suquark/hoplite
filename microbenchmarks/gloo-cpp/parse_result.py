@@ -2,12 +2,24 @@ import os
 import sys
 import numpy as np
 
+# Example output
+
+"""
+Device:      tcp, pci=0000:00:05.0, iface=ens5, speed=-1, addr=[172.31.49.113]
+Algorithm:   allreduce_ring_chunked
+Options:     processes=4, inputs=1, threads=1
+
+   elements   min (us)   p50 (us)   p99 (us)   max (us)   avg (GB/s)    samples
+  268435456    1443672    1443672    1443672    1443672        0.693          1
+"""
+
 def parse_file(task_name, log_dir, foldername):
-    file_name = os.path.join(log_dir, foldername, "0.log")
+    file_name = os.path.join(log_dir, foldername, "rank_0.log")
     with open(file_name) as f:
         try:
+            # The unit of the original result is microsecond. We turn it into seconds.
             return float(f.readlines()[5].split()[2]) / 1000 / 1000
-        except Exception as e:
+        except Exception:
             return float("nan")
 
 
