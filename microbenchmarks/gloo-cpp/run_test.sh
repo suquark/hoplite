@@ -18,25 +18,28 @@ test_name=$1
 world_size=$2
 object_size=$3
 
-ROOT_DIR=$HOME/efs/object_store/
-source $ROOT_DIR/load_cluster_env.sh
+SCRIPT_DIR=$(dirname $(realpath -s $0))
+TEST_UNILS_DIR=$(realpath -s $SCRIPT_DIR/../../test_utils)
+GLOO_DIR=$SCRIPT_DIR/gloo/
+
+source $TEST_UNILS_DIR/load_cluster_env.sh
 ALL_IPADDR=(${ALL_IPADDR[@]:0:$world_size})
 PIDS=()
 
-GLOO_DIR=$HOME/efs/gloo/
-
-log_dir=$ROOT_DIR/gloo_log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+# prepare logging directory
+log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
 mkdir -p $log_dir
-ln -sfn $log_dir/ $ROOT_DIR/gloo_log/latest
+ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 
+# gloo benchmarks requires Redis
 redis-server --port 7777 --protected-mode no &> /dev/null &
 REDIS_PID=$!
 sleep 1
 
 i=0
-echo $MY_IPADDR
+echo "IP address of this node: $MY_IPADDR"
 for node in ${ALL_IPADDR[@]}; do
-  echo "=> $node $i"
+  echo "=> launching gloo benchmark on $node (rank=$i)"
   ssh -o StrictHostKeyChecking=no $node \
     $GLOO_DIR/build/gloo/benchmark/benchmark \
     --size $world_size \

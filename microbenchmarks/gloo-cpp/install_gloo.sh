@@ -4,8 +4,6 @@
 
 sudo apt-get install -y libhiredis-dev redis-server
 
-cd ..
-
 if [ ! -d gloo ]; then
     git clone git@github.com:facebookincubator/gloo.git
 fi
