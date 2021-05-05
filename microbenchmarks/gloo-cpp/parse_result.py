@@ -58,7 +58,7 @@ def main(log_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Gloo benchmark results parser.')
-    parser.add_argument('log_dir', metavar='PATH', type=str, default='log',
+    parser.add_argument('log_dir', metavar='PATH', nargs='?', type=str, default='log',
                         help='The logging directory of Gloo benchmarks')
     args = parser.parse_args()
     main(args.log_dir)
