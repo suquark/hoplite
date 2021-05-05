@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 import numpy as np
 
 # Example output
@@ -24,50 +24,41 @@ def parse_file(task_name, log_dir, foldername):
 
 
 def main(log_dir):
-    files = os.listdir(log_dir)
-
     tasks = {}
 
-    for filename in files:
+    for filename in os.listdir(log_dir):
         if filename == "latest":
             continue
+        # log name format: $date-$time-$test_name-$world_size-$object_size
         splited = filename.split('-')
         if len(splited) != 5:
-            exit(-1)
-        task_name = splited[2]
-        number_of_nodes = splited[3]
-        object_size = splited[4]
-
-        task = task_name + '-' + number_of_nodes + '-' + object_size
-
+            raise Exception(f"Unexpected log name {filename}.")
+        task_name, number_of_nodes, object_size = splited[2:5]
+        task = (task_name, number_of_nodes, object_size)
         if task not in tasks:
             tasks[task] = []
-
         tasks[task].append(filename)
 
     results = {}
 
-    for task in tasks:
+    for task, folders in tasks.items():
         task_results = []
-        for foldername in tasks[task]:
-            result = parse_file(task.split('-')[0], log_dir, foldername)
+        for foldername in folders:
+            result = parse_file(task[0], log_dir, foldername)
             if not np.isnan(result):
                 task_results.append(result)
-        task_results = np.array(task_results)
+        results[task] = np.array(task_results)
 
-        results[task] = task_results
-
-    task_list = []
-    for task in results:
-        task_list.append(task)
-
-    task_list = sorted(task_list, reverse=True)
+    task_list = sorted(list(results.keys()), reverse=True)
 
     for task in task_list:
-        print(", ".join(task.split("-") + [str(np.mean(results[task])), str(np.std(results[task])), str(len(results[task]))]))
+        task_name, number_of_nodes, object_size = task
+        print(f"{task_name}, {number_of_nodes}, {object_size}, {np.mean(results[task])}, {np.std(results[task])}, {len(results[task])}")
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 2, "Usage: python parse_result.py LOG_DIR"
-    log_dir = sys.argv[1]
-    main(log_dir)
+    parser = argparse.ArgumentParser(description='Gloo benchmark results parser.')
+    parser.add_argument('log_dir', metavar='PATH', type=str, default='log',
+                        help='The logging directory of Gloo benchmarks')
+    args = parser.parse_args()
+    main(args.log_dir)
