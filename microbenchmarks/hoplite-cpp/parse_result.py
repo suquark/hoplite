@@ -2,151 +2,50 @@ import argparse
 import os
 import numpy as np
 
+import sys
+
+sys.path.insert(0, "../../test_utils")
+import result_parser_utils
+
+
 WARMUP_ROUNDS = 2
 
-def parse_multicast(folder_path):
+
+def get_durations(lines):
+    durations = []
+    for line in lines:
+        if 'duration = ' in line:
+            tmp = line.split('duration = ')[1]
+            durations.append(float(tmp))
+    return durations
+
+
+def parse_all_ranks(folder_path, with_rank0=True):
     files = os.listdir(folder_path)
-    all_trial_times = []
+    all_rank_durations = []
     for filename in files:
-        if 'rank' in filename and 'rank_0' not in filename:
+        if 'rank' in filename and (with_rank0 or 'rank_0' not in filename):
             try:
-                f = open(os.path.join(folder_path, filename))
-                trial_times = []
-                for line in f.readlines():
-                    if 'is retrieved using' in line:
-                        tmp = line.split('is retrieved using')[1]
-                        tmp = tmp.split('seconds')[0]
-                        retrieval_time = float(tmp)
-                        trial_times.append(retrieval_time)
-                f.close()
-                all_trial_times.append(np.array(trial_times))
-            except:
+                with open(os.path.join(folder_path, filename)) as f:
+                    durations = get_durations(f.readlines())
+                all_rank_durations.append(durations)
+            except Exception:
                 print("Bad file", folder_path, filename)
                 return None
-    n_trials = len(all_trial_times[0])
-    if not all([len(x) == n_trials for x in all_trial_times]):
-        print("Bad folder", folder_path, filename)
-        return None
-    all_trial_times = np.array(all_trial_times)
-    all_trial_times = np.max(all_trial_times, axis=0)
-    return all_trial_times
-
-def parse_reduce(folder_path):
-    files = os.listdir(folder_path)
-    all_trial_times = []
-    for filename in files:
-        if 'rank_0' in filename:
-            try:
-                f = open(os.path.join(folder_path, filename))
-                for line in f.readlines():
-                    if 'is reduced using' in line:
-                        tmp = line.split('is reduced using')[1]
-                        tmp = tmp.split()[0]
-                        reduce_time = float(tmp)
-                        all_trial_times.append(reduce_time)
-                f.close()
-            except:
-                print("Bad file", folder_path, filename)
-    all_trial_times = np.array(all_trial_times)
-    return all_trial_times
-
-def parse_allreduce(folder_path):
-    files = os.listdir(folder_path)
-    all_trial_times = []
-    for filename in files:
-        if 'rank' in filename:
-            try:
-                f = open(os.path.join(folder_path, filename))
-                trial_times = []
-                for line in f.readlines():
-                    if 'is reduced using' in line:
-                        tmp = line.split('is reduced using')[1]
-                        tmp = tmp.split()[0]
-                        reduce_time = float(tmp)
-                        trial_times.append(reduce_time)
-                f.close()
-                all_trial_times.append(np.array(trial_times))
-            except:
-                print("Bad file", folder_path, filename)
-
-    n_trials = len(all_trial_times[0])
-    if not all([len(x) == n_trials for x in all_trial_times]):
-        print("Bad folder", folder_path, filename)
-        return None
-    all_trial_times = np.array(all_trial_times)
-    all_trial_times = np.max(all_trial_times, axis=0)
-    return all_trial_times
-
-def parse_gather(folder_path):
-    files = os.listdir(folder_path)
-    all_trial_times = []
-    for filename in files:
-        if 'rank_0' in filename:
-            try:
-                f = open(os.path.join(folder_path, filename))
-                for line in f.readlines():
-                    if 'gathered using' in line:
-                        tmp = line.split('gathered using')[1]
-                        tmp = tmp.split()[0]
-                        gather_time = float(tmp)
-                        all_trial_times.append(gather_time)
-                f.close()
-            except:
-                print("Bad file", folder_path, filename)
-    all_trial_times = np.array(all_trial_times)
-    return all_trial_times
+    return np.max(all_rank_durations, axis=0)
 
 
 def parse_file(task_name, log_dir, foldername):
     path = os.path.join(log_dir, foldername)
 
-    if task_name == 'multicast_test':
-        return parse_multicast(path)
-    elif task_name == 'reduce_test':
-        return parse_reduce(path)
-    elif task_name == 'allreduce_test':
-        return parse_allreduce(path)
-    elif task_name == 'gather_test':
-        return parse_gather(path)
+    if task_name in ('allreduce', 'allgather'):
+        return parse_all_ranks(path)
+    elif task_name == 'multicast_test':
+        return parse_all_ranks(path, with_rank0=False)
+    elif task_name in ('reduce', 'gather'):
+        return result_parser_utils.default_parse_file(task_name, log_dir, foldername)
     else:
         raise ValueError('Unknown task', task_name)
-
-def main(log_dir, verbose):
-    files = os.listdir(log_dir)
-
-    tasks = {}
-
-    for filename in files:
-        if filename != "latest":
-            splited = filename.split('-')
-            if len(splited) != 5:
-                exit(-1)
-            task_name = splited[2]
-            number_of_nodes = splited[3]
-            object_size = splited[4]
-
-            task = task_name + '-' + number_of_nodes + '-' + object_size
-
-            if task not in tasks:
-                tasks[task] = []
-
-            tasks[task].append(filename)
-
-    results = {}
-
-    for task in tasks:
-        assert len(tasks[task]) == 1
-        for foldername in tasks[task]:
-            results[task] = parse_file(task.split('-')[0], log_dir, foldername)[WARMUP_ROUNDS:]
-
-    task_list = []
-    for task in results:
-        task_list.append(task)
-
-    task_list = sorted(task_list, reverse=True)
-
-    for task in task_list:
-        print(", ".join(task.split("-") + [str(np.mean(results[task])), str(np.std(results[task])), str(len(results[task]))]))
 
 
 if __name__ == "__main__":
@@ -155,4 +54,7 @@ if __name__ == "__main__":
                         help='The logging directory of Gloo benchmarks')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
-    main(args.log_dir, args.verbose)
+    df = result_parser_utils.parse(args.log_dir, parse_file)
+    if args.verbose:
+        print(df)
+    df.to_csv('hoplite_results.csv', index=False)
