@@ -8,6 +8,7 @@ import result_parser_utils
 
 def parse_file(task_name, log_dir, foldername):
     folder_path = os.path.join(log_dir, foldername)
+    retrieval_time = None
     try:
         with open(folder_path) as f:
             for line in f.readlines():
@@ -17,8 +18,6 @@ def parse_file(task_name, log_dir, foldername):
                     break
     except Exception:
         pass
-    if retrieval_time is None:
-        print(f"Error parsing {folder_path}. Cannot read value.")
     return retrieval_time
 
 
