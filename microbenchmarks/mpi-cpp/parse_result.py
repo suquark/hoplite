@@ -2,7 +2,7 @@ import argparse
 import sys
 import os
 
-sys.path.append(0, "../../test_utils")
+sys.path.insert(0, "../../test_utils")
 import result_parser_utils
 
 
