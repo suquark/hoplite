@@ -36,7 +36,7 @@ def parse_all_ranks(folder_path, with_rank0=True):
                 return None
 
     if not all_rank_durations:
-        print("Error: empty directory", folder_path, filename)
+        print("Error: empty directory", folder_path)
     return np.max(all_rank_durations, axis=0)
 
 
