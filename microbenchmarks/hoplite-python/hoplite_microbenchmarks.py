@@ -28,8 +28,7 @@ def roundtrip(store, object_size):
         buffer = store.get(object_id2)
         duration = time.time() - start
         hash_r =  hash(buffer)
-        print("Buffer received, hash =", hash_r)
-        print("duration = ", duration)
+        print(f"Buffer received, hash = {hash_r}, duration = {duration}")
         assert hash_s == hash_r, "Hash mismatch!"
     else:
         comm.Barrier()
@@ -50,7 +49,7 @@ def multicast(store, object_size):
         start = time.time()
         buffer = store.get(object_id)
         duration = time.time() - start
-        print("Buffer received, hash =", hash(buffer), "duration =", duration)
+        print(f"Buffer received, hash = {hash(buffer)}, duration = {duration}")
         array = np.frombuffer(buffer, dtype=np.int32)
         print(array)
 
@@ -73,7 +72,7 @@ def reduce(store, object_size):
         duration = time.time() - start
 
         reduce_result = np.frombuffer(reduced_buffer)
-        print("Reduce completed, hash =", hash(reduced_buffer), "duration =", duration)
+        print(f"Reduce completed, hash = {hash(reduced_buffer)}, duration = {duration}")
         print(reduce_result)
 
 
@@ -96,7 +95,7 @@ def allreduce(store, object_size):
     duration = time.time() - start
 
     reduce_result = np.frombuffer(reduced_buffer)
-    print("AllReduce completed, hash =", hash(reduced_buffer), "duration =", duration)
+    print(f"AllReduce completed, hash = {hash(reduced_buffer)}, duration = {duration}")
     print(reduce_result)
 
 
@@ -118,8 +117,7 @@ def gather(store, object_size):
         for object_id in object_ids:
             buffers.append(store.get(object_id))
         duration = time.time() - start
-
-        print("Gather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
+        print(f"Gather completed, hash = {list(map(hash, buffers))}, duration = {duration}")
 
 
 def allgather(store, object_size):
@@ -139,8 +137,7 @@ def allgather(store, object_size):
     for object_id in object_ids:
         buffers.append(store.get(object_id))
     duration = time.time() - start
-
-    print("AllGather completed, hash =", [hash(b) for b in buffers], "duration =", duration)
+    print(f"AllGather completed, hash = {list(map(hash, buffers))}, duration = {duration}")
 
 
 microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
