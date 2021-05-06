@@ -6,7 +6,7 @@ sudo apt update
 
 ## build grpc
 if [ ! -d grpc ]; then
-     # TODO: pin version to 1.31.0
+     
      git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc.git
 
      sudo apt-get install \
@@ -20,6 +20,8 @@ if [ ! -d grpc ]; then
 	  libc++-dev
 
      pushd grpc
+     # pin gRPC version to 1.31.0
+     git checkout tags/v1.31.0
      git submodule update --init --recursive
 
      mkdir build && cd build

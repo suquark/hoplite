@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   }
 
   if (argc != 2) {
-    fprintf(stderr, "Usage: send_recv num_elements\n");
+    fprintf(stderr, "Usage: ./roundtrip num_elements\n");
     exit(1);
   }
 
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
         /* communicator = */ MPI_COMM_WORLD,
         /* status       = */ MPI_STATUS_IGNORE);
     time += MPI_Wtime();
-    printf("MPI_Recv time = %lf\n", time);
+    printf("MPI_Recv (roundtrip) duration = %lf\n", time);
 
   } else if (world_rank == 1) {
     MPI_Recv(

@@ -26,7 +26,7 @@ float *create_rand_nums(int num_elements) {
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "Usage: avg num_elements_per_proc\n");
+    fprintf(stderr, "Usage: ./allreduce num_elements\n");
     exit(1);
   }
 
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
   // Print the result
   if (world_rank == 0) {
-    printf("MPI_Allreduce time = %lf\n", time);
+    printf("MPI_Allreduce duration = %lf\n", time);
   }
 
   // Clean up

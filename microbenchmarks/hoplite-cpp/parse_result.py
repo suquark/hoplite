@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 import numpy as np
 
 WARMUP_ROUNDS = 2
@@ -111,7 +111,7 @@ def parse_file(task_name, log_dir, foldername):
     else:
         raise ValueError('Unknown task', task_name)
 
-def main(log_dir):
+def main(log_dir, verbose):
     files = os.listdir(log_dir)
 
     tasks = {}
@@ -150,6 +150,9 @@ def main(log_dir):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 2, "Usage: python parse_result.py LOG_DIR"
-    log_dir = sys.argv[1]
-    main(log_dir)
+    parser = argparse.ArgumentParser(description='Hoplite (C++) benchmark results parser.')
+    parser.add_argument('log_dir', metavar='PATH', nargs='?', type=str, default='log',
+                        help='The logging directory of Gloo benchmarks')
+    parser.add_argument('--verbose', action='store_true')
+    args = parser.parse_args()
+    main(args.log_dir, args.verbose)
