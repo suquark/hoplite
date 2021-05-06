@@ -47,7 +47,7 @@ def parse_file(task_name, log_dir, foldername):
 
     if task_name in ('allreduce', 'allgather'):
         return parse_all_ranks(path)
-    elif task_name == 'multicast_test':
+    elif task_name == 'multicast':
         return parse_all_ranks(path, with_rank0=False)
     elif task_name in ('reduce', 'gather', 'subset_reduce'):
         return result_parser_utils.default_parse_file(task_name, log_dir, foldername)
