@@ -28,10 +28,15 @@ def parse_all_ranks(folder_path, with_rank0=True):
             try:
                 with open(os.path.join(folder_path, filename)) as f:
                     durations = get_durations(f.readlines())
+                if not durations:
+                    raise ValueError("Bad file")
                 all_rank_durations.append(durations)
             except Exception:
                 print("Bad file", folder_path, filename)
                 return None
+
+    if not all_rank_durations:
+        raise Exception("Bad file")
     return np.max(all_rank_durations, axis=0)
 
 

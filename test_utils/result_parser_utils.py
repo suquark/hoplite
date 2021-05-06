@@ -51,10 +51,10 @@ def parse(log_dir, parse_file):
         task_results = []
         for foldername in folders:
             result = parse_file(task[0], log_dir, foldername)
-            if result is None or np.isnan(result):
-                print(f"Error parsing {foldername}: cannot read out value.")
-            elif isinstance(result, (list, np.ndarray)):
+            if isinstance(result, (list, np.ndarray)):
                 task_results += list(result)
+            elif result is None or np.isnan(result):
+                print(f"Error parsing {foldername}: cannot read out value.")
             else:
                 task_results.append(result)
         results[task] = np.array(task_results)
