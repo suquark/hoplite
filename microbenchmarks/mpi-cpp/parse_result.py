@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 import numpy as np
 
 def parse_multicast(folder_path):
@@ -83,13 +83,13 @@ def parse_file(task_name, log_dir, foldername):
 
     assert (False)
 
-def main(log_dir):
+def main(log_dir, verbose):
     files = os.listdir(log_dir)
 
     tasks = {}
 
     for filename in files:
-        splited = filename.split('-');
+        splited = filename.split('-')
         if len(splited) != 4:
             exit(-1)
         task_name = splited[0]
@@ -124,6 +124,9 @@ def main(log_dir):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 2, "Usage: python parse_mpi_result.py LOG_DIR"
-    log_dir = sys.argv[1]
-    main(log_dir)
+    parser = argparse.ArgumentParser(description='MPI (C++) benchmark results parser.')
+    parser.add_argument('log_dir', metavar='PATH', nargs='?', type=str, default='log',
+                        help='The logging directory of Gloo benchmarks')
+    parser.add_argument('--verbose', action='store_true')
+    args = parser.parse_args()
+    main(args.log_dir, args.verbose)

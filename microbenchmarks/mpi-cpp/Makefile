@@ -1,4 +1,4 @@
-EXECS=multicast reduce allreduce gather allgather send_recv
+EXECS=multicast reduce allreduce gather allgather roundtrip
 MPICC?=mpicc
 
 all: ${EXECS}
@@ -18,8 +18,8 @@ gather: gather.c
 allgather: allgather.c
 	${MPICC} -O2 -o allgather allgather.c
 
-send_recv: send_recv.c
-	${MPICC} -O2 -o send_recv send_recv.c
+roundtrip: roundtrip.c
+	${MPICC} -O2 -o roundtrip roundtrip.c
 
 clean:
 	rm -f ${EXECS}

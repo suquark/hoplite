@@ -12,4 +12,4 @@ all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 echo data size: $1
 echo Nodes: ${all_nodes[@]}
 
-$ROOT_DIR/mpirun_pernode.sh $all_hosts $(realpath -s send_recv) $[$1/4]
+$ROOT_DIR/mpirun_pernode.sh $all_hosts $(realpath -s roundtrip) $[$1/4]
