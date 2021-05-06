@@ -1,6 +1,5 @@
 import argparse
 import sys
-import os
 
 sys.path.insert(0, "../../test_utils")
 import result_parser_utils
@@ -17,13 +16,12 @@ Options:     processes=4, inputs=1, threads=1
 """
 
 def parse_file(task_name, log_dir, foldername):
-    file_name = os.path.join(log_dir, foldername, "rank_0.log")
-    with open(file_name) as f:
-        try:
-            # The unit of the original result is microsecond. We turn it into seconds.
-            return float(f.readlines()[5].split()[2]) / 1000 / 1000
-        except Exception:
-            return None
+    try:
+        lines = result_parser_utils.read_rank0_lines(log_dir, foldername)
+        # The unit of the original result is microsecond. We turn it into seconds.
+        return float(lines[5].split()[2]) / 1000 / 1000
+    except Exception:
+        return None
 
 
 if __name__ == "__main__":

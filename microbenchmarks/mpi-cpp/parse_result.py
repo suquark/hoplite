@@ -1,24 +1,19 @@
 import argparse
 import sys
-import os
 
 sys.path.insert(0, "../../test_utils")
 import result_parser_utils
 
 
 def parse_file(task_name, log_dir, foldername):
-    folder_path = os.path.join(log_dir, foldername)
-    retrieval_time = None
     try:
-        with open(folder_path) as f:
-            for line in f.readlines():
-                if 'duration = ' in line:
-                    tmp = line.split('duration = ')[1]
-                    retrieval_time = float(tmp)
-                    break
+        lines = result_parser_utils.read_rank0_lines(log_dir, foldername)
+        for line in lines:
+            if 'duration = ' in line:
+                tmp = line.split('duration = ')[1]
+                return float(tmp)
     except Exception:
-        pass
-    return retrieval_time
+        return None
 
 
 if __name__ == "__main__":

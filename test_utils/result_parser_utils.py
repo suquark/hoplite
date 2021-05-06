@@ -4,6 +4,12 @@ import numpy as np
 import pandas as pd
 
 
+def read_rank0_lines(log_dir, foldername):
+    file_name = os.path.join(log_dir, foldername, "rank_0.log")
+    with open(file_name) as f:
+        return f.readlines()
+
+
 def collect_log_folders(log_dir):
     tasks = {}
 
