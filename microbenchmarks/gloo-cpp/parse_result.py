@@ -43,7 +43,7 @@ def collect_log_folders(log_dir):
     return tasks
 
 
-def main(log_dir):
+def main(log_dir, verbose):
     tasks = collect_log_folders(log_dir)
 
     results = {}
@@ -65,8 +65,8 @@ def main(log_dir):
         task_name, number_of_nodes, object_size = task
         df.loc[i] = [task_name, number_of_nodes, object_size, np.mean(results[task]), np.std(results[task]),
                      len(results[task])]
-
-    print(df)
+    if verbose:
+        print(df)
     df.to_csv('gloo_results.csv', index=False)
 
 
@@ -74,5 +74,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Gloo benchmark results parser.')
     parser.add_argument('log_dir', metavar='PATH', nargs='?', type=str, default='log',
                         help='The logging directory of Gloo benchmarks')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
-    main(args.log_dir)
+    main(args.log_dir, args.verbose)
