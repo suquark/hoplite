@@ -25,6 +25,6 @@ all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 echo Number of nodes: $world_size "(actually ${#all_nodes[@]})", data size: $object_size
 echo Nodes: ${all_nodes[@]} "("${#all_nodes[@]}")"
 
-$ROOT_DIR/mpirun_pernode.sh $all_hosts \
+$TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
     -x MPI_LOGGING_DIR="$log_dir" \
     test_wrapper.sh $test_executable_abspath $[$object_size/4]
