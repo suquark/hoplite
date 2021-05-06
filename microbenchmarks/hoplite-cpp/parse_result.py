@@ -42,7 +42,7 @@ def parse_file(task_name, log_dir, foldername):
         return parse_all_ranks(path)
     elif task_name == 'multicast_test':
         return parse_all_ranks(path, with_rank0=False)
-    elif task_name in ('reduce', 'gather'):
+    elif task_name in ('reduce', 'gather', 'subset_reduce'):
         return result_parser_utils.default_parse_file(task_name, log_dir, foldername)
     else:
         raise ValueError('Unknown task', task_name)
