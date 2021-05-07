@@ -1,3 +1,3 @@
 #!/bin/bash
 pkill dask-scheduler
-../fornode pkill dask-worker
+../../fornode pkill dask-worker
