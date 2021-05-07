@@ -53,8 +53,8 @@ int main(int argc, char **argv) {
       store.Get(reduction_id, &reduction_result);
       auto end = std::chrono::system_clock::now();
       std::chrono::duration<double> duration = end - start;
-      LOG(INFO) << "Reduce " << num_reduce_objects << " objects";
-      LOG(INFO) << reduction_id.ToString() << " is reduced using " << duration.count();
+      LOG(INFO) << "Reducing " << num_reduce_objects << " objects";
+      LOG(INFO) << reduction_id.ToString() << " is reduced. duration = " << duration.count();
       std::unordered_set<ObjectID> reduced_objects;
       reduced_objects = store.GetReducedObjects(reduction_id);
       for (const auto &reduced_object : reduced_objects) {

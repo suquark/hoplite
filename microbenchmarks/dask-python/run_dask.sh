@@ -4,11 +4,12 @@ if [ "$#" -gt 3 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many argum
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGHUP EXIT
 
-ROOT_DIR=$(dirname $(dirname $(realpath -s $0)))
+SCRIPT_DIR=$(dirname $(realpath -s $0))
+TEST_UNILS_DIR=$(realpath -s $SCRIPT_DIR/../../test_utils)
 world_size=$1
 
 if [ "$#" -eq 1 ]; then
-    source $ROOT_DIR/load_cluster_env.sh
+    source $TEST_UNILS_DIR/load_cluster_env.sh
     OTHERS_IPADDR=(${OTHERS_IPADDR[@]:0:$(($world_size-1))})
     
     dask-scheduler &

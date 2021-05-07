@@ -10,6 +10,19 @@ def read_rank0_lines(log_dir, foldername):
         return f.readlines()
 
 
+def default_parse_file(task_name, log_dir, foldername):
+    try:
+        lines = read_rank0_lines(log_dir, foldername)
+        results = []
+        for line in lines:
+            if 'duration = ' in line:
+                tmp = line.split('duration = ')[1]
+                results.append(float(tmp))
+        return results
+    except Exception:
+        return None
+
+
 def collect_log_folders(log_dir):
     tasks = {}
 
@@ -38,7 +51,9 @@ def parse(log_dir, parse_file):
         task_results = []
         for foldername in folders:
             result = parse_file(task[0], log_dir, foldername)
-            if result is None or np.isnan(result):
+            if isinstance(result, (list, np.ndarray)):
+                task_results += list(result)
+            elif result is None or np.isnan(result):
                 print(f"Error parsing {foldername}: cannot read out value.")
             else:
                 task_results.append(result)

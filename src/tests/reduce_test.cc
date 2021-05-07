@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
       store.Get(reduction_id, &reduction_result);
       auto end = std::chrono::system_clock::now();
       std::chrono::duration<double> duration = end - start;
-      LOG(INFO) << reduction_id.ToString() << " is reduced using " << duration.count();
+      LOG(INFO) << reduction_id.ToString() << " is reduced. duration = " << duration.count();
       print_reduction_result<float>(reduction_id, reduction_result, sum);
     }
     MPI_Barrier(MPI_COMM_WORLD);

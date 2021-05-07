@@ -1,3 +1,3 @@
 #!/bin/bash
-pkill dask-scheduler
-../fornode pkill dask-worker
+sudo pkill dask-scheduler
+../../fornode sudo pkill dask-worker

@@ -9,7 +9,7 @@ NUM_NODES = (4, 8, 12, 16)
 OBJECT_SIZES = (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30)
 REPEAT_TIMES = 5
 
-microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather']
+microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather', 'auto']
 parser = argparse.ArgumentParser(description='Ray microbenchmarks')
 parser.add_argument('test_name', type=str, choices=microbenchmark_names, help='Microbenchmark name')
 parser.add_argument('-n', '--world-size', type=int, required=False,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     assert test_name in ray_microbenchmarks.__dict__ or args.test_name == 'auto'
     if args.test_name != 'auto':
         assert args.world_size is not None and args.object_size is not None
-        mean, std = test_with_mean_std(5, test_name, notification_address, args.world_size, args.object_size)
+        mean, std = test_with_mean_std(test_name, notification_address, args.world_size, args.object_size, 5)
         print(f"{args.test_name},{args.world_size},{args.object_size},{mean},{std}")
     else:
         assert args.world_size is None and args.object_size is None
