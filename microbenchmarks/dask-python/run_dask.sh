@@ -21,9 +21,9 @@ if [ "$#" -eq 1 ]; then
         ssh -t -t ${OTHERS_IPADDR[$index]} "$(realpath -s $0) $MY_IPADDR $rank" &
     done
 
-    dask-worker $MY_IPADDR:8786 --name Dask-0
+    dask-worker $MY_IPADDR:18786 --name Dask-0
 else
     master=$1
     index=$2
-    dask-worker $master:8786 --name Dask-$index
+    dask-worker $master:18786 --name Dask-$index
 fi
