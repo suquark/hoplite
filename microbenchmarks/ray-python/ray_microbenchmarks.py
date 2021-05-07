@@ -51,7 +51,7 @@ class RayBenchmarkWorker:
         duration = time.time() - start
         return duration
 
-    @ray.method(num_return_vals=2)
+    @ray.method(num_returns=2)
     def reduce_objects(self, object_ids):
         object_ids = ray.get(object_ids)
         start = time.time()
