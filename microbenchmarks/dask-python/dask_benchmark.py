@@ -152,7 +152,7 @@ def allreduce(client, world_size, object_size, epoch):
 
 
 def main(algorithm, world_size, object_size):
-    client = Client("127.0.0.1:18786")
+    client = Client("127.0.0.1:8786")
     if algorithm == 'multicast':
          if object_size < 64 * 1024 * 1024:
              func = multicast_small
