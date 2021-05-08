@@ -53,4 +53,5 @@ $TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
     -x RAY_BACKEND_LOG_LEVEL=$RAY_BACKEND_LOG_LEVEL \
     test_wrapper.sh $test_executable_abspath $MY_IPADDR $object_size $n_trials
 
+pkill notification
 sleep 1
