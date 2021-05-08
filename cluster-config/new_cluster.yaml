@@ -18,7 +18,7 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-05d376bcfde2ae58f # hoplite-sigcomm-ray-serve
+    ImageId: ami-0a53ac9d916d997ae  # hoplite-sigcomm21
     InstanceMarketOptions:
         MarketType: spot
     KeyName: siyuan-aws
@@ -29,7 +29,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-05d376bcfde2ae58f # hoplite-sigcomm-ray-serve
+    ImageId: ami-0a53ac9d916d997ae  # hoplite-sigcomm21
     InstanceMarketOptions:
         MarketType: spot
     KeyName: siyuan-aws

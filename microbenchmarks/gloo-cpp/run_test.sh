@@ -25,7 +25,7 @@ GLOO_DIR=$SCRIPT_DIR/gloo/
 source $TEST_UNILS_DIR/load_cluster_env.sh
 
 # prepare logging directory
-log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S.%N")-$test_name-$world_size-$object_size
 mkdir -p $log_dir
 ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 

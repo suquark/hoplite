@@ -34,7 +34,7 @@ echo "$(tput setaf 2)[INFO]$(tput sgr 0) head_node: $MY_IPADDR; other_nodes: ${O
 echo "$(tput setaf 2)[INFO]$(tput sgr 0) Running test $(tput setaf 3)$(tput bold)$test_name$(tput sgr 0)"
 
 # create logging dir
-log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S.%N")-$test_name-$world_size-$object_size
 mkdir -p $log_dir
 ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 
@@ -53,4 +53,5 @@ $TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
     -x RAY_BACKEND_LOG_LEVEL=$RAY_BACKEND_LOG_LEVEL \
     test_wrapper.sh $test_executable_abspath $MY_IPADDR $object_size $n_trials
 
+pkill notification
 sleep 1

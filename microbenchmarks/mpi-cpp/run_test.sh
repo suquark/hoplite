@@ -15,7 +15,7 @@ world_size=$2
 object_size=$3
 
 # create logging dir
-log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S")-$test_name-$world_size-$object_size
+log_dir=$SCRIPT_DIR/log/$(date +"%Y%m%d-%H%M%S.%N")-$test_name-$world_size-$object_size
 mkdir -p $log_dir
 ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 
