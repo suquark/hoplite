@@ -54,6 +54,7 @@ def random_object_id():
 def _register_cleanup(processes):
     def _cleanup_processes():
         print("Cleaning up process...")
+        # wait clients to exit to suppress error messages
         time.sleep(0.5)
         for p in processes:
             p.terminate()
