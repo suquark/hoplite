@@ -51,6 +51,6 @@ all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 $TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
     -x HOPLITE_LOGGING_DIR=$log_dir \
     -x RAY_BACKEND_LOG_LEVEL=$RAY_BACKEND_LOG_LEVEL \
-    test_wrapper.sh $test_executable_abspath $MY_IPADDR $object_size $n_trials
+    $SCRIPT_DIR/test_wrapper.sh $test_executable_abspath $MY_IPADDR $object_size $n_trials
 
 sleep 1
