@@ -4,14 +4,18 @@ if [ "$#" -gt 1 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many argum
 
 trap "exit" INT
 
+./run_test.sh multicast $1 $[2**10] 1000
 ./run_test.sh multicast $1 $[2**17] 1000
 ./run_test.sh multicast $1 $[2**30] 5
 
+./run_test.sh reduce $1 $[2**10] 1000
 ./run_test.sh reduce $1 $[2**17] 1000
 ./run_test.sh reduce $1 $[2**30] 5
 
+./run_test.sh allreduce $1 $[2**10] 1000
 ./run_test.sh allreduce $1 $[2**17] 1000
 ./run_test.sh allreduce $1 $[2**30] 5
 
+./run_test.sh gather $1 $[2**10] 1000
 ./run_test.sh gather $1 $[2**17] 1000
 ./run_test.sh gather $1 $[2**30] 5
