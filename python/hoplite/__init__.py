@@ -53,6 +53,8 @@ def random_object_id():
 
 def _register_cleanup(processes):
     def _cleanup_processes():
+        print("Cleaning up process...")
+        time.sleep(0.5)
         for p in processes:
             p.terminate()
     atexit.register(_cleanup_processes)
