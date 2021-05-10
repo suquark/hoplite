@@ -177,8 +177,10 @@ bool Receiver::check_and_store_inband_data(const ObjectID &object_id, int64_t ob
                                            const std::string &inband_data) {
   TIMELINE("Receiver::check_and_store_inband_data");
   if (!inband_data.empty()) {
-    LOG(DEBUG) << "fetching object directly from inband data";
+    LOG(DEBUG) << "fetching object directly from inband data  (object size = " << object_size
+               << ", inband_data_size = " << inband_data.size() << ")";
     DCHECK(inband_data.size() <= inband_data_size_limit) << "unexpected inband data size";
+    DCHECK(inband_data.size() == object_size) << "inband data size is different from object size";
     std::shared_ptr<Buffer> data;
     local_store_client_.Create(object_id, object_size, &data);
     data->CopyFrom(inband_data);
