@@ -67,7 +67,8 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id, const st
     grpc::ClientContext context;
     WriteLocationReply reply;
     auto status = notification_stub_->WriteLocation(&context, request, &reply);
-    DCHECK(status.ok()) << status.error_message();
+    DCHECK(status.ok()) << "WriteLocation for " << object_id.ToString() << " failed. "
+                        << "Error message: " << status.error_message();
     DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString() << " failed.";
   } else {
     pool_.push(
@@ -75,7 +76,8 @@ void GlobalControlStoreClient::WriteLocation(const ObjectID &object_id, const st
           grpc::ClientContext context;
           WriteLocationReply reply;
           auto status = notification_stub_->WriteLocation(&context, request, &reply);
-          DCHECK(status.ok()) << status.error_message();
+          DCHECK(status.ok()) << "WriteLocation for " << object_id.ToString() << " failed. "
+                              << "Error message: " << status.error_message();
           DCHECK(reply.ok()) << "WriteLocation for " << object_id.ToString() << " failed.";
         },
         std::move(request));
@@ -91,7 +93,9 @@ SyncReply GlobalControlStoreClient::GetLocationSync(const ObjectID &object_id, b
   request.set_object_id(object_id.Binary());
   request.set_occupying(occupying);
   request.set_receiver_ip(receiver_ip);
-  notification_stub_->GetLocationSync(&context, request, &reply);
+  auto status = notification_stub_->GetLocationSync(&context, request, &reply);
+  DCHECK(status.ok()) << "GetLocationSync for " << object_id.ToString() << " failed. "
+                      << "Error message: " << status.error_message();
   return {std::string(reply.sender_ip()), reply.object_size(), reply.inband_data()};
 }
 
