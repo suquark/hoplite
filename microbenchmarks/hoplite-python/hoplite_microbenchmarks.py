@@ -72,7 +72,7 @@ def reduce(store, object_size):
         duration = time.time() - start
 
         reduce_result = np.frombuffer(reduced_buffer)
-        print(f"Reduce completed, hash = {hash(reduced_buffer)}, duration = {duration}")
+        print(f"Reduce completed, hash = {hash(reduced_buffer)}, duration = {duration}", flush=True)
         print(reduce_result)
 
 
@@ -95,7 +95,7 @@ def allreduce(store, object_size):
     duration = time.time() - start
 
     reduce_result = np.frombuffer(reduced_buffer)
-    print(f"AllReduce completed, hash = {hash(reduced_buffer)}, duration = {duration}")
+    print(f"AllReduce completed, hash = {hash(reduced_buffer)}, duration = {duration}", flush=True)
     print(reduce_result)
 
 
