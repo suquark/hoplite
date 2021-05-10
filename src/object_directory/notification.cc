@@ -264,6 +264,8 @@ void NotificationServiceImpl::handle_object_ready(const ObjectID &object_id) {
     if (inband_data.empty()) {
       dep->Get(receiver_ip, receiver.occupying, &object_size, &sender_ip, &inband_data,
                []() { LOG(FATAL) << "Not expect to fail when there are objects ready"; });
+    } else {
+      object_size = inband_data.size();
     }
     switch (receiver.type) {
     case ReceiverQueueElement::SYNC: {
