@@ -7,7 +7,7 @@ sudo apt update
 ## build grpc
 if [ ! -d grpc ]; then
      
-     git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc.git
+     git clone https://github.com/grpc/grpc.git
 
      sudo apt-get install \
        build-essential \
