@@ -1,5 +1,7 @@
 #!/bin/bash
 
+trap "exit" INT
+
 for test_index in `seq 1 3`; do
 ./run_test.sh roundtrip 2 $[2**25]
 ./run_test.sh roundtrip 2 $[2**15]

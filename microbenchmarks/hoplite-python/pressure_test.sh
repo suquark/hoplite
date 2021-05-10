@@ -5,15 +5,15 @@ if [ "$#" -gt 1 ]; then echo "$(tput setaf 1)[ERROR]$(tput sgr 0) too many argum
 trap "exit" INT
 
 for i in `seq 1000`; do
-./run_test.sh multicast 8 $[2**17]
-./run_test.sh reduce 8 $[2**17]
-./run_test.sh allreduce 8 $[2**17]
-./run_test.sh gather 8 $[2**17] 
+./run_test.sh multicast $1 $[2**17]
+./run_test.sh reduce $1 $[2**17]
+./run_test.sh allreduce $1 $[2**17]
+./run_test.sh gather $1 $[2**17] 
 done
 
 for i in `seq 5`; do
-./run_test.sh multicast 8 $[2**17]
-./run_test.sh reduce 8 $[2**17]
-./run_test.sh allreduce 8 $[2**17]
-./run_test.sh gather 8 $[2**17] 
+./run_test.sh multicast $1 $[2**17]
+./run_test.sh reduce $1 $[2**17]
+./run_test.sh allreduce $1 $[2**17]
+./run_test.sh gather $1 $[2**17] 
 done

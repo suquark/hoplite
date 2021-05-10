@@ -1,5 +1,7 @@
 #!/bin/bash
 
+trap "exit" INT
+
 num_nodes=8
 
 for test_name in multicast reduce gather allreduce allgather; do
