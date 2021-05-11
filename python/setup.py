@@ -31,3 +31,5 @@ setup(name='hoplite',
       package_data={'hoplite': ['_hoplite_lib*.so']},
       include_package_data=True,
       ext_modules=cythonize(ext_modules))
+
+shutil.move('_hoplite_client.cpython-36m-x86_64-linux-gnu.so', 'hoplite/')
