@@ -2,17 +2,9 @@
 
 ## TODOs
 
-- [ ] `StrictHostKeyChecking=no` in `~/.ssh/config`
-
-- [ ] Reorganize automatic testing for python hoplite and C++ hoplite.
-
 - [ ] Cleanup python code.
 
-- [ ] Test `python/launch_ray_microbenchmarks.py`
-
 - [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
-
-- [ ] Test refactored `src/reduce_dependency.cc`.
 
 - [ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
 
@@ -46,9 +38,15 @@ Binaries and shared libraries are under `build` after successful compilation.
 Then build Hoplite Python library
 
 ```bash
-pushd python
-python setup.py build_ext --inplace
-popd
+# We setup it locally first to avoid race conditions about generating binary files with a shared fs.
+python/setup.sh
+./fornode $(realpath python/setup.sh) 
+```
+
+To validate you have installed the python library correctly,
+
+```bash
+./fornode python -c \"import hoplite\"
 ```
 
 ## Microbenchmarks
