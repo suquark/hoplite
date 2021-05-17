@@ -11,7 +11,7 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
 from libcpp.vector cimport vector as c_vector
 
-from _hoplite_client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG, CRayLogINFO, CRayLogERROR
+from hoplite._hoplite_client cimport CDistributedObjectStore, CBuffer, CObjectID, CRayLog, CRayLogDEBUG, CRayLogINFO, CRayLogERROR
 from cpython cimport Py_buffer, PyObject
 from cpython.buffer cimport PyBUF_SIMPLE, PyObject_CheckBuffer, PyBuffer_Release, PyObject_GetBuffer, PyBuffer_FillInfo
 
