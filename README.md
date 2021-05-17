@@ -38,8 +38,10 @@ Binaries and shared libraries are under `build` after successful compilation.
 Then build Hoplite Python library
 
 ```bash
-# We setup it locally first to avoid race conditions about generating binary files with a shared fs.
-python/setup.sh
+pushd python
+pip install -e .
+cp ../build/notification hoplite/
+popd
 ./fornode $(realpath python/setup.sh) 
 ```
 
