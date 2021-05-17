@@ -10,7 +10,7 @@ lib_dir = project_dir / 'build'
 ext_modules = [
     Extension(
         "_hoplite_client",
-        sources=["_hoplite_client.pyx"],
+        sources=["hoplite/_hoplite_client.pyx"],
         include_dirs=["hoplite/", str(src_dir), str(lib_dir)],  # lib_dir contains "object_store.grpc.pb.h"
         library_dirs=[str(lib_dir)],
         libraries=["hoplite_client_lib"],
