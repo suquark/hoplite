@@ -17,7 +17,7 @@
 # C++ dependencies
 ./install_dependencies.sh
 # python dependencies
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Build Hoplite
