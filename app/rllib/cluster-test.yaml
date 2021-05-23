@@ -1,8 +1,8 @@
-cluster_name: hoplite-single
+cluster_name: hoplite
 
-min_workers: 0
-max_workers: 0
-initial_workers: 0
+min_workers: 15
+max_workers: 15
+initial_workers: 15
 
 provider:
     type: aws
@@ -15,29 +15,22 @@ provider:
 
 auth:
     ssh_user: ubuntu
-    ssh_private_key: /Users/zhuohan123/.ssh/shared_key.pem
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
+    ImageId: ami-0028f669c3af8ae60
     KeyName: shared_key
-    SecurityGroupIds:
-        - "sg-f55048b4"
     Placement:
         GroupName: hoplite-group
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
+    ImageId: ami-0028f669c3af8ae60
     KeyName: shared_key
-    SecurityGroupIds:
-        - "sg-f55048b4"
     Placement:
         GroupName: hoplite-group
 
-setup_commands:
-    - sudo mount -t efs fs-6dad81c6:/ efs
-    - sudo chmod 777 efs
+setup_commands: []
 
 # Command to start ray on the head node. You don't need to change this.
 head_start_ray_commands:

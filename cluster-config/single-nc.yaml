@@ -6,11 +6,11 @@ initial_workers: 0
 
 provider:
     type: aws
-    region: us-west-2
+    region: us-west-1
     # Availability zone(s), comma-separated, that nodes may be launched in.
     # Nodes are currently spread between zones by a round-robin approach,
     # however this implementation detail should not be relied upon.
-    availability_zone: us-west-2a
+    availability_zone: us-west-1b
     cache_stopped_nodes: False
 
 auth:
@@ -19,24 +19,20 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
+    ImageId: ami-0445e6fea66b74ae5 # rllib-all
     KeyName: shared_key
     SecurityGroupIds:
-        - "sg-f55048b4"
-    Placement:
-        GroupName: hoplite-group
+        - "sg-878331f8"
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
+    ImageId: ami-0445e6fea66b74ae5 # rllib-all
     KeyName: shared_key
     SecurityGroupIds:
-        - "sg-f55048b4"
-    Placement:
-        GroupName: hoplite-group
+        - "sg-878331f8"
 
 setup_commands:
-    - sudo mount -t efs fs-6dad81c6:/ efs
+    - sudo mount -t efs fs-760d746f:/ efs
     - sudo chmod 777 efs
 
 # Command to start ray on the head node. You don't need to change this.
