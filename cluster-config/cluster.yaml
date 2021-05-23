@@ -11,6 +11,7 @@ provider:
     # Nodes are currently spread between zones by a round-robin approach,
     # however this implementation detail should not be relied upon.
     availability_zone: us-west-2a
+    cache_stopped_nodes: False
 
 auth:
     ssh_user: ubuntu
@@ -18,7 +19,7 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-01859c084acd14dc9 # hoplite-nsdi-11
+    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
@@ -27,7 +28,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-01859c084acd14dc9 # hoplite-nsdi-11
+    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"

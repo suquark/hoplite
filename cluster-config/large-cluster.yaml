@@ -1,8 +1,8 @@
-cluster_name: hoplite-single
+cluster_name: hoplite
 
-min_workers: 0
-max_workers: 0
-initial_workers: 0
+min_workers: 63
+max_workers: 63
+initial_workers: 63
 
 provider:
     type: aws
@@ -11,7 +11,6 @@ provider:
     # Nodes are currently spread between zones by a round-robin approach,
     # however this implementation detail should not be relied upon.
     availability_zone: us-west-2a
-    cache_stopped_nodes: False
 
 auth:
     ssh_user: ubuntu
@@ -19,7 +18,7 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
+    ImageId: ami-01859c084acd14dc9 # hoplite-nsdi-11
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
@@ -28,7 +27,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
+    ImageId: ami-01859c084acd14dc9 # hoplite-nsdi-11
     KeyName: shared_key
     SecurityGroupIds:
         - "sg-f55048b4"
