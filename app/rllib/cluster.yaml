@@ -23,7 +23,7 @@ head_node:
     SecurityGroupIds:
         - "sg-f55048b4"
     Placement:
-        GroupName: hoplite-group
+        GroupName: {group-name}
 
 worker_nodes:
     InstanceType: m5.4xlarge
@@ -32,7 +32,7 @@ worker_nodes:
     SecurityGroupIds:
         - "sg-f55048b4"
     Placement:
-        GroupName: hoplite-group
+        GroupName: {group-name}
 
 setup_commands: []
 
