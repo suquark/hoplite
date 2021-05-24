@@ -5,7 +5,7 @@
 At the root of the hoplite project,
 
 ```
-./fornode pip install -r app/ray_serve/requirements.txt
+./fornode pip install -r $(realpath app/ray_serve/requirements.txt)
 ```
 
 `cluster.yaml` includes Ray cluster settings.
