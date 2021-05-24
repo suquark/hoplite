@@ -66,6 +66,7 @@ def start_location_server():
     notification_p = subprocess.Popen([str(server_exec)])
     _register_cleanup([notification_p])
     time.sleep(2)
+    return get_my_address()
 
 
 __all__ = ('start_location_server', 'random_object_id', 'object_id_from_int',
