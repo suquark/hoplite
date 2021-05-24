@@ -21,3 +21,7 @@ With Hoplite: `python hoplite_model_ensembling.py ${scale}`
 Baseline + fault tolerance test: `python model_ensembling_fault_tolerance.py 1`
 
 With Hoplite + fault tolerance test: `python hoplite_model_ensembling_fault_tolerance.py.py 1`
+
+## Notes
+
+The initial run will be extremely slow on AWS due to python generating caching files. This might affect the performance measurement by a bit. Run it for a second time if necessary.
