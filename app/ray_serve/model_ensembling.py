@@ -89,6 +89,6 @@ if __name__ == "__main__":
         requests.get("http://127.0.0.1:8000/inference")
         durations.append(1/(time.time() - start))
 
-    print(f"{np.mean(durations):.6f} ± {np.std(durations):.6f} requests/s")
+    print(f"{np.mean(durations):.6f} ± {np.std(durations):.6f} queries/s")
     # > {"count": 1}
     # print(ray.get(client.get_handle("ray_endpoint").remote()))

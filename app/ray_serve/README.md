@@ -1,4 +1,4 @@
-# Ray Serve Experiments
+# ML Model Serving Experiments
 
 _(About 25 min, not including cluster setting up time)_
 
@@ -21,6 +21,8 @@ At the root of the hoplite project,
 Baseline _(2-3 min)_: `python model_ensembling.py ${scale}`
 
 With Hoplite _(1-2 min)_: `python hoplite_model_ensembling.py ${scale}`
+
+The script will print the mean and std of throughput (queries/s) at the end.
 
 ## ML Model Serving fault tolerance experiments (Figure 12a)
 
