@@ -140,7 +140,7 @@ if __name__ == "__main__":
     client.create_endpoint("h_endpoint", backend="h_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
-    print(requests.get("http://127.0.0.1:8000/inference").json())
+    # print(requests.get("http://127.0.0.1:8000/inference").json())
 
     # Warmup
     for _ in range(10):
