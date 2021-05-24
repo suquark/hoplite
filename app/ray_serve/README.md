@@ -25,7 +25,6 @@ Baseline + fault tolerance test _(About 2 min)_: `python model_ensembling_fault_
 With Hoplite + fault tolerance test _(About 2 min)_: `python hoplite_model_ensembling_fault_tolerance.py.py 1`
 
 
-
 ## Notes
 
-The initial run will be extremely slow on AWS due to python generating caching files (about 4 min). This might affect the performance measurement by a bit. Run it for a second time if necessary.
+The initial run will be extremely slow on AWS due to python generating caching files etc (about 4 min). This is totally normal.
