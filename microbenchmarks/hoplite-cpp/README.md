@@ -24,4 +24,4 @@ Usage:
 ./run_tests.sh subset_reduce ${total_number_of_nodes} ${input_size_in_bytes}
 ```
 
-A proper setup uses `total_number_of_nodes=8`.
+We suggest `total_number_of_nodes>=4`.
