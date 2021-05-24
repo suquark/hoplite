@@ -6,42 +6,39 @@ initial_workers: 8
 
 provider:
     type: aws
-    region: us-west-2
+    region: us-east-1
     # Availability zone(s), comma-separated, that nodes may be launched in.
     # Nodes are currently spread between zones by a round-robin approach,
     # however this implementation detail should not be relied upon.
-    availability_zone: us-west-2a
+    availability_zone: us-east-1f
 
 auth:
     ssh_user: ubuntu
-    ssh_private_key: /Users/siyuan/.ssh/siyuan-aws.pem
 
 head_node:
     InstanceType: p3.2xlarge
-    ImageId: ami-05d376bcfde2ae58f # hoplite-sigcomm-ray-serve
+    ImageId: ami-01058a567dab23bd6 # hoplite-sigcomm21
     InstanceMarketOptions:
         MarketType: spot
-    KeyName: siyuan-aws
     SecurityGroupIds:
-        - "sg-50656710"
+        - "sg-3463e565"
     Placement:
         GroupName: hoplite-group
 
 worker_nodes:
     InstanceType: p3.2xlarge
-    ImageId: ami-05d376bcfde2ae58f # hoplite-sigcomm-ray-serve
+    ImageId: ami-01058a567dab23bd6 # hoplite-sigcomm21
     InstanceMarketOptions:
         MarketType: spot
-    KeyName: siyuan-aws
     SecurityGroupIds:
-        - "sg-50656710"
+        - "sg-3463e565"
     Placement:
         GroupName: hoplite-group
 
 setup_commands:
     # - pip install ray==1.1
     - mkdir -p ~/efs
-    - sudo mount -t efs fs-a692810d:/ ~/efs
+    - sudo mount -t efs fs-d416cc55:/ ~/efs
     - sudo chmod 777 ~/efs
 
 # Command to start ray on the head node. You don't need to change this.

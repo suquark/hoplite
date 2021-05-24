@@ -2,15 +2,17 @@
 
 ## Setup
 
+At the root of the hoplite project,
+
 ```
-pip install -r requirements.txt
+./fornode pip install -r app/ray_serve/requirements.txt
 ```
 
 `cluster.yaml` includes Ray cluster settings.
 
 ## Run
 
-`${scale}*8` GPU nodes are required for experiments
+`${scale}*8+1` GPU nodes are required for experiments
 
 Baseline: `python model_ensembling.py ${scale}`
 
