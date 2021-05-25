@@ -17,7 +17,7 @@ auth:
 
 head_node:
     InstanceType: p3.2xlarge
-    ImageId: ami-01058a567dab23bd6 # hoplite-sigcomm21
+    ImageId: ami-0947593b62663ba38 # hoplite-sigcomm21-2
     InstanceMarketOptions:
         MarketType: spot
     SecurityGroupIds:
@@ -27,7 +27,7 @@ head_node:
 
 worker_nodes:
     InstanceType: p3.2xlarge
-    ImageId: ami-01058a567dab23bd6 # hoplite-sigcomm21
+    ImageId: ami-0947593b62663ba38 # hoplite-sigcomm21-2
     InstanceMarketOptions:
         MarketType: spot
     SecurityGroupIds:
