@@ -30,7 +30,7 @@ mkdir -p $log_dir
 ln -sfn $log_dir/ $SCRIPT_DIR/log/latest
 
 # gloo benchmarks requires Redis
-redis-server --port 7777 --protected-mode no &> /dev/null &
+redis-server --port 7799 --protected-mode no &> /dev/null &
 REDIS_PID=$!
 sleep 1
 echo "IP address of this node: $MY_IPADDR"
