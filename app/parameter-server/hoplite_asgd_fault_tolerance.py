@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import sys
 import time
 
 import torch
@@ -34,7 +33,7 @@ from ps_helper import ConvNet
 class ParameterServer(object):
     def __init__(self, args_dict, lr, workers, model_type="custom"):
         os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
-        self.store = hoplite.create_store_using_dict(args_dict)
+        self.store = hoplite.HopliteClient(object_directory_address)
         self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
         self.workers = workers
@@ -79,9 +78,9 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, index, args_dict, model_type="custom", device="cpu", enable_fail=True):
+    def __init__(self, index, object_directory_address, model_type="custom", device="cpu", enable_fail=True):
         os.environ['RAY_BACKEND_LOG_LEVEL'] = 'info'
-        self.store = hoplite.create_store_using_dict(args_dict)
+        self.store = hoplite.HopliteClient(object_directory_address)
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
@@ -124,19 +123,17 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
 parser.add_argument('--iterations', type=int, default=50, help='number of iterations')
-hoplite.add_arguments(parser)
-
-hoplite.start_location_server()
 args = parser.parse_args()
-args_dict = hoplite.extract_dict_from_args(args)
+
+object_directory_address = hoplite.start_location_server()
 
 ray.init(address='auto', ignore_reinit_error=True)
 
 workers = []
 for i in range(args.num_workers):
-    workers.append(DataWorker.remote(i, args_dict, model_type=args.model, device='cuda'))
+    workers.append(DataWorker.remote(i, object_directory_address, model_type=args.model, device='cuda'))
 
-ps = ParameterServer.remote(args_dict, 1e-2, workers=workers, model_type=args.model)
+ps = ParameterServer.remote(object_directory_address, 1e-2, workers=workers, model_type=args.model)
 
 # get initial weights
 current_weights = ps.get_parameter_id.remote()
@@ -189,7 +186,7 @@ for i in range(args.iterations):
             failed_worker, _ = gradients.pop(gradient_id)
             worker_index = workers.index(failed_worker)
             print(f"worker {worker_index} failed. starting a new one...")
-            new_worker = DataWorker.remote(worker_index, args_dict, model_type=args.model, device='cuda', enable_fail=False)
+            new_worker = DataWorker.remote(worker_index, object_directory_address, model_type=args.model, device='cuda', enable_fail=False)
             backup_workers[worker_index] = (new_worker, new_worker.poll.remote())
 
     # actual iteration
@@ -208,7 +205,7 @@ for i in range(args.iterations):
     step_start = now
 
 import json
-with open("hoplite_ft.json", "w") as f:
+with open("hoplite_asgd_fault_tolerance.json", "w") as f:
     json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.

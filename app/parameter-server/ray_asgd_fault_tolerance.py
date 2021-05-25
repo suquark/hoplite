@@ -28,7 +28,6 @@ Let's first define some helper functions and import some dependencies.
 
 """
 import argparse
-import os
 import time
 import torch
 
@@ -216,22 +215,8 @@ for i in range(args.iterations):
     step_start = now
 
 import json
-with open("ray_ft.json", "w") as f:
+with open("ray_asgd_fault_tolerance.json", "w") as f:
     json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.
 ray.shutdown()
-
-##############################################################################
-# Final Thoughts
-# --------------
-#
-# This approach is powerful because it enables you to implement a parameter
-# server with a few lines of code as part of a Python application.
-# As a result, this simplifies the deployment of applications that use
-# parameter servers and to modify the behavior of the parameter server.
-#
-# For example, sharding the parameter server, changing the update rule,
-# switch between asynchronous and synchronous updates, ignoring
-# straggler workers, or any number of other customizations,
-# will only require a few extra lines of code.
