@@ -92,7 +92,7 @@ You should have sshed into an AWS instance now, the following commands are execu
    ~~~
 5. Config ssh for MPI:
    ~~~bash
-   echo "Host *\n    StrictHostKeyChecking no" >> ~/.ssh/config
+   echo -e "Host *\n    StrictHostKeyChecking no" >> ~/.ssh/config
    sudo chmod 400 ~/.ssh/config
    ~~~
 6. Setup ssh key:
@@ -100,7 +100,6 @@ You should have sshed into an AWS instance now, the following commands are execu
    ssh-keygen
    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
    ~~~
-
 7. Create an AMI on [AWS console](aws.amazon.com/console). See EC2 -> Instances -> Actions -> Image and templates -> Create image. Set the image name (e.g. `hoplite-artifact-ami`) and then create image.
 8. Go to AMIs tab on AWS console. When the AMI is ready, turn off the instance via:
    ~~~bash
