@@ -106,14 +106,19 @@ You should have sshed into an AWS instance now, the following commands are execu
    ray down initial.yaml
    ~~~
 
-## Start the Cluster and Evaluate _(About 30 min)_
+## Start the Cluster _(About 10 min)_
 
 1. Create a [placement group](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html) on the AWS Management Console. See EC2 -> Placement Groups. Choose the `Cluster` placement strategy. This can make sure the interconnection bandwidth among different nodes in the cluster are high.
 2. Replace the `{image-id}` in `cluster.yaml` with the AMI-id you just created and `{group-name}` with the placement group name you just created.
 3. Replace `{efs-id}` with your [EFS file system ID](https://console.aws.amazon.com/efs/home?region=us-east-1).
-4. Start the cluster and connect to the head node via:
+4. Replace `SecurityGroupIds` with the security ID created by `initial.yaml`.
+5. Start the cluster and connect to the head node via:
    ~~~bash
    ray up cluster.yaml
    ray attach cluster.yaml
    ~~~
    If the node fails to connect to EFS (or the cluster takes forever to spin up), check if the security group ID in EFS as mentioned earlier.
+
+If everything is ok, take down the cluster using `ray down cluster.yaml` and remember to save your `cluster.yaml`.
+
+`siyuan.yaml` is an example of configurated cluster file.
