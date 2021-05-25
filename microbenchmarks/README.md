@@ -17,6 +17,8 @@ python parse_result.py --verbose
 popd
 ```
 
+Results are saved in `mpi_results.csv`.
+
 ### Hoplite _(about 15 min)_
 
 ```bash
@@ -25,6 +27,8 @@ pushd hoplite-cpp
 python parse_result.py --verbose
 popd
 ```
+
+Results are saved in `hoplite_results.csv`.
 
 ### Gloo _(about 20 min)_
 
@@ -36,9 +40,18 @@ python parse_result.py --verbose
 popd
 ```
 
-### Ray _(about ? min)_
+Results are saved in `gloo_results.csv`.
 
-TODO: fix the problem that Ray stuck in the middle.
+### Ray _(about 25 min)_
+
+```bash
+pushd ray-python
+make
+./auto_test.sh
+popd
+```
+
+Results are saved in `ray-microbenchmark.csv`.
 
 ### Dask _(about ? min)_
 
