@@ -1,6 +1,6 @@
 # Setup AWS Cluster for Hoplite on AWS.
 
-## Setup Local Environment _(About 5 min)_
+## Setup Local Environment _(About 10 min)_
 
  First, on your local machine:
 
@@ -19,39 +19,55 @@
    chmod 600 ~/.aws/credentials
    ~~~
 
-## Setup AMI _(About 20 min)_
+## Spin up AMI _(About 5 min)_
 
 Please contact Siyuan Zhuang (s.z@berkeley.edu) for configured AMI. See following for the instructions to setup the cluster from scratch:
 
 Start an AWS node with `initial.yaml` and connect to the node:
    ~~~bash
    ray up initial.yaml
-   ray attach initial.yaml
+   ray attach initial.yaml # ssh into the AWS instance
    ~~~
+
+## Setup EFS _(About 10 min)_
+
+Some experiments require a shared files system for proper logging. Here use AWS EFS.
+
+1. Create an [EFS](https://console.aws.amazon.com/efs) on region `us-east-1`. This is used as an NFS for all nodes in the cluster.
+2. Check your created EFS on [https://console.aws.amazon.com/efs/home?region=us-east-1#/file-systems/](https://console.aws.amazon.com/efs/home?region=us-east-1#/file-systems/). You can see the EFS File system ID ("fs-********") on the page.
+3. Please add the security group ID of the node you just started (can be found on the AWS Management Console) to the EFS to make sure your node can access the EFS (link to manage EFS network access: https://console.aws.amazon.com/efs/home?region=us-east-1#/file-systems/{Your EFS file system ID}/network-access).
+
+## Setup AMI _(About 20 min)_
 
 You should have sshed into an AWS instance now, the following commands are executed on the AWS instance:
 
-0. Create an [EFS](https://console.aws.amazon.com/efs) on region `us-east-1`. This is used as an NFS for all nodes in the cluster. Please add the security group ID of the node you just started (can be found on the AWS Management Console) to the EFS to make sure your node can access the EFS. After that, you need to install the [efs-utils](https://docs.aws.amazon.com/efs/latest/ug/installing-other-distro.html) to mount the EFS on the node:
+0. Install the [efs-utils](https://docs.aws.amazon.com/efs/latest/ug/installing-other-distro.html) to mount the EFS on the node:
    ~~~bash
    git clone https://github.com/aws/efs-utils
    cd efs-utils
    ./build-deb.sh
    sudo apt-get -y install ./build/amazon-efs-utils*deb
    ~~~
+   It is normal to see
+   ~~~
+   E: Could not get lock /var/lib/dpkg/lock-frontend - open (11: Resource temporarily unavailable)
+   E: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), is another process using it?
+   ~~~
+   when installing the package. This means the machine is still booting up and installing packages, you need to wait until the package manager is ready (usually 2-4 min) and install again.
+
    Then mount the EFS on the node by:
    ~~~bash
    mkdir -p ~/efs
    sudo mount -t efs {Your EFS file system ID}:/ ~/efs
    sudo chmod 777 ~/efs
    ~~~
-   If this takes forever, make sure you configure the sercurity groups right.
+   If this takes forever or connection timeout, make sure you configure the sercurity groups right.
 1. Install dependancies, clone Hoplite, and then compile Hoplite:
    ~~~bash
-   ./install_dependencies.sh
-   cd ~/efs
    # You **must** the repo under EFS.
-   git clone https://github.com/suquark/hoplite.git
+   cd ~/efs && git clone https://github.com/suquark/hoplite.git
    cd hoplite
+   ./install_dependencies.sh
    mkdir build
    cd build
    cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -69,7 +85,7 @@ You should have sshed into an AWS instance now, the following commands are execu
    ~~~
 4. Install Hoplite Python library:
    ~~~bash
-   cd ~/hoplite
+   cd ~/efs/hoplite
    pip install -e python
    cp build/notification python/hoplite/
    ./python/setup.sh

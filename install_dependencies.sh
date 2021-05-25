@@ -6,10 +6,8 @@ sudo apt update
 
 ## build grpc
 if [ ! -d grpc ]; then
-     
-     git clone https://github.com/grpc/grpc.git
 
-     sudo apt-get install \
+     sudo apt-get install -y \
        build-essential \
 	  autoconf \
 	  libtool \
@@ -18,6 +16,8 @@ if [ ! -d grpc ]; then
 	  libgtest-dev \
 	  clang-5.0 \
 	  libc++-dev
+     
+     git clone https://github.com/grpc/grpc.git
 
      pushd grpc
      # pin gRPC version to 1.31.0
@@ -34,14 +34,4 @@ if [ ! -d grpc ]; then
      ./configure
      make -j8 && sudo make install
      popd
-fi
-
-if [ ! -d efs-utils ]; then
-     sudo apt-get -y install binutils
-     git clone https://github.com/aws/efs-utils.git
-     pushd efs-utils
-     ./build-deb.sh
-     sudo apt-get -y install ./build/amazon-efs-utils*deb
-     popd
-     mkdir efs
 fi
