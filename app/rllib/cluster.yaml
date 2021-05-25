@@ -19,18 +19,12 @@ auth:
 head_node:
     InstanceType: m5.4xlarge
     ImageId: {image-id}
-    KeyName: shared_key
-    SecurityGroupIds:
-        - "sg-f55048b4"
     Placement:
         GroupName: {group-name}
 
 worker_nodes:
     InstanceType: m5.4xlarge
     ImageId: {image-id}
-    KeyName: shared_key
-    SecurityGroupIds:
-        - "sg-f55048b4"
     Placement:
         GroupName: {group-name}
 
