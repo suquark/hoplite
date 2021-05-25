@@ -26,12 +26,12 @@ served_models = (
 
 @ray.remote(num_gpus=1)
 class ModelWorker:
-    def __init__(self, model_name, args_dict):
+    def __init__(self, model_name, object_directory_address):
         if model_name.startswith('efficientnet'):
             self.model = EfficientNet.from_name(model_name).cuda().eval()
         else:
             self.model = getattr(models, model_name)().cuda().eval()
-        self.store = hoplite.create_store_using_dict(args_dict)
+        self.store = hoplite.HopliteClient(object_directory_address)
         if model_name == 'alexnet':
             import threading
             def kill():
@@ -57,9 +57,9 @@ class ModelWorker:
 
 
 class InferenceHost:
-    def __init__(self, args_dict, scale=1):
-        self.store = hoplite.create_store_using_dict(args_dict)
-        self.args_dict = args_dict
+    def __init__(self, object_directory_address, scale=1):
+        self.store = hoplite.HopliteClient(object_directory_address)
+        self.object_directory_address = object_directory_address
         # Imagine this is a data labeling task, and the user have loaded a bunch of images,
         # cached in memory. Because it is interactive,
         # 1) The user can choose any set of images.
@@ -73,7 +73,7 @@ class InferenceHost:
         # VGG16 is super slow compared to other models.
         for _ in range(scale):
             for model_name in served_models:
-                self.models.append(ModelWorker.remote(model_name, args_dict))
+                self.models.append(ModelWorker.remote(model_name, object_directory_address))
 
         self.request_id = 0
         self.rebooting_tasks = {}
@@ -98,7 +98,7 @@ class InferenceHost:
                 if i not in self.rebooting_tasks:
                     print(f"task {i} failed, restarting...")
                     event = "fail"
-                    handle = ModelWorker.remote('alexnet', self.args_dict)
+                    handle = ModelWorker.remote('alexnet', self.object_directory_address)
                     self.rebooting_tasks[i] = (handle, handle.poll.remote())
                 else:
                     print(f"waiting failed task {i} to restart...")
@@ -124,11 +124,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ray serve with hoplite')
     parser.add_argument("scale", type=int, default=1)
     parser.add_argument("--num-requests", "-n", type=int, default=200)
-    # We just use this to extract default configurations
-    hoplite.add_arguments(parser)
     args = parser.parse_args()
-    args_dict = hoplite.extract_dict_from_args(args)
-    hoplite.start_location_server()
+
+    object_directory_address = hoplite.start_location_server()
 
     ray.init(address='auto')
     client = serve.start()
@@ -138,11 +136,11 @@ if __name__ == "__main__":
         client.delete_backend(backend)
 
     # Form a backend from our class and connect it to an endpoint.
-    client.create_backend("h_backend", InferenceHost, args_dict, args.scale, ray_actor_options={"num_gpus":1})
+    client.create_backend("h_backend", InferenceHost, object_directory_address, args.scale, ray_actor_options={"num_gpus":1})
     client.create_endpoint("h_endpoint", backend="h_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
-    print(requests.get("http://127.0.0.1:8000/inference").json())
+    # print(requests.get("http://127.0.0.1:8000/inference").json())
 
     # Warmup
     for _ in range(10):

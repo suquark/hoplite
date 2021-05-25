@@ -1,21 +1,37 @@
-# Ray Serve Experiments
+# ML Model Serving Experiments
 
-## Setup
+_(About 25 min, not including cluster setting up time)_
 
+## Setup 
+
+_(About 2 min)_
+
+At the root of the hoplite project,
+2
 ```
-pip install -r requirements.txt
+./fornode pip install -r $(realpath app/ray_serve/requirements.txt)
 ```
 
 `cluster.yaml` includes Ray cluster settings.
 
-## Run
+## ML model serving experiments (Figure 11)
 
-`${scale}*8+1` nodes are required for experiments
+`${scale}` controls the cluster size (in the paper we use 1 and 2). `${scale}*8+1` GPU nodes are required for experiments. The cluster configuration file includes 9 V100 GPU nodes for `scale=1`.
 
-Baseline: `python model_ensembling.py ${scale}`
+Baseline _(2-3 min)_: `python model_ensembling.py ${scale}`
 
-With Hoplite: `python hoplite_model_ensembling.py ${scale}`
+With Hoplite _(1-2 min)_: `python hoplite_model_ensembling.py ${scale}`
 
-Baseline + fault tolerance test: `python model_ensembling_fault_tolerance.py 1`
+The script will print the mean and std of throughput (queries/s) at the end.
 
-With Hoplite + fault tolerance test: `python hoplite_model_ensembling_fault_tolerance.py.py ${scale}`
+## ML Model Serving fault tolerance experiments (Figure 12a)
+
+Baseline + fault tolerance test _(About 2 min)_: `python model_ensembling_fault_tolerance.py 1`
+
+With Hoplite + fault tolerance test _(About 2 min)_: `python hoplite_model_ensembling_fault_tolerance.py.py 1`
+
+Run `python analyze.py` to compare the latency caused by failures.
+
+## Notes
+
+The initial run will be extremely slow on AWS due to python generating caching files etc (about 4 min). This is totally normal.

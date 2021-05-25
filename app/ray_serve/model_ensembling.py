@@ -77,7 +77,7 @@ if __name__ == "__main__":
     client.create_endpoint("ray_endpoint", backend="ray_backend", route="/inference")
 
     # Query our endpoint in two different ways: from HTTP and from Python.
-    print(requests.get("http://127.0.0.1:8000/inference").json())
+    # print(requests.get("http://127.0.0.1:8000/inference").json())
 
     # Warmup
     for _ in range(10):
@@ -89,6 +89,8 @@ if __name__ == "__main__":
         requests.get("http://127.0.0.1:8000/inference")
         durations.append(1/(time.time() - start))
 
-    print(f"{np.mean(durations):.6f} ± {np.std(durations):.6f} requests/s")
+    print(
+        "\n" + "=" * 40 + "\n" +
+        f"Troughtput: {np.mean(durations):.6f} ± {np.std(durations):.6f} queries/s\n" + "=" * 40 + "\n")
     # > {"count": 1}
-    print(ray.get(client.get_handle("ray_endpoint").remote()))
+    # print(ray.get(client.get_handle("ray_endpoint").remote()))
