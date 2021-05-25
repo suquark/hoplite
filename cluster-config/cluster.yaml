@@ -19,7 +19,6 @@ auth:
 head_node:
     InstanceType: m5.4xlarge
     ImageId: {image-id}
-    KeyName: shared_key
     SecurityGroupIds:
         - "{security group id created by inital.yaml}"
     Placement:
@@ -28,7 +27,6 @@ head_node:
 worker_nodes:
     InstanceType: m5.4xlarge
     ImageId: {image-id}
-    KeyName: shared_key
     SecurityGroupIds:
         - "{security group id created by inital.yaml}"
     Placement:
