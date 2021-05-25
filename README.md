@@ -2,8 +2,6 @@
 
 ## TODOs
 
-- [ ] Cleanup python code.
-
 - [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
 
 - [ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
@@ -54,37 +52,45 @@ To validate you have installed the python library correctly,
 See [app/ray_serve](app/ray_serve). It also includes the fault tolerance experiments related to model serving in section 5.5.
 
 
-## Microbenchmarks
+## Microbenchmarks (Figure 7 at Section 5.1, Figure 13 at Appendix A)
 
-`${microbenchmark_name}` includes `multicast`, `reduce`, `gather`, `allreduce`, `allgather`.
+First, run the microbenchmarks and collect data _(About 30 min)_
 
-### Automatic benchmarking
+### OpenMPI _(about 30 min)_
 
-**Automatic benchmarking for MPI and Hoplite**:
+```bash
+pushd microbenchmarks/mpi-cpp
+./auto_test.sh
+python parse_result.py --verbose
+popd
+```
 
-`./auto_test.sh`
+### Hoplite _(about 15 min)_
 
-`python script/parse_result.py log/`
+```bash
+pushd microbenchmarks/hoplite-cpp
+./auto_test.sh
+python parse_result.py --verbose
+popd
+```
 
-`python script/parse_mpi_result.py mpi_log/`
+### Gloo _(about 20 min)_
 
-**Automatic benchmarking for Gloo**:
+```bash
+pushd microbenchmarks/gloo-cpp
+./install_gloo.sh
+./auto_test.sh
+python parse_result.py --verbose
+popd
+```
 
-`cd gloo`
+### Ray _(about ? min)_
 
-`./auto_test_gloo.sh ${NUM_TRIALS}`
+TODO: fix the problem that Ray stuck in the middle.
 
-`python parse_gloo_result.py ../gloo_log/`
+### Dask _(about ? min)_
 
-## Benchmark manually
-
-**Hoplite C++ interface** See [microbenchmarks/hoplite-cpp](microbenchmarks/hoplite-cpp)
-
-**Hoplite Python interface** See [microbenchmarks/hoplite-python](microbenchmarks/hoplite-python)
-
-**MPI (baseline)** See [microbenchmarks/mpi-cpp](microbenchmarks/mpi-cpp)
-
-**Gloo (baseline)** See [microbenchmarks/gloo-cpp](microbenchmarks/gloo-cpp)
+TODO: run dask.
 
 ## Lint
 
