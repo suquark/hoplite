@@ -215,7 +215,7 @@ for i in range(args.iterations):
     step_start = now
 
 import json
-with open("ray_ft.json", "w") as f:
+with open("ray_asgd_fault_tolerance.json", "w") as f:
     json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.

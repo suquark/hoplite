@@ -205,7 +205,7 @@ for i in range(args.iterations):
     step_start = now
 
 import json
-with open("hoplite_ft.json", "w") as f:
+with open("hoplite_asgd_fault_tolerance.json", "w") as f:
     json.dump(record, f)
 
 # Clean up Ray resources and processes before the next example.
