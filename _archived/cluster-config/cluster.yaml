@@ -6,46 +6,45 @@ initial_workers: 15
 
 provider:
     type: aws
-    region: us-east-1
+    region: us-west-2
     # Availability zone(s), comma-separated, that nodes may be launched in.
     # Nodes are currently spread between zones by a round-robin approach,
     # however this implementation detail should not be relied upon.
-    availability_zone: us-east-1f
+    availability_zone: us-west-2a
     cache_stopped_nodes: False
 
 auth:
     ssh_user: ubuntu
+    ssh_private_key: /Users/zhuohan123/.ssh/shared_key.pem
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: {image-id}
+    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
     KeyName: shared_key
     SecurityGroupIds:
-        - "{security group id created by inital.yaml}"
+        - "sg-f55048b4"
     Placement:
-        GroupName: {group-name}
+        GroupName: hoplite-group
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: {image-id}
+    ImageId: ami-0875c13495964ad3e # hoplite-artifact-2
     KeyName: shared_key
     SecurityGroupIds:
-        - "{security group id created by inital.yaml}"
+        - "sg-f55048b4"
     Placement:
-        GroupName: {group-name}
+        GroupName: hoplite-group
 
 setup_commands:
-    # This replaces the standard anaconda Ray installation
-    - mkdir -p ~/efs
-    - sudo mount -t efs {efs-id}:/ ~/efs
-    - sudo chmod 777 ~/efs
+    - sudo mount -t efs fs-6dad81c6:/ efs
+    - sudo chmod 777 efs
 
 # Command to start ray on the head node. You don't need to change this.
 head_start_ray_commands:
     - ray stop
-    - "sudo ulimit -n 65536; ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --resources='{\"machine\": 1}'"
+    - "ulimit -n 65536; ray start --head --redis-port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --resources='{\"machine\": 1}'"
 
 # Command to start ray on worker nodes. You don't need to change this.
 worker_start_ray_commands:
     - ray stop
-    - "sudo ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076 --resources='{\"machine\": 1}'"
+    - "ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076 --resources='{\"machine\": 1}'"

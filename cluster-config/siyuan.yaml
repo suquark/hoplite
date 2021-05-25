@@ -18,34 +18,40 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: {image-id}
+    ImageId: ami-00df0f081db89b1f4 # hoplite-sigcomm21-image3
     KeyName: shared_key
     SecurityGroupIds:
-        - "{security group id created by inital.yaml}"
+        - "sg-092b10044bcf1f37e"
     Placement:
-        GroupName: {group-name}
+        GroupName: hoplite-group
+    InstanceMarketOptions:
+        MarketType: spot
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: {image-id}
+    ImageId: ami-00df0f081db89b1f4 # hoplite-sigcomm21-image3
     KeyName: shared_key
     SecurityGroupIds:
-        - "{security group id created by inital.yaml}"
+        - "sg-092b10044bcf1f37e"
     Placement:
-        GroupName: {group-name}
+        GroupName: hoplite-group
+    InstanceMarketOptions:
+        MarketType: spot
 
 setup_commands:
     # This replaces the standard anaconda Ray installation
     - mkdir -p ~/efs
-    - sudo mount -t efs {efs-id}:/ ~/efs
+    - sudo mount -t efs fs-d416cc55:/ ~/efs
     - sudo chmod 777 ~/efs
 
 # Command to start ray on the head node. You don't need to change this.
 head_start_ray_commands:
     - ray stop
-    - "sudo ulimit -n 65536; ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --resources='{\"machine\": 1}'"
+    # we allocate 40 GB memory for Ray object store
+    - "sudo ulimit -n 65536; ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --resources='{\"machine\": 1}' --object-store-memory 32212254720 --system-config '{\"num_heartbeats_timeout\": 10000}'"
 
 # Command to start ray on worker nodes. You don't need to change this.
 worker_start_ray_commands:
     - ray stop
-    - "sudo ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076 --resources='{\"machine\": 1}'"
+    # we allocate 40 GB memory for Ray object store
+    - "sudo ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076 --resources='{\"machine\": 1}' --object-store-memory 32212254720"
