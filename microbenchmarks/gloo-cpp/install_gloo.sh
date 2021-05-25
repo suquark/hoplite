@@ -9,8 +9,8 @@ if [ ! -d gloo ]; then
 fi
 
 cd gloo
-# Pin gloo version to commit ca528e32fea9ca8f2b16053cff17160290fc84ce
-git checkout ca528e32fea9ca8f2b16053cff17160290fc84ce
+# Pin gloo version to commit 881f7f0dcf06f7e49e134a45d3284860fb244fa9
+git checkout 881f7f0dcf06f7e49e134a45d3284860fb244fa9
 rm -rf build
 mkdir build
 cd build
