@@ -90,8 +90,7 @@ if __name__ == "__main__":
         durations.append(1/(time.time() - start))
 
     print(
-        "=" * 20 + "\n" +
-        f"Troughtput: {np.mean(durations):.6f} ± {np.std(durations):.6f} queries/s\n" + "=" * 20
-    )
+        "\n" + "=" * 40 + "\n" +
+        f"Troughtput: {np.mean(durations):.6f} ± {np.std(durations):.6f} queries/s\n" + "=" * 40 + "\n")
     # > {"count": 1}
     # print(ray.get(client.get_handle("ray_endpoint").remote()))
