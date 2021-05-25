@@ -81,7 +81,7 @@ You should have sshed into an AWS instance now, the following commands are execu
    ~~~
 3. Install python libraries (as in `requirements.txt`):
    ~~~bash
-   pip install ray[all]==1.3 torchvision==0.8.2 mpi4py efficientnet_pytorch
+   pip install 'ray[all]==1.3' 'ray[serve]==1.3' torchvision==0.8.2 mpi4py efficientnet_pytorch
    ~~~
 4. Install Hoplite Python library:
    ~~~bash

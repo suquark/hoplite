@@ -1,5 +1,10 @@
+import argparse
 import os
 import pandas as pd
+
+parser = argparse.ArgumentParser(description='Hoplite (C++) benchmark results parser.')
+parser.add_argument('--verbose', action='store_true')
+args = parser.parse_args()
 
 tables = []
 
@@ -18,3 +23,6 @@ df_final.reset_index(inplace=True)
 columns = ['Benchmark Name', '#Nodes', 'Object Size (in bytes)',
            'Average Time (s)', 'Std Time (s)', 'Repeated Times']
 df_final.to_csv("dask_results.csv", header=columns, index=False)
+
+if args.verbose:
+    print(df_final)

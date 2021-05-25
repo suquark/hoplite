@@ -25,5 +25,7 @@ if [ "$#" -eq 1 ]; then
 else
     master=$1
     index=$2
+    source ~/anaconda3/etc/profile.d/conda.sh
+    conda activate
     dask-worker $master:8786 --name Dask-$index
 fi
