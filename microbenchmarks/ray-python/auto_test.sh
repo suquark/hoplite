@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python run_test.py auto
+python run_tests.py auto
