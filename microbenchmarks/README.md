@@ -1,6 +1,6 @@
 # Reproducing Hoplite Microbenchmarks on AWS
 
-_(About 120 min)_
+_(About 180 min)_
 
 This microbenchmark includes Figure 7 at Section 5.1, Figure 13 at Appendix A.
 
@@ -53,6 +53,13 @@ popd
 
 Results are saved in `ray-microbenchmark.csv`.
 
-### Dask _(about ? min)_
+### Dask _(about 80 min)_
 
-TODO: run dask.
+```bash
+pushd dask-python
+./auto_test.sh
+python parse_result.py --verbose
+popd
+```
+
+Results are saved in `dask_results.csv`.
