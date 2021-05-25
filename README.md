@@ -8,47 +8,9 @@
 
 - [ ] Improve documentation coverage.
 
-## Setup AWS Cluster _(45-60 min)_
+## Setup AWS Cluster & Hoplite _(45-60 min)_
 
 See [cluster-config](cluster-config). This step is necessary for reproducing all experiments.
-
-## Install dependencies
-
-```bash
-# C++ dependencies
-./install_dependencies.sh
-# python dependencies
-pip install -r requirements.txt
-```
-
-## Build Hoplite
-
-First, build Hoplite C++ binaries 
-
-```bash
-# requires CMake >= 3.13, gcc/clang with C++14 support
-mkdir build
-pushd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j
-popd
-```
-
-Binaries and shared libraries are under `build` after successful compilation.
-
-Then build Hoplite Python library
-
-```bash
-pip install -e python
-cp build/notification python/hoplite/
-./fornode $(realpath python/setup.sh) 
-```
-
-To validate you have installed the python library correctly,
-
-```bash
-./fornode python -c \"import hoplite\"
-```
 
 ## Reinforcement Learning (Section 5.3)
 
@@ -58,13 +20,11 @@ See [RLLib experiments](rllib). Note that this experiment requires a local envir
 
 See [app/ray_serve](app/ray_serve). It also includes the fault tolerance experiments related to model serving in section 5.5.
 
-
 ## Microbenchmarks (Section 5.1)
 
 * Figure 6 at Section 5.1 - See ??????.
 
 * Figure 7 at Section 5.1, Figure 13 at Appendix A - See [Hoplite Microbenchmarks](microbenchmarks).
-
 
 ## Lint
 
