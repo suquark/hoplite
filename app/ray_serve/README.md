@@ -30,7 +30,7 @@ Baseline + fault tolerance test _(About 2 min)_: `python model_ensembling_fault_
 
 With Hoplite + fault tolerance test _(About 2 min)_: `python hoplite_model_ensembling_fault_tolerance.py.py 1`
 
-Run `python analyze.py` to compare the latency caused by failures.
+Run `python analyze_fault_tolerance.py` to compare the latency caused by failures.
 
 ## Notes
 
