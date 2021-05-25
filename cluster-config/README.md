@@ -49,7 +49,7 @@ You should have sshed into an AWS instance now, the following commands are execu
    ~~~bash
    ./install_dependencies.sh
    cd ~/efs
-   # You must clone it under EFS.
+   # You **must** the repo under EFS.
    git clone https://github.com/suquark/hoplite.git
    cd hoplite
    mkdir build
@@ -101,4 +101,4 @@ You should have sshed into an AWS instance now, the following commands are execu
    ray up cluster.yaml
    ray attach cluster.yaml
    ~~~
-   If the node fails to connect to EFS, check the security group ID as mentioned earlier.
+   If the node fails to connect to EFS (or the cluster takes forever to spin up), check if the security group ID in EFS as mentioned earlier.
