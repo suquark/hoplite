@@ -4,9 +4,9 @@
 
  First, on your local machine:
 
-1. Make sure Python 3 is installed on the local machine. Then install Ray version `1.1.0` and boto with:
+1. Make sure Python 3 is installed on the local machine. Then install Ray version `1.3` and boto with:
    ~~~bash
-   pip install ray==1.1.0 boto3
+   pip install ray==1.3 boto3
    ~~~
 2. Configure your AWS credentials (`aws_access_key_id` and `aws_secret_access_key`) in `~/.aws/credentials` as described [here](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#guide-credentials). Your `~/.aws/credentials` should look like the following:
    ~~~
@@ -81,7 +81,7 @@ You should have sshed into an AWS instance now, the following commands are execu
    ~~~
 3. Install python libraries (as in `requirements.txt`):
    ~~~bash
-   pip install ray[all]==1.1.0 torchvision==0.8.2 mpi4py efficientnet_pytorch
+   pip install ray[all]==1.3 torchvision==0.8.2 mpi4py efficientnet_pytorch
    ~~~
 4. Install Hoplite Python library:
    ~~~bash
