@@ -8,6 +8,9 @@
 
 - [ ] Improve documentation coverage.
 
+## Setup AWS Cluster _(45-60 min)_
+
+See [cluster-config](cluster-config). This step is necessary for reproducing all experiments.
 
 ## Install dependencies
 
@@ -49,7 +52,7 @@ To validate you have installed the python library correctly,
 
 ## Reinforcement Learning (Section 5.3)
 
-See [RLLib experiments](rllib).
+See [RLLib experiments](rllib). Note that this experiment requires a local environment different from others.
 
 ## ML Model Serving Experiments (Section 5.4)
 

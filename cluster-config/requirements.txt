@@ -1,0 +1,4 @@
+ray[all]==1.1.0
+torchvision==0.8.2
+mpi4py
+efficientnet_pytorch
