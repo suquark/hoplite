@@ -63,9 +63,9 @@ You should have sshed into an AWS instance now, the following commands are execu
    conda activate
    echo "conda activate" >> ~/.bashrc
    ~~~
-3. Install python libraries:
+3. Install python libraries (as in `requirements.txt`):
    ~~~bash
-   pip install -r requirements.txt
+   pip install ray[all]==1.1.0 torchvision==0.8.2 mpi4py efficientnet_pytorch
    ~~~
 4. Install Hoplite Python library:
    ~~~bash
