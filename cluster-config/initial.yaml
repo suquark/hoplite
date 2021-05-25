@@ -18,12 +18,12 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-0f9543706892e0363 # Deep Learning AMI (Ubuntu 18.04) Version 43.0
+    ImageId: ami-04cd519d2f9578053 # Deep Learning AMI (Ubuntu 18.04) Version 43.0
     KeyName: shared_key
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-0f9543706892e0363 # Deep Learning AMI (Ubuntu 18.04) Version 43.0
+    ImageId: ami-04cd519d2f9578053 # Deep Learning AMI (Ubuntu 18.04) Version 43.0
     KeyName: shared_key
 
 setup_commands: []
