@@ -4,7 +4,7 @@ $GLOO_DIR/build/gloo/benchmark/benchmark \
     --size $OMPI_COMM_WORLD_SIZE \
     --rank $OMPI_COMM_WORLD_RANK \
     --redis-host $REDIS_HOST \
-    --redis-port 7777 \
+    --redis-port 7799 \
     --prefix benchmark-$test_name-$OMPI_COMM_WORLD_SIZE-$object_size \
     --transport tcp \
     --elements $(($object_size / 4)) \

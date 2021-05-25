@@ -1,4 +1,4 @@
-# ML Model Serving Experiments
+# Reproducing ML Model Serving Experiments on AWS
 
 _(About 25 min, not including cluster setting up time)_
 
@@ -7,7 +7,7 @@ _(About 25 min, not including cluster setting up time)_
 _(About 2 min)_
 
 At the root of the hoplite project,
-2
+
 ```
 ./fornode pip install -r $(realpath app/ray_serve/requirements.txt)
 ```

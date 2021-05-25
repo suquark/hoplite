@@ -2,8 +2,6 @@
 
 ## TODOs
 
-- [ ] Cleanup python code.
-
 - [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
 
 - [ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
@@ -49,42 +47,21 @@ To validate you have installed the python library correctly,
 ./fornode python -c \"import hoplite\"
 ```
 
+## Reinforcement Learning (Section 5.3)
+
+See [RLLib experiments](rllib).
+
 ## ML Model Serving Experiments (Section 5.4)
 
 See [app/ray_serve](app/ray_serve). It also includes the fault tolerance experiments related to model serving in section 5.5.
 
 
-## Microbenchmarks
+## Microbenchmarks (Section 5.1)
 
-`${microbenchmark_name}` includes `multicast`, `reduce`, `gather`, `allreduce`, `allgather`.
+* Figure 6 at Section 5.1 - See ??????.
 
-### Automatic benchmarking
+* Figure 7 at Section 5.1, Figure 13 at Appendix A - See [Hoplite Microbenchmarks](microbenchmarks).
 
-**Automatic benchmarking for MPI and Hoplite**:
-
-`./auto_test.sh`
-
-`python script/parse_result.py log/`
-
-`python script/parse_mpi_result.py mpi_log/`
-
-**Automatic benchmarking for Gloo**:
-
-`cd gloo`
-
-`./auto_test_gloo.sh ${NUM_TRIALS}`
-
-`python parse_gloo_result.py ../gloo_log/`
-
-## Benchmark manually
-
-**Hoplite C++ interface** See [microbenchmarks/hoplite-cpp](microbenchmarks/hoplite-cpp)
-
-**Hoplite Python interface** See [microbenchmarks/hoplite-python](microbenchmarks/hoplite-python)
-
-**MPI (baseline)** See [microbenchmarks/mpi-cpp](microbenchmarks/mpi-cpp)
-
-**Gloo (baseline)** See [microbenchmarks/gloo-cpp](microbenchmarks/gloo-cpp)
 
 ## Lint
 
