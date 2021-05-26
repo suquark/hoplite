@@ -37,7 +37,7 @@ class RayBenchmarkWorker:
 def ray_roundtrip(notification_address, object_size):
     sender = RayBenchmarkWorker.remote(notification_address, object_size)
     receiver = RayBenchmarkWorker.remote(notification_address, object_size)
-    ray.get([sender.poll(), receiver.poll()])
+    ray.get([sender.poll.remote(), receiver.poll.remote()])
     start = time.time()
     ray.get(sender.recv.remote(receiver.recv.remote(sender.send.remote())))
     return time.time() - start
