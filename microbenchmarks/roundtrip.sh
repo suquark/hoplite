@@ -2,7 +2,7 @@
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-pushd dask-pythnon
+pushd dask-python
 ./dask_roundtrip.sh  # => dask-roundtrip.csv
 popd
 
