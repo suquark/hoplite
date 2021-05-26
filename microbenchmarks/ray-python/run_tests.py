@@ -30,8 +30,7 @@ def test_with_mean_std(test_name, notification_address, world_size, object_size,
 
 
 if __name__ == "__main__":
-    hoplite.start_location_server()
-    notification_address = hoplite.get_my_address()
+    notification_address = hoplite.start_location_server()
 
     ray.init(address='auto')
     test_name = 'ray_' + args.test_name
