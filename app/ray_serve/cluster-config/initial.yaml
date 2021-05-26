@@ -1,0 +1,33 @@
+cluster_name: hoplite-single-initial
+
+min_workers: 0
+max_workers: 0
+initial_workers: 0
+
+provider:
+    type: aws
+    region: us-east-1
+    # Availability zone(s), comma-separated, that nodes may be launched in.
+    # Nodes are currently spread between zones by a round-robin approach,
+    # however this implementation detail should not be relied upon.
+    availability_zone: us-east-1f
+    cache_stopped_nodes: False
+
+auth:
+    ssh_user: ubuntu
+
+head_node:
+    InstanceType: m5.4xlarge
+    ImageId: ami-04cd519d2f9578053 # Deep Learning AMI (Ubuntu 18.04) Version 43.0
+
+worker_nodes:
+    InstanceType: m5.4xlarge
+    ImageId: ami-04cd519d2f9578053 # Deep Learning AMI (Ubuntu 18.04) Version 43.0
+
+setup_commands: []
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands: []
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands: []
