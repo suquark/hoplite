@@ -1,31 +1,25 @@
-# Hoplite: Efficient Collective Communication for Task-Based Distributed Systems
+# Hoplite: Efficient and Fault-Tolerant Collective Communication for Task-Based Distributed Systems
 
-## TODOs
-
-- [ ] Refactor `src/reduce_dependency.cc` to switch from chain, binary tree, and star.
-
-- [ ] Fix fault-tolerance for reduce. (figure out why sometimes it fails)
-
-- [ ] Improve documentation coverage.
+This is the repo for the artifact evaluataion for the SIGCOMM 2021 paper: _Hoplite: Efficient and Fault-Tolerant Collective Communication for Task-Based Distributed Systems_. For any questions or related issue, please feel free to contact Siyuan Zhuang (s.z@berkeley.edu) and Zhuohan Li (zhuohan@berkeley.edu).
 
 ## Setup AWS Cluster & Hoplite _(45-60 min)_
 
-See [cluster-config](cluster-config). This step is necessary for reproducing all experiments.
-
-## Reinforcement Learning (Section 5.3)
-
-See [RLLib experiments](rllib). Note that this experiment requires a local environment different from others.
-
-## ML Model Serving Experiments (Section 5.4)
-
-See [app/ray_serve](app/ray_serve). It also includes the fault tolerance experiments related to model serving in section 5.5.
+All the experiments in the paper are evaluated on AWS. We use [Ray cluster launcher](https://docs.ray.io/en/latest/cluster/launcher.html) to lanuch the cluster for all the experiments in the paper. We highly recommend using Ray cluster launcher to launch the cluster as it will automatically setup the execution environment we required in the experiemnts. See [cluster-config](cluster-config) for setting up a cluster to reproduce the microbenchmarks in the paper.
 
 ## Microbenchmarks (Section 5.1)
 
-* Figure 6 at Section 5.1 - See ??????.
+Please see [microbenchmarks/](microbenchmarks) to reproduce the microbenchmark experiments in the paper.
 
-* Figure 7 at Section 5.1, Figure 13 at Appendix A - See [Hoplite Microbenchmarks](microbenchmarks).
+## Reinforcement Learning (Section 5.3)
 
-## Lint
+Please see [app/rllib/](app/rllib/) to reproduce the rllib experiments in the paper.
+
+## ML Model Serving Experiments (Section 5.4)
+
+Please see [app/ray_serve/](app/ray_serve) to reproduce the Ray serve experiments and the Ray serve fault tolerance experiments in the paper.
+
+## Other commands:
+
+### Lint
 
 `./format.sh`
