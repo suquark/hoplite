@@ -18,7 +18,7 @@ auth:
 
 head_node:
     InstanceType: m5.4xlarge
-    ImageId: ami-00df0f081db89b1f4 # hoplite-sigcomm21-image3
+    ImageId: ami-00df0f081db89b1f4 # hoplite-sigcomm21-image-3
     SecurityGroupIds:
         - "sg-092b10044bcf1f37e"
     Placement:
@@ -28,7 +28,7 @@ head_node:
 
 worker_nodes:
     InstanceType: m5.4xlarge
-    ImageId: ami-00df0f081db89b1f4 # hoplite-sigcomm21-image3
+    ImageId: ami-00df0f081db89b1f4 # hoplite-sigcomm21-image-3
     SecurityGroupIds:
         - "sg-092b10044bcf1f37e"
     Placement:

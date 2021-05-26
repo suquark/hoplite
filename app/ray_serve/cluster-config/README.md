@@ -121,4 +121,4 @@ You should have sshed into an AWS instance now, the following commands are execu
 
 If everything is ok, take down the cluster using `ray down cluster.yaml` and remember to save your `cluster.yaml`.
 
-`siyuan.yaml` is an example of configurated cluster file.
+Here is an [example](example.yaml) of configured cluster file.
