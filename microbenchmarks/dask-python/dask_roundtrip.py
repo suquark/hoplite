@@ -19,6 +19,12 @@ def measure_round_trip(client, object_size):
 
 def main():
     client = Client("127.0.0.1:8786")
+
+    # warmup
+    for size in (2**10, 2**20, 2**30):
+        for _ in range(5):
+            measure_round_trip(client, size)
+
     means = []
     stds = []
     for size in (2**10, 2**20, 2**30):
