@@ -43,6 +43,6 @@ all_hosts=$(echo ${all_nodes[@]} | sed 's/ /,/g')
 $TEST_UNILS_DIR/mpirun_pernode.sh $all_hosts \
     -x HOPLITE_LOGGING_DIR=$log_dir \
     -x RAY_BACKEND_LOG_LEVEL=$RAY_BACKEND_LOG_LEVEL \
-    test_wrapper.sh python hoplite_microbenchmarks.py $test_name -s $object_size
+    test_wrapper.sh $test_name -s $object_size
 
 sleep 1
