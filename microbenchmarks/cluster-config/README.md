@@ -1,4 +1,4 @@
-# Setup AWS Cluster for Hoplite on AWS.
+# Setup AWS Cluster for Hoplite Microbenchmarks on AWS.
 
 ## Setup Local Environment _(About 10 min)_
 

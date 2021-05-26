@@ -1,12 +1,18 @@
 # Reproducing Hoplite Microbenchmarks on AWS
 
+_(About 210 min)_
+
+## Cluster Setup
+
+_(About 30 min)_
+
+See [cluster-config](cluster-config) for setting up a cluster to reproduce the microbenchmarks in the paper.
+
+## Collective Communication Microbenchmarks (Figure 7 at Section 5.1, Figure 13 at Appendix A)
+
 _(About 180 min)_
 
-This microbenchmark includes Figure 7 at Section 5.1, Figure 13 at Appendix A.
-
-First, run the microbenchmarks and collect data. _(About 30 min)_
-
-We assume your working directory is the directory of the current README file.
+We assume your working directory is the directory of the current README file. Here is how you benchmark Hoplite and baselines:
 
 ### OpenMPI _(about 30 min)_
 
