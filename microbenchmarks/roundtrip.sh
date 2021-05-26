@@ -20,8 +20,8 @@ popd
 
 pushd mpi-cpp
 for i in `seq 5`; do
-mpi_roundtrip.sh $[2**10]
-mpi_roundtrip.sh $[2**20]
-mpi_roundtrip.sh $[2**30]
+./mpi_roundtrip.sh $[2**10]
+./mpi_roundtrip.sh $[2**20]
+./mpi_roundtrip.sh $[2**30]
 done
 popd
