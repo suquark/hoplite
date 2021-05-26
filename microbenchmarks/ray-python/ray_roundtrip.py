@@ -22,7 +22,7 @@ class RayBenchmarkWorker:
         self.notification_address = notification_address
         self.notification_port = 7777
         self.object_size = object_size
-        self.payload = ray.put(np.ones(object_size//4, dtype=np.float32))
+        self.payload = np.ones(object_size//4, dtype=np.float32)
 
     def poll(self):
         pass
