@@ -2,9 +2,9 @@
 
 ## Cluster Setup
 
-_(20-40 min)_
+_(About 30 min)_
 
-It is the same as [ML Serving](../ray_serve/cluster-config).
+See [cluster-config](../ray_serve/cluster-config) for setting up a cluster to reproduce parameter server experiments in the paper.
 
 ## Asynchronous Parameter Server Fault Tolerance Experiments (Figure 12b)
 
