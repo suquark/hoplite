@@ -31,7 +31,7 @@ class RayBenchmarkWorker:
         return ray.put(self.payload)
 
     def recv(self, x):
-        return ray.get(x)
+        return x
 
 
 def ray_roundtrip(notification_address, object_size):
