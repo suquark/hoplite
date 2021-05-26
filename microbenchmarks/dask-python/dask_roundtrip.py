@@ -37,7 +37,7 @@ def main():
     # print(duration)
     with open(f"dask-roundtrip.csv", "w") as f:
         f.write("1 KB, 1 MB, 1 GB, 1 KB (std), 1 MB (std), 1 GB (std)\n"
-                ",".join(means + stds))
+                ",".join(map(str, means + stds)))
 
 
 if __name__ == "__main__":
