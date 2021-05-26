@@ -7,7 +7,7 @@ pushd dask-python
 popd
 
 pushd ray-python
-python roundtrip.py  # => ray-roundtrip.csv
+python ray_roundtrip.py  # => ray-roundtrip.csv
 popd
 
 pushd hoplite-python

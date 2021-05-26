@@ -33,10 +33,6 @@ class RayBenchmarkWorker:
     def put_object(self):
         return ray.put(np.ones(self.object_size//4, dtype=np.float32))
 
-    def get_and_put_object(self, object_id):
-        """This method is specifically for round trip"""
-        return ray.put(ray.get(object_id))
-
     def get_objects(self, object_ids):
         object_ids = ray.get(object_ids)
         start = time.time()
@@ -95,13 +91,6 @@ class RayBenchmarkActorPool:
     
     def __len__(self):
         return len(self.actors)
-
-
-def ray_roundtrip(notification_address, world_size, object_size):
-    actor_pool = RayBenchmarkActorPool(notification_address, world_size, object_size)
-    object_id = actor_pool.prepare_object(rank=0)
-    object_id = actor_pool[1].get_and_put_object.remote(object_id)
-    return ray.get(actor_pool[0].get_objects.remote([object_id]))
 
 
 def ray_multicast(notification_address, world_size, object_size):
