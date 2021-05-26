@@ -21,7 +21,7 @@ def main():
     client = Client("127.0.0.1:8786")
     means = []
     stds = []
-    for size in range(2**10, 2**20, 2**30):
+    for size in (2**10, 2**20, 2**30):
         t = []
         for _ in range(5):
             duration = measure_round_trip(client, size)
