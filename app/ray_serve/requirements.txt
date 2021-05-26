@@ -1,4 +1,0 @@
-ray==1.1
-ray[serve]
-torchvision==0.8.2
-efficientnet_pytorch
