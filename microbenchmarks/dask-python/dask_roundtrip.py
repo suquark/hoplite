@@ -21,19 +21,17 @@ def main():
     client = Client("127.0.0.1:8786")
 
     # warmup
-    for size in (2**10, 2**20, 2**30):
+    for size in (2**10, 2**20):
         for _ in range(5):
             measure_round_trip(client, size)
 
-    means = []
-    stds = []
-    for size in (2**10, 2**20, 2**30):
-        t = []
-        for _ in range(5):
-            duration = measure_round_trip(client, size)
-            t.append(duration)
-        means.append(np.mean(t))
-        stds.append(np.std(t))
+    with open(f"dask-roundtrip.csv", "w") as f:
+        for size in (2**10, 2**20, 2**30):
+            t = []
+            for _ in range(5):
+                duration = measure_round_trip(client, size)
+                t.append(duration)
+            f.write(f"dask,{size},{np.mean(t)},{np.std(t)}\n")
 
     # # Accumulate time for more precision.
     # duration = 0.0
@@ -41,9 +39,6 @@ def main():
     #     duration += func(client, world_size, object_size, j)
     # duration /= 10
     # print(duration)
-    with open(f"dask-roundtrip.csv", "w") as f:
-        f.write("1 KB, 1 MB, 1 GB, 1 KB (std), 1 MB (std), 1 GB (std)\n" +
-                ",".join(map(str, means + stds)) + "\n")
 
 
 if __name__ == "__main__":

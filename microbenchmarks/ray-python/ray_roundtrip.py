@@ -47,4 +47,4 @@ if __name__ == "__main__":
         for object_size in (2 ** 10, 2 ** 20, 2 ** 30):
             mean, std = test_with_mean_std(object_size)
             print(f"roundtrip: {object_size} {mean:.6f} ± {std:.6f}s")
-            f.write(f"{object_size},{mean},{std}\n")
+            f.write(f"ray,{object_size},{mean},{std}\n")
