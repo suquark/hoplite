@@ -1,0 +1,51 @@
+cluster_name: hoplite-ml-serving
+
+min_workers: 16
+max_workers: 16
+initial_workers: 16
+
+provider:
+    type: aws
+    region: us-east-1
+    # Availability zone(s), comma-separated, that nodes may be launched in.
+    # Nodes are currently spread between zones by a round-robin approach,
+    # however this implementation detail should not be relied upon.
+    availability_zone: us-east-1f
+    cache_stopped_nodes: False
+
+auth:
+    ssh_user: ubuntu
+
+head_node:
+    InstanceType: p3.2xlarge
+    ImageId: {image-id}
+    SecurityGroupIds:
+        - "{security group id created by inital.yaml}"
+    Placement:
+        GroupName: {group-name}
+
+worker_nodes:
+    InstanceType: p3.2xlarge
+    ImageId: {image-id}
+    SecurityGroupIds:
+        - "{security group id created by inital.yaml}"
+    Placement:
+        GroupName: {group-name}
+
+setup_commands:
+    # This replaces the standard anaconda Ray installation
+    - mkdir -p ~/efs
+    - sudo mount -t efs {efs-id}:/ ~/efs
+    - sudo chmod 777 ~/efs
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+    - ray stop
+    # we allocate 28 GB memory for Ray object store
+    - "sudo ulimit -n 65536; ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --resources='{\"machine\": 1}'"
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    # we allocate 28 GB memory for Ray object store
+    - "sudo ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076 --resources='{\"machine\": 1}'"

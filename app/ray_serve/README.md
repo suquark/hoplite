@@ -1,28 +1,26 @@
 # Reproducing ML Model Serving Experiments on AWS
 
-_(About 25 min, not including cluster setting up time)_
+_(About 30 min)_
 
 ## Setup 
 
-_(About 2 min)_
+_(About 15 min)_
 
-At the root of the hoplite project,
-
-```
-./fornode pip install -r $(realpath app/ray_serve/requirements.txt)
-```
-
-`cluster.yaml` includes Ray cluster settings.
+See [cluster-config](cluster-config).
 
 ## ML model serving experiments (Figure 11)
 
-`${scale}` controls the cluster size (in the paper we use 1 and 2). `${scale}*8+1` GPU nodes are required for experiments. The cluster configuration file includes 9 V100 GPU nodes for `scale=1`.
+After logging in to the configured cluster, *chdir* to the current directory in the hoplite repo.
 
-Baseline _(2-3 min)_: `python model_ensembling.py ${scale}`
+Here is how you run the experiments:
 
-With Hoplite _(1-2 min)_: `python hoplite_model_ensembling.py ${scale}`
+**Baseline** _(2-3 min)_: `python model_ensembling.py ${scale}`
 
-The script will print the mean and std of throughput (queries/s) at the end.
+**Hoplite** _(1-2 min)_: `python hoplite_model_ensembling.py ${scale}`
+
+`${scale}` controls the cluster size. `scale=1` corresponds to 8 GPU nodes, `scale=2` corresponds to 16 GPU nodes in the figure.
+
+The script prints the mean and std of throughput (queries/s) at the end.
 
 ## ML Model Serving fault tolerance experiments (Figure 12a)
 

@@ -1,4 +1,4 @@
-# Setup AWS Cluster for Hoplite on AWS.
+# Setup AWS Cluster for Hoplite Microbenchmarks on AWS.
 
 ## Setup Local Environment _(About 10 min)_
 
@@ -79,7 +79,7 @@ You should have sshed into an AWS instance now, the following commands are execu
    conda activate
    echo "conda activate" >> ~/.bashrc
    ~~~
-3. Install python libraries (as in `requirements.txt`):
+3. Install python libraries:
    ~~~bash
    pip install 'ray[all]==1.3' 'ray[serve]==1.3' torchvision==0.8.2 mpi4py efficientnet_pytorch
    ~~~
@@ -121,4 +121,4 @@ You should have sshed into an AWS instance now, the following commands are execu
 
 If everything is ok, take down the cluster using `ray down cluster.yaml` and remember to save your `cluster.yaml`.
 
-`siyuan.yaml` is an example of configurated cluster file.
+Here is an [example](example.yaml) of configured cluster file.
