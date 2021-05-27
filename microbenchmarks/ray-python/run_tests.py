@@ -9,7 +9,7 @@ NUM_NODES = (4, 8, 12, 16)
 OBJECT_SIZES = (2 ** 10, 2 ** 15, 2 ** 20, 2 ** 25, 2 ** 30)
 REPEAT_TIMES = 5
 
-microbenchmark_names = ['roundtrip', 'multicast', 'reduce', 'allreduce', 'gather', 'allgather', 'auto']
+microbenchmark_names = ['multicast', 'reduce', 'allreduce', 'gather', 'allgather', 'auto']
 parser = argparse.ArgumentParser(description='Ray microbenchmarks')
 parser.add_argument('test_name', type=str, choices=microbenchmark_names, help='Microbenchmark name')
 parser.add_argument('-n', '--world-size', type=int, required=False,
@@ -30,8 +30,7 @@ def test_with_mean_std(test_name, notification_address, world_size, object_size,
 
 
 if __name__ == "__main__":
-    hoplite.start_location_server()
-    notification_address = hoplite.get_my_address()
+    notification_address = hoplite.start_location_server()
 
     ray.init(address='auto')
     test_name = 'ray_' + args.test_name
@@ -43,12 +42,6 @@ if __name__ == "__main__":
     else:
         assert args.world_size is None and args.object_size is None
         with open("ray-microbenchmark.csv", "w") as f:
-            algorithm = 'ray_roundtrip'
-            world_size = 2
-            for object_size in OBJECT_SIZES:
-                mean, std = test_with_mean_std(algorithm, notification_address, world_size, object_size)
-                print(f"{algorithm}, {world_size}, {object_size}, {mean}, {std}")
-                f.write(f"{algorithm},{world_size},{object_size},{mean},{std}\n")
             for algorithm in ('ray_multicast', 'ray_gather', 'ray_reduce', 'ray_allreduce'):
                 for world_size in NUM_NODES:
                     for object_size in OBJECT_SIZES:
