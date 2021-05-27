@@ -27,18 +27,22 @@ python parse_roundtrip_result.py --verbose
 popd
 ```
 
+Results are saved in `hoplite-roundtrip.csv`.
+
 ### OpenMPI _(about 2 min)_
 
 ```bash
 pushd mpi-cpp
 for i in `seq 5`; do
-./mpi_roundtrip.sh $[2**10]
-./mpi_roundtrip.sh $[2**20]
-./mpi_roundtrip.sh $[2**30]
+./run_test.sh roundtrip 2 $[2**10]
+./run_test.sh roundtrip 2 $[2**20]
+./run_test.sh roundtrip 2 $[2**30]
 done
 python parse_roundtrip_result.py --verbose
 popd
 ```
+
+Results are saved in `mpi-roundtrip.csv`.
 
 ### Dask _(about 5 min)_
 
