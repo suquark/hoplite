@@ -10,7 +10,7 @@ See [cluster-config](cluster-config) for setting up a cluster to reproduce the m
 
 ## Roundtrip Microbenchmarks (Figure 6 at Section 5.1)
 
-_(About 10 min)_
+_(About 15 min)_
 
 We assume your working directory is the directory of the current README file. Here is how you benchmark Hoplite and baselines:
 
