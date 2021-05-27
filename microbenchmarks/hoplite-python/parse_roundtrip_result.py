@@ -62,6 +62,15 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
     df = result_parser_utils.parse(args.log_dir, parse_file)
+
+    df = df[df['Benchmark Name'].str.contains('roundtrip')]
+    sz = df['Object Size (in bytes)'].astype('int64')
+    df = df[(sz == 2**10) | (sz == 2**20) | (sz == 2**30)]
+
     if args.verbose:
         print(df)
-    df.to_csv('hoplite-roundtrip.csv', index=False)
+    
+    rs = df[['Object Size (in bytes)', 'Average Time (s)', 'Std Time (s)', 'Repeated Times']].values
+    with open('hoplite-roundtrip.csv', "w") as f:
+        for r in rs:
+            f.write(f"hoplite,{r[0]},{r[1]},{r[2]}\n")
