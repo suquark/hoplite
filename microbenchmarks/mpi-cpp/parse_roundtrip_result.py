@@ -21,6 +21,6 @@ if __name__ == "__main__":
         print(df)
     
     rs = df[['Object Size (in bytes)', 'Average Time (s)', 'Std Time (s)', 'Repeated Times']].values
-    with open('hoplite-roundtrip.csv', "w") as f:
+    with open('mpi-roundtrip.csv', "w") as f:
         for r in rs:
             f.write(f"mpi,{r[0]},{r[1]},{r[2]}\n")
