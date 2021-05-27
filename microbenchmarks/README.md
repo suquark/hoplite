@@ -66,6 +66,15 @@ popd
 Results are saved in `ray-roundtrip.csv`.
 
 
+### Merge results
+
+```bash
+echo "Method,Object Size (in bytes),Average RTT (s),Std RTT (s)" > roundtrip-results.csv
+cat */*-roundtrip.csv >> roundtrip-results.csv
+```
+
+All results are saved in `roundtrip-results.csv`.
+
 
 ## Collective Communication Microbenchmarks (Figure 7 at Section 5.1, Figure 13 at Appendix A)
 
