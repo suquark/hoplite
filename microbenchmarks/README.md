@@ -10,13 +10,58 @@ See [cluster-config](cluster-config) for setting up a cluster to reproduce the m
 
 ## Roundtrip Microbenchmarks (Figure 6 at Section 5.1)
 
-_(About 5 min)_
+_(About 10 min)_
 
-We assume your working directory is the directory of the current README file. Run this script to benchmark Hoplite and baselines:
+We assume your working directory is the directory of the current README file. Here is how you benchmark Hoplite and baselines:
+
+### Hoplite _(about 2 min)_
 
 ```bash
-./roundtrip.sh
+pushd hoplite-python
+for i in `seq 5`; do
+./run_test.sh roundtrip 2 $[2**10]
+./run_test.sh roundtrip 2 $[2**20]
+./run_test.sh roundtrip 2 $[2**30]
+done
+python parse_result.py --verbose
+popd
 ```
+
+### OpenMPI _(about 2 min)_
+
+```bash
+pushd mpi-cpp
+for i in `seq 5`; do
+./mpi_roundtrip.sh $[2**10]
+./mpi_roundtrip.sh $[2**20]
+./mpi_roundtrip.sh $[2**30]
+done
+python parse_result.py --verbose
+popd
+```
+
+### Dask _(about 5 min)_
+
+```bash
+pushd dask-python
+./dask_roundtrip.sh  # => dask-roundtrip.csv
+popd
+```
+
+Results are saved in `dask-roundtrip.csv`.
+
+
+### Ray _(about 2 min)_
+
+```bash
+pushd ray-python
+python ray_roundtrip.py  # => ray-roundtrip.csv
+popd
+```
+
+Results are saved in `ray-roundtrip.csv`.
+
+
 
 ## Collective Communication Microbenchmarks (Figure 7 at Section 5.1, Figure 13 at Appendix A)
 
