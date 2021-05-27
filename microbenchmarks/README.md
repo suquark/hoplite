@@ -23,7 +23,7 @@ for i in `seq 5`; do
 ./run_test.sh roundtrip 2 $[2**20]
 ./run_test.sh roundtrip 2 $[2**30]
 done
-python parse_result.py --verbose
+python parse_roundtrip_result.py --verbose
 popd
 ```
 
@@ -36,7 +36,7 @@ for i in `seq 5`; do
 ./mpi_roundtrip.sh $[2**20]
 ./mpi_roundtrip.sh $[2**30]
 done
-python parse_result.py --verbose
+python parse_roundtrip_result.py --verbose
 popd
 ```
 
