@@ -110,8 +110,6 @@ def draw_microbenchmark_large(plot_data):
         axis = data['#Nodes']
         mean = data['Average Time (s)']
         err = data['Std Time (s)']
-        # print(name, object_size, axis, mean)
-        # ax.plot(axis, mean, label=name)
         scalar_formatter = ScalarFormatter(useMathText=True)
         scalar_formatter.set_powerlimits((-1, 1))
         ax.yaxis.set_major_formatter(scalar_formatter)
@@ -143,8 +141,6 @@ def draw_microbenchmark_small(plot_data):
         axis = data['#Nodes']
         mean = data['Average Time (s)']
         err = data['Std Time (s)']
-        # print(name, object_size, axis, mean)
-        # ax.plot(axis, mean, label=name)
         scalar_formatter = ScalarFormatter(useMathText=True)
         scalar_formatter.set_powerlimits((-1, 1))
         ax.yaxis.set_major_formatter(scalar_formatter)
