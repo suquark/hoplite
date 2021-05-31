@@ -28,16 +28,10 @@ task_dict = {
     "allreduce_fast": "Allreduce(ii)", 
 }
 
-def prepare_results(df):
-    df = df[COLUMNS_USED].sort_values(by=COLUMNS_USED)
-    # sz = df['Object Size (in bytes)'].astype('int64')
-    # df = df[(sz == 2**20) | (sz == 2**25) | (sz == 2**30)]
-    return df
-
 
 def read_results(path):
     results = pd.read_csv(path, dtype=dict(zip(COLUMNS_USED, COLUMNS_DTYPE)))
-    return prepare_results(results)
+    return results[COLUMNS_USED].sort_values(by=COLUMNS_USED)
 
 
 def read_ray_results(path):
@@ -45,7 +39,7 @@ def read_ray_results(path):
         path,
         names=['Benchmark Name', '#Nodes', 'Object Size (in bytes)', 'Average Time (s)', 'Std Time (s)'],
         dtype=dict(zip(COLUMNS_USED, COLUMNS_DTYPE)))
-    return prepare_results(results)
+    return results[COLUMNS_USED].sort_values(by=COLUMNS_USED)
 
 
 def filter_by_name_and_size(df, name, size):
@@ -94,48 +88,13 @@ def prepare_plot_data(hoplite_results, mpi_results, gloo_results, ray_results, d
     return plot_data
 
 
-def draw_microbenchmark_large(plot_data):
-  fig, axes = plt.subplots(3, 5, figsize=(15.5, 6), sharex='all')
-  plt.setp(axes, xticks=[4, 8, 12, 16])
-  plt.setp(axes[-1], xlabel="Number of Nodes")
-  plt.setp(axes[:, 0], ylabel="Latency (s)")
+def render(axes, plot_data, tasks, object_sizes):
   color_dict = {}
   n_color = 0
   color_map = plt.get_cmap('tab20')
   # color_list = ["#60ACFC", "#21C2DB", "#62D5B2", "#D4EC59", "#FEB64D", "#FA816D", "#D15B7F"]
-  for i, task in enumerate(TASKS):
-    for j, object_size in enumerate(LARGE_OBJECT_SIZES):
-      ax = axes[j][i]
-      for name, data in plot_data[(task, object_size)]:
-        axis = data['#Nodes']
-        mean = data['Average Time (s)']
-        err = data['Std Time (s)']
-        scalar_formatter = ScalarFormatter(useMathText=True)
-        scalar_formatter.set_powerlimits((-1, 1))
-        ax.yaxis.set_major_formatter(scalar_formatter)
-        if name in color_dict:
-          ax.errorbar(axis, mean, yerr=err, linewidth=1, elinewidth=1, capsize=2, color=color_dict[name])
-        else:
-          color_dict[name] = color_map(n_color * 2)
-          n_color += 1
-          ax.errorbar(axis, mean, yerr = err, linewidth=1, elinewidth=1, capsize=2, label=name, color=color_dict[name])
-      ax.set_title(" ".join([task_dict[task], size_dict[object_size]]))
-  fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.06), fontsize=12.5)
-  fig.tight_layout()
-  fig.savefig("microbenchmarks-large.pdf", bbox_inches=Bbox([[0, 0], [16, 6.5]]))
-
-
-def draw_microbenchmark_small(plot_data):
-  fig, axes = plt.subplots(2, 5, figsize=(15.5, 4), sharex='all')
-  plt.setp(axes, xticks=[4, 8, 12, 16])
-  plt.setp(axes[-1], xlabel="Number of Nodes")
-  plt.setp(axes[:, 0], ylabel="Latency (s)")
-  color_dict = {}
-  n_color = 0
-  color_map = plt.get_cmap('tab20')
-  # color_list = ["#60ACFC", "#21C2DB", "#62D5B2", "#D4EC59", "#FEB64D", "#FA816D", "#D15B7F"]
-  for i, task in enumerate(TASKS):
-    for j, object_size in enumerate(SMALL_OBJECT_SIZES):
+  for i, task in enumerate(tasks):
+    for j, object_size in enumerate(object_sizes):
       ax = axes[j][i]
       for name, data in plot_data[(task, object_size)]:
         axis = data['#Nodes']
@@ -151,6 +110,25 @@ def draw_microbenchmark_small(plot_data):
           n_color += 1
           ax.errorbar(axis, mean, yerr=err, linewidth=1, elinewidth=1, capsize=2, label=name, color=color_dict[name])
       ax.set_title(" ".join([task_dict[task], size_dict[object_size]]))
+
+
+def draw_microbenchmark_large(plot_data):
+  fig, axes = plt.subplots(3, 5, figsize=(15.5, 6), sharex='all')
+  plt.setp(axes, xticks=[4, 8, 12, 16])
+  plt.setp(axes[-1], xlabel="Number of Nodes")
+  plt.setp(axes[:, 0], ylabel="Latency (s)")
+  render(axes, plot_data, TASKS, LARGE_OBJECT_SIZES)
+  fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.06), fontsize=12.5)
+  fig.tight_layout()
+  fig.savefig("microbenchmarks-large.pdf", bbox_inches=Bbox([[0, 0], [16, 6.5]]))
+
+
+def draw_microbenchmark_small(plot_data):
+  fig, axes = plt.subplots(2, 5, figsize=(15.5, 4), sharex='all')
+  plt.setp(axes, xticks=[4, 8, 12, 16])
+  plt.setp(axes[-1], xlabel="Number of Nodes")
+  plt.setp(axes[:, 0], ylabel="Latency (s)")
+  render(axes, plot_data, TASKS, SMALL_OBJECT_SIZES)
   fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.08), fontsize=12.5)
   fig.tight_layout()
   fig.savefig("microbenchmarks-small.pdf", bbox_inches=Bbox([[0, 0], [16, 4.5]]))
