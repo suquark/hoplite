@@ -68,6 +68,8 @@ Results are saved in `ray-roundtrip.csv`.
 
 ### Merge results
 
+After generating all results, we can merge them into a single file:
+
 ```bash
 echo "Method,Object Size (in bytes),Average RTT (s),Std RTT (s)" > roundtrip-results.csv
 cat */*-roundtrip.csv >> roundtrip-results.csv
@@ -137,3 +139,21 @@ popd
 ```
 
 Results are saved in `dask_results.csv`.
+
+### Plot Figures _(about 2 min)_
+
+After generating all results, we provide a script to visualize them.
+
+We assume your working directory is the directory of the current README file. Here is how you generate figures in the paper:
+
+```bash
+python draw_collective_communication.py
+```
+
+This script generates two PDF files under the working directory. `microbenchmarks-large.pdf` corresponds to Figure 7 at Section 5.1, and `microbenchmarks-small.pdf` corresponds to Figure 13 at Appendix A.
+
+You can download the result PDF file to your local machine using Ray cluster utils, for example:
+
+```bash
+ray rsync-down cluster.yaml /home/ubuntu/efs/hoplite/microbenchmarks/microbenchmarks-large.pdf .
+```
