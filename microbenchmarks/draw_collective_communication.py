@@ -105,11 +105,11 @@ def draw_microbenchmark_large(hoplite_results, mpi_results, gloo_results, ray_re
         scalar_formatter.set_powerlimits((-1, 1))
         ax.yaxis.set_major_formatter(scalar_formatter)
         if name in color_dict:
-          ax.errorbar(axis, mean, yerr=err, linewidth=1, elinewidth=1, capsize= 2, color=color_dict[name])
+          ax.errorbar(axis, mean, yerr=err, linewidth=1, elinewidth=1, capsize=2, color=color_dict[name])
         else:
           color_dict[name] = color_map(n_color * 2)
           n_color += 1
-          ax.errorbar(axis, mean, yerr = err, linewidth=1, elinewidth=1, capsize= 2, label=name, color=color_dict[name])
+          ax.errorbar(axis, mean, yerr = err, linewidth=1, elinewidth=1, capsize=2, label=name, color=color_dict[name])
       ax.set_title(" ".join([task_dict[task], size_dict[object_size]]))
   fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.06), fontsize=12.5)
   fig.tight_layout()
