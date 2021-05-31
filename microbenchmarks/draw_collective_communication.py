@@ -89,6 +89,10 @@ def prepare_plot_data(hoplite_results, mpi_results, gloo_results, ray_results, d
 
 
 def render(axes, plot_data, tasks, object_sizes):
+  plt.setp(axes, xticks=[4, 8, 12, 16])
+  plt.setp(axes[-1], xlabel="Number of Nodes")
+  plt.setp(axes[:, 0], ylabel="Latency (s)")
+
   color_dict = {}
   n_color = 0
   color_map = plt.get_cmap('tab20')
@@ -112,26 +116,7 @@ def render(axes, plot_data, tasks, object_sizes):
       ax.set_title(" ".join([task_dict[task], size_dict[object_size]]))
 
 
-def draw_microbenchmark_large(plot_data):
-  fig, axes = plt.subplots(3, 5, figsize=(15.5, 6), sharex='all')
-  plt.setp(axes, xticks=[4, 8, 12, 16])
-  plt.setp(axes[-1], xlabel="Number of Nodes")
-  plt.setp(axes[:, 0], ylabel="Latency (s)")
-  render(axes, plot_data, TASKS, LARGE_OBJECT_SIZES)
-  fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.06), fontsize=12.5)
-  fig.tight_layout()
-  fig.savefig("microbenchmarks-large.pdf", bbox_inches=Bbox([[0, 0], [16, 6.5]]))
 
-
-def draw_microbenchmark_small(plot_data):
-  fig, axes = plt.subplots(2, 5, figsize=(15.5, 4), sharex='all')
-  plt.setp(axes, xticks=[4, 8, 12, 16])
-  plt.setp(axes[-1], xlabel="Number of Nodes")
-  plt.setp(axes[:, 0], ylabel="Latency (s)")
-  render(axes, plot_data, TASKS, SMALL_OBJECT_SIZES)
-  fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.08), fontsize=12.5)
-  fig.tight_layout()
-  fig.savefig("microbenchmarks-small.pdf", bbox_inches=Bbox([[0, 0], [16, 4.5]]))
 
 
 if __name__ == '__main__':
@@ -143,5 +128,16 @@ if __name__ == '__main__':
 
     plot_data = prepare_plot_data(hoplite_results, mpi_results, gloo_results, ray_results, dask_results)
 
-    draw_microbenchmark_large(plot_data)
-    draw_microbenchmark_small(plot_data)
+    # Large objects
+    fig, axes = plt.subplots(3, 5, figsize=(15.5, 6), sharex='all')
+    render(axes, plot_data, TASKS, LARGE_OBJECT_SIZES)
+    fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.06), fontsize=12.5)
+    fig.tight_layout()
+    fig.savefig("microbenchmarks-large.pdf", bbox_inches=Bbox([[0, 0], [16, 6.5]]))
+
+    # Small objects
+    fig, axes = plt.subplots(2, 5, figsize=(15.5, 4), sharex='all')
+    render(axes, plot_data, TASKS, SMALL_OBJECT_SIZES)
+    fig.legend(loc="upper center", ncol=7, bbox_to_anchor=(0.5, 1.08), fontsize=12.5)
+    fig.tight_layout()
+    fig.savefig("microbenchmarks-small.pdf", bbox_inches=Bbox([[0, 0], [16, 4.5]]))
