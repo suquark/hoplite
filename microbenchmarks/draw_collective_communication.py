@@ -116,9 +116,6 @@ def render(axes, plot_data, tasks, object_sizes):
       ax.set_title(" ".join([task_dict[task], size_dict[object_size]]))
 
 
-
-
-
 if __name__ == '__main__':
     hoplite_results = read_results('hoplite-cpp/hoplite_results.csv')
     mpi_results = read_results('mpi-cpp/mpi_results.csv')
