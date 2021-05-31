@@ -136,7 +136,7 @@ cdef class DistributedObjectStore:
 
     def __cinit__(self, str object_directory_address):
         my_address = socket.gethostbyname(socket.gethostname()).encode()
-        CRayLog.StartRayLog(my_address, CRayLogDEBUG)
+        CRayLog.StartRayLog(my_address, CRayLogINFO)
         self.store.reset(new CDistributedObjectStore(object_directory_address.encode()))
 
     def get(self, ObjectID object_id):
