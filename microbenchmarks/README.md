@@ -68,6 +68,8 @@ Results are saved in `ray-roundtrip.csv`.
 
 ### Merge results
 
+After generating all results, we can merge them into a single file:
+
 ```bash
 echo "Method,Object Size (in bytes),Average RTT (s),Std RTT (s)" > roundtrip-results.csv
 cat */*-roundtrip.csv >> roundtrip-results.csv
