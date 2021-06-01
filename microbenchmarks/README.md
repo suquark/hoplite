@@ -66,7 +66,7 @@ popd
 Results are saved in `ray-roundtrip.csv`.
 
 
-### Merge results
+### Merge results _(about 1 min)_
 
 After generating all results, we can merge them into a single file:
 
@@ -76,6 +76,24 @@ cat */*-roundtrip.csv >> roundtrip-results.csv
 ```
 
 All results are saved in `roundtrip-results.csv`.
+
+### Plot Figures _(about 2 min)_
+
+After merging all results, we provide a script to visualize them.
+
+We assume your working directory is the directory of the current README file. Here is how you generate figures in the paper:
+
+```bash
+python plot_rtt.py
+```
+
+This script generates three PDF files under the working directory. `RTT1K.pdf` corresponds to Figure 6 (a), `RTT1M.pdf` corresponds to Figure 6 (a), and `RTT1G.pdf` corresponds to Figure 6 (c).
+
+You can download PDF files to your local machine using Ray cluster utils, for example:
+
+```bash
+ray rsync-down cluster.yaml /home/ubuntu/efs/hoplite/microbenchmarks/RTT1K.pdf .
+```
 
 
 ## Collective Communication Microbenchmarks (Figure 7 at Section 5.1, Figure 13 at Appendix A)
@@ -152,7 +170,7 @@ python draw_collective_communication.py
 
 This script generates two PDF files under the working directory. `microbenchmarks-large.pdf` corresponds to Figure 7 at Section 5.1, and `microbenchmarks-small.pdf` corresponds to Figure 13 at Appendix A.
 
-You can download the result PDF file to your local machine using Ray cluster utils, for example:
+You can download PDF files to your local machine using Ray cluster utils, for example:
 
 ```bash
 ray rsync-down cluster.yaml /home/ubuntu/efs/hoplite/microbenchmarks/microbenchmarks-large.pdf .
