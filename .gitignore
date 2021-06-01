@@ -58,3 +58,6 @@ python/*.cpp
 *.json
 cmake-build-debug/
 .idea/
+
+# generated plots
+*.pdf
