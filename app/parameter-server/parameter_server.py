@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import sys
 import time
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
 import numpy as np
-
 import ray
+import torch
 
-import ray.rllib.utils.hoplite as hoplite
-store_lib = hoplite.store_lib
+import hoplite
 
-from ps_helper import ConvNet, get_data_loader, evaluate, criterion
+from ps_helper import ConvNet
 
 
 ###########################################################################
@@ -37,8 +30,8 @@ from ps_helper import ConvNet, get_data_loader, evaluate, criterion
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class ParameterServer(object):
-    def __init__(self, args_dict, lr, model_type="custom"):
-        self.store = hoplite.utils.create_store_using_dict(args_dict)
+    def __init__(self, object_directory_address, lr, model_type="custom"):
+        self.store = hoplite.HopliteClient(object_directory_address)
         self.model = ConvNet(model_type)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
@@ -78,8 +71,8 @@ class ParameterServer(object):
 
 @ray.remote(num_gpus=1, resources={'machine': 1})
 class DataWorker(object):
-    def __init__(self, args_dict, model_type="custom", device="cpu"):
-        self.store = hoplite.utils.create_store_using_dict(args_dict)
+    def __init__(self, object_directory_address, model_type="custom", device="cpu"):
+        self.store = hoplite.HopliteClient(object_directory_address)
         self.device = device
         self.model = ConvNet(model_type).to(device)
 
@@ -107,18 +100,17 @@ parser.add_argument('-n', '--num-workers', type=int, required=True,
                     help='number of parameter server workers')
 parser.add_argument('-m', '--model', type=str, default="custom",
                     help='neural network model type')
-hoplite.utils.add_arguments(parser)
-
-hoplite.utils.start_location_server()
 args = parser.parse_args()
-args_dict = hoplite.utils.extract_dict_from_args(args)
+
+object_directory_address = hoplite.start_location_server()
 
 iterations = 50
 num_workers = args.num_workers
 
 ray.init(address='auto', ignore_reinit_error=True)
-ps = ParameterServer.remote(args_dict, 1e-2, model_type=args.model)
-workers = [DataWorker.remote(args_dict, model_type=args.model, device='cuda') for i in range(num_workers)]
+ps = ParameterServer.remote(object_directory_address, 1e-2, model_type=args.model)
+workers = [DataWorker.remote(
+    object_directory_address, model_type=args.model, device='cuda') for _ in range(num_workers)]
 
 # get initial weights
 current_weights = ps.get_parameter_id.remote()

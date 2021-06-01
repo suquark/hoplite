@@ -153,9 +153,8 @@ elif args.microbenchmark_name == 'roundtrip':
         raise ValueError("For the roundtrip microbenchmark, the world_size must be 2.")
 
 if rank == 0:
-    hoplite.start_location_server()
+    object_directory_address = hoplite.start_location_server()
     time.sleep(1)
-    object_directory_address = hoplite.get_my_address()
 else:
     object_directory_address = None
 

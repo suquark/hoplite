@@ -1,9 +1,6 @@
 export RAY_BACKEND_LOG_LEVEL=info
 mkdir -p ps-log/
 
-ROOT_DIR=$(dirname $(realpath -s $0))/../../
-source $ROOT_DIR/load_cluster_env.sh
-
 for n_nodes in 8 16; do
   for model in alexnet vgg16 resnet50; do
     echo "==========" async-ps-$n_nodes-$model-hoplite "=========="
