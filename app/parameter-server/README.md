@@ -6,7 +6,21 @@ _(About 30 min)_
 
 See [cluster-config](../ray_serve/cluster-config) for setting up a cluster to reproduce parameter server experiments in the paper.
 
-## Asynchronous Parameter Server Fault Tolerance Experiments (Figure 12b)
+## Asynchronous Parameter Server Experiments (Section 5.2, Figure 9)
+
+After logging in to the configured cluster, *chdir* to the current directory in the hoplite repo.
+
+In the current directory, run
+
+```bash
+./parameter-server/run_async_ps_tests.sh
+```
+
+After the script completes, results are saved under `ps-log`.
+
+**TODO: provide instructions for plotting figure 9.**
+
+## Asynchronous Parameter Server Fault Tolerance Experiments (Section 5.5, Figure 12b)
 
 After logging in to the configured cluster, *chdir* to the current directory in the hoplite repo.
 

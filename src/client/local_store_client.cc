@@ -38,7 +38,8 @@ Status LocalStoreClient::Seal(const ObjectID &object_id) {
   auto search = buffers_.find(object_id);
   DCHECK(search != buffers_.end()) << "Sealing an object that does not exist.";
   if (!search->second->IsFinished()) {
-    LOG(WARNING) << "Sealing an unfinished buffer.";
+    // TODO: See GitHub Issue #153. Disable it now.
+    LOG(DEBUG) << "Sealing an unfinished buffer.";
   }
   search->second->Seal();
   return Status::OK();

@@ -28,17 +28,13 @@ Let's first define some helper functions and import some dependencies.
 
 """
 import argparse
-import os
 import time
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 import numpy as np
-
-from ps_helper import ConvNet, get_data_loader, evaluate, criterion
-
 import ray
+import torch
+
+from ps_helper import ConvNet
 
 
 ###########################################################################
