@@ -36,7 +36,7 @@ class ParameterServer(object):
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
 
     def apply_gradients(self, *gradients):
-        reduced_gradient_id = self.store.reduce_async(gradients, hoplite.store_lib.ReduceOp.SUM)
+        reduced_gradient_id = self.store.reduce_async(gradients, hoplite.ReduceOp.SUM)
         grad_buffer = self.store.get(reduced_gradient_id)
         summed_gradients = self.model.buffer_to_tensors(grad_buffer)
         self.optimizer.zero_grad()
@@ -47,7 +47,7 @@ class ParameterServer(object):
     def get_parameter_id(self):
         new_parameters = [p.data.cpu().numpy() for p in self.model.parameters()]
         cont_p = np.concatenate([p.ravel().view(np.uint8) for p in new_parameters])
-        buffer = hoplite.store_lib.Buffer.from_buffer(cont_p)
+        buffer = hoplite.Buffer.from_buffer(cont_p)
         parameter_id = self.store.put(buffer)
         return parameter_id
 
@@ -88,7 +88,7 @@ class DataWorker(object):
         loss.backward()
         gradients = self.model.get_gradients()
         cont_g = np.concatenate([g.ravel().view(np.uint8) for g in gradients])
-        buffer = hoplite.store_lib.Buffer.from_buffer(cont_g)
+        buffer = hoplite.Buffer.from_buffer(cont_g)
         gradient_id = self.store.put(buffer, gradient_id)
         return gradient_id
 
@@ -123,7 +123,7 @@ if args.num_async is None:
     for i in range(iterations):
         gradients = []
         for worker in workers:
-            gradient_id = hoplite.utils.random_object_id()
+            gradient_id = hoplite.random_object_id()
             gradients.append(gradient_id)
             worker.compute_gradients.remote(current_weights, gradient_id)
         # Calculate update after all gradients are available.
