@@ -87,7 +87,7 @@ We assume your working directory is the directory of the current README file. He
 python plot_rtt.py
 ```
 
-This script generates three PDF files under the working directory. `RTT1K.pdf` corresponds to Figure 6 (a), `RTT1M.pdf` corresponds to Figure 6 (a), and `RTT1G.pdf` corresponds to Figure 6 (c).
+This script generates three PDF files under the working directory. `RTT1K.pdf` corresponds to Figure 6 (a), `RTT1M.pdf` corresponds to Figure 6 (b), and `RTT1G.pdf` corresponds to Figure 6 (c).
 
 You can download PDF files to your local machine using Ray cluster utils, for example:
 
