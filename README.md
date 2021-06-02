@@ -18,10 +18,4 @@ Please see [app/rllib/](app/rllib/) to reproduce the rllib experiments in the pa
 
 ## ML Model Serving Experiments (Section 5.4)
 
-Please see [app/ray_serve/](app/ray_serve) to reproduce the Ray serve experiments and the Ray serve fault tolerance experiments in the paper.
-
-## Other commands:
-
-### Lint
-
-`./format.sh`
+Please see [app/ray_serve/](app/ray_serve) to reproduce the Ray serve experiments and the Ray serve fault tolerance experiments (Section 5.5, Figure 12a) in the paper.
