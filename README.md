@@ -14,7 +14,7 @@ Please see [microbenchmarks/](microbenchmarks) to reproduce the microbenchmark e
 
 ## Asynchronous SGD (Section 5.2)
 
-Please see [app/parameter-server/](parameter-server) to reproduce the Asynchronous SGD experiments in the paper.
+Please see [app/parameter-server/](app/parameter-server) to reproduce the Asynchronous SGD experiments in the paper.
 
 ## Reinforcement Learning (Section 5.3)
 

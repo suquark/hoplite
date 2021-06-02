@@ -1,5 +1,7 @@
 # Reproducing Hoplite Parameter Server Experiments on AWS
 
+_(About 55 min)_
+
 ## Cluster Setup
 
 _(About 30 min)_
@@ -7,6 +9,8 @@ _(About 30 min)_
 See [cluster-config](../ray_serve/cluster-config) for setting up a cluster to reproduce parameter server experiments in the paper.
 
 ## Asynchronous Parameter Server Experiments (Section 5.2, Figure 9)
+
+_(About 15 min)_
 
 After logging in to the configured cluster, *chdir* to the current directory in the hoplite repo.
 
@@ -33,6 +37,8 @@ ray rsync-down cluster.yaml /home/ubuntu/efs/hoplite/app/parameter-server/async_
 ```
 
 ## Asynchronous Parameter Server Fault Tolerance Experiments (Section 5.5, Figure 12b)
+
+_(About 10 min)_
 
 After logging in to the configured cluster, *chdir* to the current directory in the hoplite repo.
 
