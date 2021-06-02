@@ -69,5 +69,7 @@ def draw_async_ps_results(n_nodes):
 
 
 if __name__ == '__main__':
+    plt.figure(0)
     draw_async_ps_results(16)
+    plt.figure(1)
     draw_async_ps_results(8)
