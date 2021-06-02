@@ -18,7 +18,19 @@ In the current directory, run
 
 After the script completes, results are saved under `ps-log`.
 
-**TODO: provide instructions for plotting figure 9.**
+To visualize the results, run
+
+```bash
+python plot_async_ps_results.py
+```
+
+This generates 2 PDF files: `async_training_8.pdf` corresponds to Figure 9(a), and `async_training_16.pdf` corresponds to Figure 9(b).
+
+You can download PDF files to your local machine using Ray cluster utils, for example:
+
+```bash
+ray rsync-down cluster.yaml /home/ubuntu/efs/hoplite/app/parameter-server/async_training_8.pdf .
+```
 
 ## Asynchronous Parameter Server Fault Tolerance Experiments (Section 5.5, Figure 12b)
 
