@@ -1,9 +1,29 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from .result_parser import parser_ray, parser_async_ps_hoplite
-
 MODELS = ['alexnet', 'vgg16', 'resnet50']
+
+
+def parse_ray(filename):
+    all_step_time = []
+    with open(filename, 'r') as f:
+        for line in f.readlines():
+            if f"step time:" in line:
+                all_step_time.append(float(line.split(f"step time:")[1]))
+    all_step_time = np.array(all_step_time[3:])
+    all_step_throughput = 1.0 / all_step_time
+    return np.mean(all_step_throughput), np.std(all_step_throughput)
+
+def parse_hoplite(filename):
+    all_step_time = []
+    with open(filename, 'r') as f:
+        for line in f.readlines():
+            if f"step time:" in line:
+                all_step_time.append(float(line.split(f"step time:")[1]))
+    all_step_time = np.array(all_step_time[6:])
+    all_step_throughput = 1.0 / all_step_time
+    all_step_throughput = (all_step_throughput[0::2] + all_step_throughput[1::2]) / 2
+    return np.mean(all_step_throughput), np.std(all_step_throughput)
 
 
 def parse_data(n_nodes):
@@ -12,10 +32,10 @@ def parse_data(n_nodes):
     hoplite_mean = []
     hoplite_std = []
     for model in MODELS:
-        mean, std = parser_ray(f"ps-log/async-ps-{n_nodes}-{model}-ray.log")
+        mean, std = parse_ray(f"ps-log/async-ps-{n_nodes}-{model}-ray.log")
         ray_mean.append(mean)
         ray_std.append(std)
-        mean, std = parser_async_ps_hoplite(f"ps-log/async-ps-{n_nodes}-{model}-hoplite.log")
+        mean, std = parse_hoplite(f"ps-log/async-ps-{n_nodes}-{model}-hoplite.log")
         hoplite_mean.append(mean)
         hoplite_std.append(std)
     return ray_mean, ray_std, hoplite_mean, hoplite_std
