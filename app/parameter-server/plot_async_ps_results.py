@@ -2,26 +2,31 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 MODELS = ['alexnet', 'vgg16', 'resnet50']
-BATCH_SIZE = 128
+BATCH_SIZE_PER_CLIENT = 128
 
-def parse_ray(filename):
+# async batch size of clients = (#nodes - 1) // 2
+
+def parse_ray(filename, n_nodes):
+    batch_size_client = (n_nodes - 1) // 2
     all_step_time = []
     with open(filename, 'r') as f:
         for line in f.readlines():
             if f"step time:" in line:
                 all_step_time.append(float(line.split(f"step time:")[1]))
     all_step_time = np.array(all_step_time[3:])
-    all_step_throughput = BATCH_SIZE / all_step_time
+    all_step_throughput = BATCH_SIZE_PER_CLIENT * batch_size_client / all_step_time
     return np.mean(all_step_throughput), np.std(all_step_throughput)
 
-def parse_hoplite(filename):
+
+def parse_hoplite(filename, n_nodes):
+    batch_size_client = (n_nodes - 1) // 2
     all_step_time = []
     with open(filename, 'r') as f:
         for line in f.readlines():
             if f"step time:" in line:
                 all_step_time.append(float(line.split(f"step time:")[1]))
     all_step_time = np.array(all_step_time[6:])
-    all_step_throughput = BATCH_SIZE / all_step_time
+    all_step_throughput = BATCH_SIZE_PER_CLIENT * batch_size_client / all_step_time
     all_step_throughput = (all_step_throughput[0::2] + all_step_throughput[1::2]) / 2
     return np.mean(all_step_throughput), np.std(all_step_throughput)
 
