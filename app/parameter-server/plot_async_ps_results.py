@@ -37,10 +37,10 @@ def parse_data(n_nodes):
     hoplite_mean = []
     hoplite_std = []
     for model in MODELS:
-        mean, std = parse_ray(f"ps-log/async-ps-{n_nodes}-{model}-ray.log")
+        mean, std = parse_ray(f"ps-log/async-ps-{n_nodes}-{model}-ray.log", n_nodes)
         ray_mean.append(mean)
         ray_std.append(std)
-        mean, std = parse_hoplite(f"ps-log/async-ps-{n_nodes}-{model}-hoplite.log")
+        mean, std = parse_hoplite(f"ps-log/async-ps-{n_nodes}-{model}-hoplite.log", n_nodes)
         hoplite_mean.append(mean)
         hoplite_std.append(std)
     return ray_mean, ray_std, hoplite_mean, hoplite_std
