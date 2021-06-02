@@ -12,16 +12,14 @@ For every experiment, we include detailed instruction for setting up a cluster a
 
 Please see [microbenchmarks/](microbenchmarks) to reproduce the microbenchmark experiments in the paper.
 
+## Asynchronous SGD (Section 5.2)
+
+Please see [app/parameter-server/](parameter-server) to reproduce the Asynchronous SGD experiments in the paper.
+
 ## Reinforcement Learning (Section 5.3)
 
 Please see [app/rllib/](app/rllib/) to reproduce the rllib experiments in the paper.
 
 ## ML Model Serving Experiments (Section 5.4)
 
-Please see [app/ray_serve/](app/ray_serve) to reproduce the Ray serve experiments and the Ray serve fault tolerance experiments in the paper.
-
-## Other commands:
-
-### Lint
-
-`./format.sh`
+Please see [app/ray_serve/](app/ray_serve) to reproduce the Ray serve experiments and the Ray serve fault tolerance experiments (Section 5.5, Figure 12a) in the paper.
