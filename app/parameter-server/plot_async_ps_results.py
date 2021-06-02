@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 MODELS = ['alexnet', 'vgg16', 'resnet50']
-
+BATCH_SIZE = 128
 
 def parse_ray(filename):
     all_step_time = []
@@ -11,7 +11,7 @@ def parse_ray(filename):
             if f"step time:" in line:
                 all_step_time.append(float(line.split(f"step time:")[1]))
     all_step_time = np.array(all_step_time[3:])
-    all_step_throughput = 1.0 / all_step_time
+    all_step_throughput = BATCH_SIZE / all_step_time
     return np.mean(all_step_throughput), np.std(all_step_throughput)
 
 def parse_hoplite(filename):
@@ -21,7 +21,7 @@ def parse_hoplite(filename):
             if f"step time:" in line:
                 all_step_time.append(float(line.split(f"step time:")[1]))
     all_step_time = np.array(all_step_time[6:])
-    all_step_throughput = 1.0 / all_step_time
+    all_step_throughput = BATCH_SIZE / all_step_time
     all_step_throughput = (all_step_throughput[0::2] + all_step_throughput[1::2]) / 2
     return np.mean(all_step_throughput), np.std(all_step_throughput)
 
