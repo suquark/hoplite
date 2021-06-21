@@ -19,7 +19,7 @@ ray up example.yaml
 ray attach example.yaml
 ~~~
 
-Visit the directory with pre-built binaries via `cd ~/efs/hoplite-with-results/`
+Visit the directory with pre-built binaries and results via `cd ~/efs/hoplite-with-results/`
 
 Remember to take down the cluster using `ray down example.yaml` on the local machine after evaluation.
 
