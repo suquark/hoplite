@@ -6,7 +6,11 @@ _(About 30 min)_
 
 _(About 15 min)_
 
-See [cluster-config](cluster-config).
+If you are provided with an AWS IAM account & pre-built binaries
+* If you just want to review figures & raw experimental data, see [cluster-config-access-results-only](cluster-config-access-results-only).
+* If you also want to reproduce all results from the beginning, see [cluster-config-with-ami](cluster-config-with-ami) for setting up a cluster.
+
+If you are not provided with an AWS account or you want to build everything from scratch, see [cluster-config](cluster-config).
 
 ## ML model serving experiments (Figure 11)
 
