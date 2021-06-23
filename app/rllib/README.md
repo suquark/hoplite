@@ -101,8 +101,8 @@ You should have sshed into an AWS instance now, the following commands are execu
    ~~~
 6. After all experiments finished, we can get the results via:
    ~~~bash
-   python a3c_generate_config.py
-   python impala_generate_config.py
+   python a3c_parse_log.py
+   python impala_parse_log.py
    ~~~
    The results will be in the format of:
    ~~~
