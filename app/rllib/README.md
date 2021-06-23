@@ -1,5 +1,7 @@
 # Reproducing RLLib experiments in Hoplite on AWS.
 
+If you already have access to the cluster and AMI, see [README-with-ami](README-with-ami.md) instead.
+
 ## Setup Local Environment _(About 5 min)_
 
  First, on your local machine:
