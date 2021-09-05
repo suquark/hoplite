@@ -6,6 +6,7 @@
 #include <util/socket_utils.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "common/config.h"
 #include "object_sender.h"

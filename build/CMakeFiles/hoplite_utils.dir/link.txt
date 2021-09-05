@@ -1,0 +1,2 @@
+/usr/bin/ar qc libhoplite_utils.a  CMakeFiles/hoplite_utils.dir/src/util/hash.cc.o CMakeFiles/hoplite_utils.dir/src/util/logging.cc.o CMakeFiles/hoplite_utils.dir/src/util/socket_utils.cc.o
+/usr/bin/ranlib libhoplite_utils.a
