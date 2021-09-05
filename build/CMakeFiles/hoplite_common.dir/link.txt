@@ -1,2 +1,0 @@
-/usr/bin/ar qc libhoplite_common.a  CMakeFiles/hoplite_common.dir/src/common/buffer.cc.o CMakeFiles/hoplite_common.dir/src/common/id.cc.o CMakeFiles/hoplite_common.dir/src/common/status.cc.o
-/usr/bin/ranlib libhoplite_common.a

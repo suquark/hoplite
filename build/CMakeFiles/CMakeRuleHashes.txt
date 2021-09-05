@@ -1,3 +1,0 @@
-# Hashes of file build rules.
-55792f2ecefe9bf9bb5304d3fbc29762 object_store.grpc.pb.cc
-ef64c655da8b962f6d31016f05de7b49 object_store.pb.h
